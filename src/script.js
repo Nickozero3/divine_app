@@ -458,7 +458,11 @@ async function pinPress(val) {
       closeModal('modal-pin');
       pinClear();
 
+      cart = {};
+      renderCart();
+
       await renderKioskito();
+      await renderSalesHistory();
     } catch (error) {
       showError(error);
       pinClear();

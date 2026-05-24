@@ -738,7 +738,9 @@ try {
                     );
                 }
             // Reset original
-            $pdo->beginTransaction();
+           $pdo->beginTransaction();
+
+            $pdo->exec('DELETE FROM kiosko_sales');
 
             $pdo->exec('DELETE FROM products WHERE custom = 1');
             $pdo->exec('UPDATE products SET qty = 0 WHERE custom = 0');
