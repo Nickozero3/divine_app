@@ -23,6 +23,10 @@ RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 WORKDIR /var/www/html
 
+COPY src/ /var/www/html/
+
+RUN chown -R www-data:www-data /var/www/html
+
 EXPOSE 80
 
 CMD ["apachectl", "-D", "FOREGROUND"]
