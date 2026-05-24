@@ -23,7 +23,11 @@ RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 WORKDIR /var/www/html
 
+RUN rm -f /var/www/html/index.html
+
 COPY src/ /var/www/html/
+
+RUN echo "DirectoryIndex index.php index.html" > /etc/apache2/mods-enabled/dir.conf
 
 RUN chown -R www-data:www-data /var/www/html
 
