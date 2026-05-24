@@ -100,6 +100,13 @@ function toggleEditProducts() {
   renderKioskito();
 }
 
+let collapsedProductCats = {};
+
+function toggleProductCat(cat) {
+  collapsedProductCats[cat] = !collapsedProductCats[cat];
+  renderKioskito();
+}
+
 async function renderKioskito() {
   const wrap = document.getElementById('k-categories');
   if (!wrap) return;
@@ -122,37 +129,73 @@ async function renderKioskito() {
 
     if (!Object.keys(grouped).length) {
       wrap.innerHTML = `
-        <div class="section">
-          <div style="padding:18px 4px;color:var(--text2);">
+        <div class="list-card">
+          <div style="padding:18px;color:var(--text2);">
             No hay productos cargados.
           </div>
         </div>
       `;
+
       renderCart();
       return;
     }
 
-    wrap.innerHTML = Object.keys(grouped).map(cat => `
-      <div class="section">
-        <div class="section-title">${esc(cat)}</div>
+    wrap.innerHTML = Object.keys(grouped).map(cat => {
 
-        <div class="product-grid">
-          ${grouped[cat].map(p => `
-            <div class="pos-product-card" onclick="addToCart(${Number(p.id)})">
-              ${editProductsMode ? `
-                <button class="btn-edit-product" onclick="event.stopPropagation(); openEditProduct(${Number(p.id)})">
-                  ✎
-                </button>
-              ` : ''}
+      const collapsed = !!collapsedProductCats[cat];
 
-              <div class="pos-product-name">${esc(p.name)}</div>
-              <div class="pos-product-price">${fmt(p.price)}</div>
-              ${p.sub ? `<div class="product-sub">${esc(p.sub)}</div>` : ''}
-            </div>
-          `).join('')}
+      return `
+        <div class="section ${collapsed ? 'collapsed-products' : ''}">
+
+          <div
+            class="section-title"
+            onclick="toggleProductCat('${esc(cat)}')"
+          >
+            <span>${esc(cat)}</span>
+
+            <span class="section-toggle">
+              ${collapsed ? '▸' : '▾'}
+            </span>
+          </div>
+
+          <div class="product-grid">
+
+            ${grouped[cat].map(p => `
+              <div
+                class="pos-product-card"
+                onclick="addToCart(${Number(p.id)})"
+              >
+
+                ${editProductsMode ? `
+                  <button
+                    class="btn-edit-product"
+                    onclick="event.stopPropagation(); openEditProduct(${Number(p.id)})"
+                  >
+                    ✎
+                  </button>
+                ` : ''}
+
+                <div class="pos-product-name">
+                  ${esc(p.name)}
+                </div>
+
+                <div class="pos-product-price">
+                  ${fmt(p.price)}
+                </div>
+
+                ${p.sub
+                  ? `<div class="product-sub">${esc(p.sub)}</div>`
+                  : ''
+                }
+
+              </div>
+            `).join('')}
+
+          </div>
+
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     renderCart();
 
@@ -160,8 +203,17 @@ async function renderKioskito() {
     showError(error);
   }
 }
+
 function addToCart(id) {
   cart[id] = (cart[id] || 0) + 1;
+
+  const card = event.currentTarget;
+  if (card) {
+    card.classList.remove('wave-active');
+    void card.offsetWidth;
+    card.classList.add('wave-active');
+  }
+
   renderCart();
 }
 
@@ -390,6 +442,7 @@ async function deleteProduct(id) {
     showError(error);
   }
 }
+
 /* =========================
    PIN RESET
 ========================= */

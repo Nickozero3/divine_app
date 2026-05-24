@@ -6,6 +6,7 @@ services:
       - "8080:80"
     volumes:
       - ./src:/var/www/html
+      - ./db:/var/www/db
     env_file:
       - .env
     depends_on:

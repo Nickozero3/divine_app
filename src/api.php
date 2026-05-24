@@ -652,98 +652,16 @@ try {
             $pin = (string) ($input['pin'] ?? '');
 
             if ($pin !== '1234') {
-                fail('PIN incorrecto.', 403);
+                fail('PIN incorrecto.');
             }
 
-            // Obtener productos vendidos antes del reset
-            $stmtProducts = $pdo->query("
-                SELECT name, qty, price
-                FROM products
-                WHERE qty > 0
-                ORDER BY id ASC
-            ");
+            $pdo->beginTransaction();
 
-            $productsLog = $stmtProducts->fetchAll(PDO::FETCH_ASSOC);
-
-            // Crear texto del log
-            $fecha = date('Y-m-d H:i:s');
-
-            $logText = "=== RESET $fecha ===\n";
-
-            $totalGeneral = 0;
-
-            foreach ($productsLog as $p) {
-
-                $qty = (int)$p['qty'];
-                $price = (int)$p['price'];
-                $total = $qty * $price;
-
-                $totalGeneral += $total;
-
-                $logText .=
-                    $p['name'] .
-                    " | qty=" . $qty .
-                    " | price=" . $price .
-                    " | total=" . $total .
-                    "\n";
-            }
-
-            $logText .= "TOTAL GENERAL = $totalGeneral\n\n";
-
-            file_put_contents(
-                __DIR__ . '/logs_kioskito.txt',
-                $logText,
-                FILE_APPEND
-            );
-
-
-            // Obtener guardarropas pendientes
-            $stmtGuardarropas = $pdo->query("
-                SELECT
-                    id,
-                    codigo,
-                    numero,
-                    nombre,
-                    dni,
-                    telefono,
-                    precio,
-                    hora_ingreso
-                FROM guardarropas
-                WHERE estado = 'pendiente'
-                ORDER BY id ASC
-            ");
-
-            $guardarropasPendientes = $stmtGuardarropas->fetchAll(PDO::FETCH_ASSOC);
-
-                // Loguear cada uno
-                foreach ($guardarropasPendientes as $gr) {
-
-                    app_log(
-                        $pdo,
-                        (int) $user['id'],
-                        (string) ($user['username'] ?? ''),
-                        'guardarropas_pendiente_reset',
-                        'guardarropas',
-                        (int)$gr['id'],
-                        'Guardarropas pendiente al cerrar caja',
-                        [
-                            'codigo' => $gr['codigo'],
-                            'numero' => (int)$gr['numero'],
-                            'nombre' => $gr['nombre'],
-                            'dni' => $gr['dni'],
-                            'telefono' => $gr['telefono'],
-                            'precio' => (int)$gr['precio'],
-                            'hora_ingreso' => $gr['hora_ingreso'],
-                        ]
-                    );
-                }
-            // Reset original
-           $pdo->beginTransaction();
-
+            // Borra historial de ventas
             $pdo->exec('DELETE FROM kiosko_sales');
 
-            $pdo->exec('DELETE FROM products WHERE custom = 1');
-            $pdo->exec('UPDATE products SET qty = 0 WHERE custom = 0');
+            // Reinicia cantidades, pero conserva TODOS los productos
+            $pdo->exec('UPDATE products SET qty = 0');
 
             $pdo->commit();
 
