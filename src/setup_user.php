@@ -1,58 +1,87 @@
 <?php
+
+declare(strict_types=1);
+
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/config/conexion.php';
 
-$users = [
-    ['username' => 'Camila',  'display_name' => 'Camila',  'password' => 'camila123',  'role' => 'admin'],
-    ['username' => 'Nicolas', 'display_name' => 'Nicolas', 'password' => 'nicolas123', 'role' => 'admin'],
-    ['username' => 'Lopez',   'display_name' => 'Lopez',   'password' => 'lopez123',   'role' => 'admin'],
-    ['username' => 'Publica', 'display_name' => 'Publica', 'password' => 'publica123', 'role' => 'usuario'],
-];
+try {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(80) NOT NULL UNIQUE,
+            display_name VARCHAR(120) NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            role VARCHAR(30) NOT NULL DEFAULT 'usuario',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    ");
 
-$sql = "
-    INSERT INTO users (username, display_name, password_hash, role)
-    VALUES (:username, :display_name, :password_hash, :role)
-    ON DUPLICATE KEY UPDATE
-        display_name = VALUES(display_name),
-        password_hash = VALUES(password_hash),
-        role = VALUES(role)
-";
+    $users = [
+        ['username' => 'camila',  'display_name' => 'Camila',  'password' => 'camila123',  'role' => 'admin'],
+        ['username' => 'nicolas', 'display_name' => 'Nicolas', 'password' => 'nicolas123', 'role' => 'admin'],
+        ['username' => 'lopez',   'display_name' => 'Lopez',   'password' => 'lopez123',   'role' => 'admin'],
+        ['username' => 'publica', 'display_name' => 'Publica', 'password' => 'publica123', 'role' => 'usuario'],
+    ];
 
-$stmt = $pdo->prepare($sql);
+    $stmtCheck = $pdo->prepare("SELECT id FROM users WHERE username = :username LIMIT 1");
 
-foreach ($users as $user) {
-    $stmt->execute([
-        ':username' => $user['username'],
-        ':display_name' => $user['display_name'],
-        ':password_hash' => password_hash($user['password'], PASSWORD_DEFAULT),
-        ':role' => $user['role'],
-    ]);
+    $stmtInsert = $pdo->prepare("
+        INSERT INTO users (username, display_name, password_hash, role)
+        VALUES (:username, :display_name, :password_hash, :role)
+    ");
+
+    $stmtUpdate = $pdo->prepare("
+        UPDATE users
+        SET display_name = :display_name,
+            password_hash = :password_hash,
+            role = :role
+        WHERE username = :username
+    ");
+
+    foreach ($users as $user) {
+        $hash = password_hash($user['password'], PASSWORD_DEFAULT);
+
+        $stmtCheck->execute([
+            ':username' => $user['username']
+        ]);
+
+        $exists = $stmtCheck->fetchColumn();
+
+        if ($exists) {
+            $stmtUpdate->execute([
+                ':username' => $user['username'],
+                ':display_name' => $user['display_name'],
+                ':password_hash' => $hash,
+                ':role' => $user['role'],
+            ]);
+        } else {
+            $stmtInsert->execute([
+                ':username' => $user['username'],
+                ':display_name' => $user['display_name'],
+                ':password_hash' => $hash,
+                ':role' => $user['role'],
+            ]);
+        }
+    }
+
+    echo "<h1>Usuarios creados correctamente</h1>";
+    echo "<ul>";
+    echo "<li>camila / camila123</li>";
+    echo "<li>nicolas / nicolas123</li>";
+    echo "<li>lopez / lopez123</li>";
+    echo "<li>publica / publica123</li>";
+    echo "</ul>";
+    echo "<p><a href='login.php'>Ir al login</a></p>";
+
+} catch (Throwable $e) {
+    http_response_code(500);
+
+    echo "<h1>Error en setup_user.php</h1>";
+    echo "<pre>";
+    echo htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
+    echo "</pre>";
 }
-?>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Usuarios creados</title>
-    <style>
-        body{font-family:Arial,sans-serif;background:#f8f4ea;margin:0;min-height:100vh;display:grid;place-items:center;color:#111}
-        .box{background:#fff;border-radius:20px;padding:26px;box-shadow:0 18px 50px rgba(0,0,0,.12);max-width:520px;width:92vw}
-        code{background:#f1f1f1;border-radius:8px;padding:2px 6px}
-        li{margin:8px 0}
-        a{color:#111;font-weight:bold}
-    </style>
-</head>
-<body>
-<div class="box">
-    <h1>Usuarios creados correctamente</h1>
-    <ul>
-        <li>Camila / <code>camila123</code> — admin</li>
-        <li>Nicolas / <code>nicolas123</code> — admin</li>
-        <li>Lopez / <code>lopez123</code> — admin</li>
-        <li>Publica / <code>publica123</code> — usuario</li>
-    </ul>
-    <p>Después de confirmar que funciona, borrá <code>setup_user.php</code> o no lo subas público.</p>
-    <p><a href="login.php">Ir al login</a></p>
-</div>
-</body>
-</html>
