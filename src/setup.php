@@ -14,16 +14,16 @@ try {
     =========================
     */
 
-    $initPath = __DIR__ . '/db/init.sql';
+    $initPath = __DIR__ . '/../db/init.sql';
 
-    if (!file_exists($initPath)) {
-        throw new RuntimeException('No se encontró el archivo init.sql en la carpeta src.');
+   if (!file_exists($initPath)) {
+    throw new RuntimeException('No se encontró init.sql en: ' . $initPath);
     }
 
     $sql = file_get_contents($initPath);
 
     if ($sql === false || trim($sql) === '') {
-        throw new RuntimeException('El archivo init.sql está vacío o no se pudo leer.');
+        throw new RuntimeException('init.sql está vacío o no se pudo leer.');
     }
 
     $pdo->exec($sql);

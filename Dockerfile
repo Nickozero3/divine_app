@@ -25,6 +25,7 @@ WORKDIR /var/www/html
 
 RUN rm -f /var/www/html/index.html
 
+COPY db/ /var/www/db/
 COPY src/ /var/www/html/
 
 RUN echo "DirectoryIndex index.php index.html" > /etc/apache2/mods-enabled/dir.conf
