@@ -14,7 +14,7 @@ try {
     =========================
     */
 
-    $initPath = __DIR__ . '/init.sql';
+    $initPath = __DIR__ . '/db/init.sql';
 
     if (!file_exists($initPath)) {
         throw new RuntimeException('No se encontró el archivo init.sql en la carpeta src.');
