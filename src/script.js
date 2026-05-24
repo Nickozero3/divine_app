@@ -1063,10 +1063,10 @@ function instalarGuardarropas() {
   const kioskitoPage = document.getElementById("page-kioskito");
   if (!kioskitoPage) return;
 
-  const totalBar = kioskitoPage.querySelector(".total-bar");
-  if (!totalBar) return;
-
   if (document.getElementById("guardarropas-box")) return;
+
+  const salesHistory = document.getElementById("sales-history");
+  if (!salesHistory) return;
 
   const box = document.createElement("div");
   box.id = "guardarropas-box";
@@ -1102,7 +1102,10 @@ function instalarGuardarropas() {
     </div>
   `;
 
-  totalBar.insertAdjacentElement("afterend", box);
+  const wrap = document.querySelector(".page-kioskito-wrap");
+  if (!wrap) return;
+
+  wrap.insertAdjacentElement("afterbegin", box);
   renderGuardarropas();
 }
 
