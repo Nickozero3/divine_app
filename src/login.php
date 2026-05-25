@@ -1,4 +1,6 @@
 <?php
+// incluir const
+include __DIR__ . '/const.php';
 session_start();
 
 if (isset($_SESSION['user'])) {
@@ -48,17 +50,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $error = 'Usuario o contraseña incorrectos';
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Login Divine App</title>
+    <title>Login <?= APP_NAME ?> App</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="login.css">
 </head>
 <body>
 <form class="login-box" method="POST">
-    <h1>DIVINE APP</h1>
+    <h1><?= APP_NAME ?> APP</h1>
     <div class="sub">Iniciar sesión</div>
 
     <?php if ($error): ?>

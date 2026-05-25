@@ -35,6 +35,7 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 .admin-name{font-weight:800;color:var(--text)}
 .admin-sub{font-size:12px;color:var(--text2);margin-top:4px}
 .qr-img{width:120px;height:120px;background:white;border-radius:10px;padding:6px;margin-top:10px}
+.live-dot{font-size:12px;color:var(--green);margin-left:8px}
 @media(max-width:650px){.admin-grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -42,7 +43,9 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 <body>
 
 <div class="topbar">
-  <div class="topbar-title" onclick="goTo('menu')" >Panel Admin</div>
+  <div class="topbar-title">
+    Panel Admin <span class="live-dot" id="live-status">● live</span>
+  </div>
   <button class="topbar-back" onclick="location.href='index.php'">← App</button>
 </div>
 
@@ -52,7 +55,7 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 
   <div class="admin-actions">
     <a class="admin-btn" href="scanner.php">Escanear QR</a>
-    <button class="admin-btn" onclick="renderAdmin()">Actualizar</button>
+    <button class="admin-btn" onclick="manualRefreshAdmin()">Actualizar</button>
   </div>
 
   <div class="admin-grid">
@@ -95,6 +98,10 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 </div>
 
 <script>
+let adminLiveTimer = null;
+let adminIsLoading = false;
+let adminLastInteraction = 0;
+
 async function api(action, data = null) {
   const options = { credentials: 'same-origin' };
 
@@ -127,12 +134,26 @@ function fmt(n) {
   return '$' + Number(n || 0).toLocaleString('es-AR');
 }
 
+function markAdminInteraction() {
+  adminLastInteraction = Date.now();
+}
+
 function qrUrl(token) {
   const link = `${location.origin}/qr.php?token=${encodeURIComponent(token)}`;
   return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(link)}`;
 }
 
-async function renderAdmin() {
+async function renderAdmin(silent = false) {
+  if (adminIsLoading) return;
+
+  adminIsLoading = true;
+
+  const liveStatus = document.getElementById('live-status');
+  if (liveStatus && !silent) {
+    liveStatus.textContent = '● actualizando';
+    liveStatus.style.color = 'var(--gold-2)';
+  }
+
   try {
     const [salesData, doorData, guardarData, qrData] = await Promise.all([
       api('sales_history'),
@@ -174,8 +195,20 @@ async function renderAdmin() {
     renderTopProducts(sales);
     renderQRPeople(peopleQR);
 
+    if (liveStatus) {
+      liveStatus.textContent = '● live';
+      liveStatus.style.color = 'var(--green)';
+    }
+
   } catch (error) {
-    alert(error.message);
+    if (!silent) alert(error.message);
+
+    if (liveStatus) {
+      liveStatus.textContent = '● error';
+      liveStatus.style.color = 'var(--red)';
+    }
+  } finally {
+    adminIsLoading = false;
   }
 }
 
@@ -227,11 +260,7 @@ function renderTopProducts(sales) {
     items.forEach(item => {
       const name = item.name || 'Producto';
       if (!map[name]) {
-        map[name] = {
-          name,
-          qty: 0,
-          total: 0
-        };
+        map[name] = { name, qty: 0, total: 0 };
       }
 
       map[name].qty += Number(item.qty || 0);
@@ -293,16 +322,16 @@ function renderQRPeople(people) {
       ` : ''}
 
       <div class="admin-actions" style="margin-top:10px;">
-        <button class="admin-btn" onclick="generateQR(${Number(p.id)})">
+        <button class="admin-btn" onclick="markAdminInteraction(); generateQR(${Number(p.id)})">
           ${p.qr_token ? 'Regenerar QR' : 'Generar QR'}
         </button>
 
         ${p.qr_token ? `
-          <button class="admin-btn" onclick="copyQR('${esc(p.qr_token)}')">
+          <button class="admin-btn" onclick="markAdminInteraction(); copyQR('${esc(p.qr_token)}')">
             Copiar link
           </button>
 
-          <button class="admin-btn red" onclick="disableQR(${Number(p.id)})">
+          <button class="admin-btn red" onclick="markAdminInteraction(); disableQR(${Number(p.id)})">
             Desactivar
           </button>
         ` : ''}
@@ -313,13 +342,13 @@ function renderQRPeople(people) {
 
 async function generateQR(personId) {
   await api('qr_generate', { personId });
-  renderAdmin();
+  await renderAdmin();
 }
 
 async function disableQR(personId) {
   if (!confirm('¿Desactivar este QR?')) return;
   await api('qr_disable', { personId });
-  renderAdmin();
+  await renderAdmin();
 }
 
 async function copyQR(token) {
@@ -328,7 +357,30 @@ async function copyQR(token) {
   alert('Link copiado');
 }
 
-renderAdmin();
+async function manualRefreshAdmin() {
+  markAdminInteraction();
+  await renderAdmin();
+}
+
+function startLiveAdmin() {
+  if (adminLiveTimer) {
+    clearInterval(adminLiveTimer);
+  }
+
+  adminLiveTimer = setInterval(async () => {
+    const recentlyInteracted = Date.now() - adminLastInteraction < 2500;
+    const typing = document.activeElement?.matches('input, textarea, select');
+
+    if (recentlyInteracted || typing || adminIsLoading) return;
+
+    await renderAdmin(true);
+  }, 3000);
+}
+
+window.addEventListener('load', async () => {
+  await renderAdmin();
+  startLiveAdmin();
+});
 </script>
 
 </body>
