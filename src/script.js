@@ -555,6 +555,7 @@ document.addEventListener('keydown', (e) => {
 const PERSON_PRICE = 500;
 const BIRTHDAY_PERSON_PRICE = 1000;
 let doorLists = [];
+let openQuickAddListId = null;
 let collapsedDoorLists = {};
 let lastChangedPersonId = null;
 
@@ -705,7 +706,7 @@ function drawPuerta() {
         </div>
 
         ${canEditThisList ? `
-          <div class="quick-add-panel hidden" data-list-id="${Number(list.id)}">
+          <div class="quick-add-panel ${openQuickAddListId === Number(list.id) ? '' : 'hidden'}" data-list-id="${Number(list.id)}">
             <div style="padding:12px 14px;border-top:1px solid rgba(240,212,141,.08);display:flex;gap:8px;">
               <button class="btn-action quick-tab active" data-mode="manual" onclick="setQuickAddMode(${Number(list.id)}, 'manual')">Manual</button>
               <button class="btn-action quick-tab" data-mode="bulk" onclick="setQuickAddMode(${Number(list.id)}, 'bulk')">Pegar lista</button>
@@ -730,6 +731,7 @@ function drawPuerta() {
     `;
   }).join('');
 }
+
 function parseBulkText(rawText) {
   const lines = String(rawText || '').trim().split(/\r?\n/);
   const people = [];
@@ -777,6 +779,7 @@ async function procesarListaPorLista(listId) {
     const data = await api('people_bulk', { listId, people: parsed.people });
     textarea.value = '';
     await renderPuerta();
+    openQuickAddListId = null;  
 
     const ignoredTotal = Number(parsed.ignored || 0) + Number(data.ignored || 0);
     if (ignoredTotal > 0 || Number(data.repeated || 0) > 0) {
@@ -793,15 +796,23 @@ function toggleCollapseList(listId) {
 }
 
 function toggleQuickAdd(listId) {
-  const panel = document.querySelector(`.quick-add-panel[data-list-id="${listId}"]`);
-  if (!panel) return;
+  listId = Number(listId);
 
-  panel.classList.toggle('hidden');
+  if (openQuickAddListId === listId) {
+    openQuickAddListId = null;
+  } else {
+    openQuickAddListId = listId;
+  }
 
-  if (!panel.classList.contains('hidden')) {
+  drawPuerta();
+
+  if (openQuickAddListId === listId) {
     setQuickAddMode(listId, 'manual');
+
     const nameInput = document.getElementById('person-name-' + listId);
-    if (nameInput) setTimeout(() => nameInput.focus(), 80);
+    if (nameInput) {
+      setTimeout(() => nameInput.focus(), 80);
+    }
   }
 }
 
@@ -947,7 +958,7 @@ function startLiveApp() {
     const estaEscribiendo = document.activeElement?.matches("input, textarea, select");
     const modalAbierto = !!document.querySelector(".modal-overlay.open");
 
-    const panelQuickAbierto = !!document.querySelector(".quick-add-panel:not(.hidden)");
+    const panelQuickAbierto = openQuickAddListId !== null || !!document.querySelector(".quick-add-panel:not(.hidden)");
     const pegandoLista = !!document.querySelector(".bulk-input:focus");
 
     if (
