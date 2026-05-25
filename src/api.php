@@ -893,6 +893,113 @@ try {
 
             ok();
         }
+        case 'qr_check': {
+            require_admin($user);
+
+            $token = trim((string) ($input['token'] ?? ''));
+
+            if ($token === '') {
+                fail('Token vacío.');
+            }
+
+            $stmt = $pdo->prepare("
+                SELECT 
+                    dp.id,
+                    dp.name,
+                    dp.note,
+                    dp.status,
+                    dp.qr_enabled,
+                    dp.qr_used_at,
+                    dl.name AS list_name
+                FROM door_people dp
+                INNER JOIN door_lists dl ON dl.id = dp.list_id
+                WHERE dp.qr_token = :token
+                LIMIT 1
+            ");
+
+            $stmt->execute([
+                ':token' => $token
+            ]);
+
+            $person = $stmt->fetch();
+
+            if (!$person) {
+                fail('QR no encontrado.');
+            }
+
+            if ((int) $person['qr_enabled'] !== 1) {
+                fail('QR desactivado.');
+            }
+
+            if (!empty($person['qr_used_at'])) {
+                fail('QR ya utilizado.');
+            }
+
+            ok([
+                'person' => $person
+            ]);
+        }
+
+        case 'qr_confirm': {
+            require_admin($user);
+
+            $token = trim((string) ($input['token'] ?? ''));
+
+            if ($token === '') {
+                fail('Token vacío.');
+            }
+
+            $stmt = $pdo->prepare("
+                SELECT 
+                    dp.id,
+                    dp.name,
+                    dp.note,
+                    dp.status,
+                    dp.qr_enabled,
+                    dp.qr_used_at,
+                    dl.name AS list_name
+                FROM door_people dp
+                INNER JOIN door_lists dl ON dl.id = dp.list_id
+                WHERE dp.qr_token = :token
+                LIMIT 1
+            ");
+
+            $stmt->execute([
+                ':token' => $token
+            ]);
+
+            $person = $stmt->fetch();
+
+            if (!$person) {
+                fail('QR no encontrado.');
+            }
+
+            if ((int) $person['qr_enabled'] !== 1) {
+                fail('QR desactivado.');
+            }
+
+            if (!empty($person['qr_used_at'])) {
+                fail('QR ya utilizado.');
+            }
+
+            $stmt = $pdo->prepare("
+                UPDATE door_people
+                SET status = 'entro',
+                    qr_used_at = NOW()
+                WHERE id = :id
+            ");
+
+            $stmt->execute([
+                ':id' => (int) $person['id']
+            ]);
+
+            $person['status'] = 'entro';
+            $person['qr_used_at'] = date('Y-m-d H:i:s');
+
+            ok([
+                'person' => $person
+            ]);
+        }
 
         // Endpoint default en caso de no entrar en ningún case
         default:
