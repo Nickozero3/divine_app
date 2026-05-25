@@ -77,10 +77,6 @@ function goTo(page) {
   }, 100);
   }
 
-  if (page === "usuarios") {
-    renderUsuarios();
-  }
-
   startLiveApp();
   window.scrollTo(0, 0);
 }
@@ -606,6 +602,7 @@ async function renderPuerta() {
     showError(error);
   }
 }
+
 function drawPuerta() {
   const wrap = document.getElementById('p-lists');
   const searchInput = document.getElementById('list-search');
@@ -616,13 +613,8 @@ function drawPuerta() {
   const user = window.DIVINE_USER || {};
   const isAdmin = user.role === 'admin';
 
-  const listTerm = isAdmin
-    ? normalizeText(searchInput ? searchInput.value : '')
-    : '';
-
-  const personTerm = normalizeText(
-    personSearchInput ? personSearchInput.value : ''
-  );
+  const listTerm = isAdmin ? normalizeText(searchInput ? searchInput.value : '') : '';
+  const personTerm = normalizeText(personSearchInput ? personSearchInput.value : '');
 
   const visibleLists = doorLists.filter(list =>
     listMatchesSearch(list, listTerm) &&
@@ -633,9 +625,7 @@ function drawPuerta() {
     wrap.innerHTML = `
       <div class="list-card">
         <div style="padding:18px 16px;color:var(--text2);">
-          ${(listTerm || personTerm)
-            ? 'No se encontraron resultados con esa búsqueda.'
-            : 'Todavía no hay listas creadas.'}
+          ${(listTerm || personTerm) ? 'No se encontraron resultados con esa búsqueda.' : 'Todavía no hay listas creadas.'}
         </div>
       </div>
     `;
@@ -643,211 +633,103 @@ function drawPuerta() {
   }
 
   wrap.innerHTML = visibleLists.map(list => {
-
     const stats = getListStats(list);
     const pricePerPerson = getListPrice(list);
-
-    // SI BUSCA PERSONA => SE ABRE SOLO
-    const collapsed = personTerm
-      ? false
-      : !!collapsedDoorLists[list.id];
+    const collapsed = personTerm ? false : !!collapsedDoorLists[list.id];
 
     const owner = isAdmin && list.ownerName
-      ? `
-        <span style="
-          font-size:11px;
-          color:var(--text2);
-          font-family:'DM Sans',sans-serif;
-          display:block;
-          margin-top:3px;
-        ">
-          Creada por: ${esc(list.ownerName)}
-        </span>
-      `
+      ? `<span style="font-size:11px;color:var(--text2);display:block;margin-top:3px;">Creada por: ${esc(list.ownerName)}</span>`
       : '';
 
-    const canEditThisList =
-      isAdmin || Number(list.userId) === Number(user.id);
+    const canEditThisList = isAdmin || Number(list.userId) === Number(user.id);
 
-    const statusControl = (person) => {
-      const text =
-        `${statusLabel(person.status)}${
-          person.status === 'entro'
-            ? ` · $${pricePerPerson.toLocaleString('es-AR')}`
-            : ''
-        }`;
+    const statusControl = person => {
+      const text = `${statusLabel(person.status)}${person.status === 'entro' ? ` · $${pricePerPerson.toLocaleString('es-AR')}` : ''}`;
 
-      if (isAdmin) {
-        return `
-          <button
-            class="btn-status ${esc(person.status)}"
-            onclick="togglePersonStatus(${Number(list.id)}, ${Number(person.id)})"
-          >
-            ${text}
-          </button>
-        `;
-      }
-
-      return `
-        <button
-          class="btn-status ${esc(person.status)} btn-status-readonly"
-          type="button"
-          disabled
-        >
-          ${text}
-        </button>
-      `;
+      return isAdmin
+        ? `<button class="btn-status ${esc(person.status)}" onclick="togglePersonStatus(${Number(list.id)}, ${Number(person.id)})">${text}</button>`
+        : `<button class="btn-status ${esc(person.status)} btn-status-readonly" disabled>${text}</button>`;
     };
 
-    const deleteListButton = canEditThisList
-      ? `
-        <button
-          class="list-delete"
-          onclick="deleteList(${Number(list.id)})"
-        >
-          ✕
-        </button>
-      `
-      : '';
-
-    const quickAddButton = canEditThisList
-      ? `
-        <button
-          class="btn-add-person btn-quick-add"
-          onclick="toggleQuickAdd(${Number(list.id)}); event.stopPropagation();"
-        >
-          ＋
-        </button>
-      `
-      : '';
-
-    // FILTRADO REAL DE PERSONAS
     const filteredPeople = (list.people || []).filter(person => {
       if (!personTerm) return true;
-
-      return (
-        normalizeText(person.name).includes(personTerm) ||
-        normalizeText(person.note || '').includes(personTerm)
-      );
+      return normalizeText(person.name).includes(personTerm) ||
+             normalizeText(person.note || '').includes(personTerm);
     });
 
     return `
       <div class="list-card ${collapsed ? 'collapsed' : ''}">
-
         <div class="list-header">
           <div class="list-name-txt" onclick="toggleCollapseList(${Number(list.id)})">
-
-            <span class="list-collapse-icon">
-              ${collapsed ? '▸' : '▾'}
-            </span>
-
+            <span class="list-collapse-icon">${collapsed ? '▸' : '▾'}</span>
             ${esc(list.name)}
-
-            ${list.isBirthday
-              ? `
-                <span
-                  class="list-badge badge-orange"
-                  style="margin-left:8px;vertical-align:middle;"
-                >
-                  Cumpleaños
-                </span>
-              `
-              : ''
-            }
-
+            ${list.isBirthday ? `<span class="list-badge badge-orange" style="margin-left:8px;">Cumpleaños</span>` : ''}
             ${owner}
-
-            <span style="
-              font-size:12px;
-              color:var(--text2);
-              font-family:'DM Sans',sans-serif;
-              display:block;
-              margin-top:4px;
-            ">
-              ${stats.entered}
-              (${stats.collected.toLocaleString('es-AR')} ARS)
-              ·
-              $${pricePerPerson.toLocaleString('es-AR')} c/u
+            <span style="font-size:12px;color:var(--text2);display:block;margin-top:4px;">
+              ${stats.entered} (${stats.collected.toLocaleString('es-AR')} ARS) · $${pricePerPerson.toLocaleString('es-AR')} c/u
             </span>
           </div>
 
-          ${quickAddButton}
+          ${canEditThisList ? `<button class="btn-add-person btn-quick-add" onclick="toggleQuickAdd(${Number(list.id)}); event.stopPropagation();">＋</button>` : ''}
 
-          <div class="list-badge badge-green">
-            $${stats.collected.toLocaleString('es-AR')}
-          </div>
+          <div class="list-badge badge-green">$${stats.collected.toLocaleString('es-AR')}</div>
 
-          ${deleteListButton}
+          ${canEditThisList ? `<button class="list-delete" onclick="deleteList(${Number(list.id)})">✕</button>` : ''}
         </div>
 
         <div class="list-stats">
-          <div class="stat-item">
-            <div class="stat-num">${stats.total}</div>
-            <div class="stat-lbl">Total</div>
-          </div>
-
-          <div class="stat-item">
-            <div class="stat-num">${stats.entered}</div>
-            <div class="stat-lbl">Entraron</div>
-          </div>
-
-          <div class="stat-item">
-            <div class="stat-num">${stats.left}</div>
-            <div class="stat-lbl">Se fueron</div>
-          </div>
-
-          <div class="stat-item">
-            <div class="stat-num">${stats.pending}</div>
-            <div class="stat-lbl">No vinieron</div>
-          </div>
+          <div class="stat-item"><div class="stat-num">${stats.total}</div><div class="stat-lbl">Total</div></div>
+          <div class="stat-item"><div class="stat-num">${stats.entered}</div><div class="stat-lbl">Entraron</div></div>
+          <div class="stat-item"><div class="stat-num">${stats.left}</div><div class="stat-lbl">Se fueron</div></div>
+          <div class="stat-item"><div class="stat-num">${stats.pending}</div><div class="stat-lbl">No vinieron</div></div>
         </div>
 
         <div class="person-list">
-
           ${filteredPeople.length
             ? filteredPeople.map(person => `
               <div class="person-row ${esc(person.status)}">
-
                 <div class="person-info">
-                  <div class="person-name">
-                    ${esc(person.name)}
-                  </div>
-
-                  <div class="person-note">
-                    ${esc(person.note || '')}
-                  </div>
+                  <div class="person-name">${esc(person.name)}</div>
+                  <div class="person-note">${esc(person.note || '')}</div>
                 </div>
 
                 ${statusControl(person)}
 
-                ${canEditThisList
-                  ? `
-                    <button
-                      class="btn-del-person"
-                      onclick="deletePerson(${Number(list.id)}, ${Number(person.id)})"
-                    >
-                      ✕
-                    </button>
-                  `
-                  : ''
-                }
-
+                ${canEditThisList ? `
+                  <button class="btn-del-person" onclick="deletePerson(${Number(list.id)}, ${Number(person.id)})">✕</button>
+                ` : ''}
               </div>
             `).join('')
-            : `
-              <div style="padding:8px 4px;color:var(--text2);">
-                Sin personas en esta lista.
-              </div>
-            `
+            : `<div style="padding:8px 4px;color:var(--text2);">Sin personas en esta lista.</div>`
           }
-
         </div>
 
+        ${canEditThisList ? `
+          <div class="quick-add-panel hidden" data-list-id="${Number(list.id)}">
+            <div style="padding:12px 14px;border-top:1px solid rgba(240,212,141,.08);display:flex;gap:8px;">
+              <button class="btn-action quick-tab active" data-mode="manual" onclick="setQuickAddMode(${Number(list.id)}, 'manual')">Manual</button>
+              <button class="btn-action quick-tab" data-mode="bulk" onclick="setQuickAddMode(${Number(list.id)}, 'bulk')">Pegar lista</button>
+            </div>
+
+            <div class="quick-manual" data-list-id="${Number(list.id)}" style="padding:0 14px 14px;display:flex;gap:8px;">
+              <input id="person-name-${Number(list.id)}" placeholder="Nombre" style="flex:1;min-width:0;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px;">
+              <input id="person-note-${Number(list.id)}" placeholder="Dato" style="width:90px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px;">
+              <button class="btn-add-person" onclick="addPerson(${Number(list.id)})">OK</button>
+            </div>
+
+            <div class="quick-bulk hidden" data-list-id="${Number(list.id)}" style="padding:0 14px 14px;">
+              <textarea class="bulk-input" data-list-id="${Number(list.id)}" placeholder="Pegar lista:&#10;Juan 123&#10;Pedro 456" style="width:100%;min-height:110px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:12px;padding:12px;resize:vertical;"></textarea>
+
+              <button class="btn-action btn-add" style="margin-top:8px;width:100%;" onclick="procesarListaPorLista(${Number(list.id)})">
+                Procesar lista
+              </button>
+            </div>
+          </div>
+        ` : ''}
       </div>
     `;
   }).join('');
 }
-
 function parseBulkText(rawText) {
   const lines = String(rawText || '').trim().split(/\r?\n/);
   const people = [];

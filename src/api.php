@@ -827,6 +827,74 @@ try {
 
             ok(['sales' => $sales]);
         }
+
+        // Administración de QR para puerta
+        case 'admin_qr_people': {
+            require_admin($user);
+
+            $stmt = $pdo->query("
+                SELECT 
+                    dp.id,
+                    dp.name,
+                    dp.note,
+                    dp.status,
+                    dp.email,
+                    dp.qr_token,
+                    dp.qr_enabled,
+                    dp.qr_used_at,
+                    dl.name AS list_name,
+                    u.display_name AS owner_name
+                FROM door_people dp
+                INNER JOIN door_lists dl ON dl.id = dp.list_id
+                INNER JOIN users u ON u.id = dl.user_id
+                ORDER BY dp.id DESC
+            ");
+
+            ok(['people' => $stmt->fetchAll()]);
+        }
+
+        case 'qr_generate': {
+            require_admin($user);
+
+            $personId = (int) ($input['personId'] ?? 0);
+            if ($personId <= 0) fail('Persona inválida.');
+
+            $token = bin2hex(random_bytes(24));
+
+            $stmt = $pdo->prepare("
+                UPDATE door_people
+                SET qr_token = :token,
+                    qr_enabled = 1,
+                    qr_used_at = NULL
+                WHERE id = :id
+            ");
+
+            $stmt->execute([
+                ':token' => $token,
+                ':id' => $personId
+            ]);
+
+            ok(['token' => $token]);
+        }
+
+        case 'qr_disable': {
+            require_admin($user);
+
+            $personId = (int) ($input['personId'] ?? 0);
+            if ($personId <= 0) fail('Persona inválida.');
+
+            $stmt = $pdo->prepare("
+                UPDATE door_people
+                SET qr_enabled = 0
+                WHERE id = :id
+            ");
+
+            $stmt->execute([':id' => $personId]);
+
+            ok();
+        }
+
+        // Endpoint default en caso de no entrar en ningún case
         default:
             fail('Acción no válida.', 404);
     }

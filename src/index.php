@@ -24,19 +24,43 @@ $isAdmin = ($currentUser['role'] ?? '') === 'admin';
 <div class="stars"></div>
 
 <!-- MENU -->
+<!-- MENU -->
 <div id="page-menu" class="page active">
   <div class="menu-wrap">
     <div>
-      <div class="menu-logo" ><?= APP_NAME ?><br>APP</div>
+      <div class="menu-logo"><?= APP_NAME ?><br>APP</div>
       <div class="menu-sub">Panel de control Divino</div>
+
       <div style="text-align:center;margin-top:12px;color:var(--text2);font-size:13px;">
-        <?= htmlspecialchars($currentUser['display_name'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($currentUser['role'], ENT_QUOTES, 'UTF-8') ?>
-        · <a href="logout.php" style="color:var(--gold-2);text-decoration:none;">Salir</a>
+        <?= htmlspecialchars($currentUser['display_name'], ENT_QUOTES, 'UTF-8') ?>
+        ·
+        <?= htmlspecialchars($currentUser['role'], ENT_QUOTES, 'UTF-8') ?>
+        ·
+        <a href="logout.php" style="color:var(--gold-2);text-decoration:none;">Salir</a>
       </div>
     </div>
 
     <div class="menu-cards">
+
       <?php if ($isAdmin): ?>
+      <div class="menu-card" onclick="location.href='admin.php'">
+        <div class="menu-icon">📊</div>
+        <div class="menu-info">
+          <div class="menu-name">ADMIN</div>
+          <div class="menu-desc">Dashboard · QR · Estadísticas</div>
+        </div>
+        <div class="menu-arr">›</div>
+      </div>
+
+      <div class="menu-card" onclick="location.href='scanner.php'">
+        <div class="menu-icon">📷</div>
+        <div class="menu-info">
+          <div class="menu-name">SCANNER</div>
+          <div class="menu-desc">Escanear QR · Confirmar entrada</div>
+        </div>
+        <div class="menu-arr">›</div>
+      </div>
+
       <div class="menu-card" onclick="goTo('kioskito')">
         <div class="menu-icon">🛒</div>
         <div class="menu-info">
@@ -55,10 +79,10 @@ $isAdmin = ($currentUser['role'] ?? '') === 'admin';
         </div>
         <div class="menu-arr">›</div>
       </div>
+
     </div>
   </div>
 </div>
-
 <!-- KIOSKITO -->
 <!-- KIOSKITO -->
 <?php if ($isAdmin): ?>
@@ -174,6 +198,7 @@ $isAdmin = ($currentUser['role'] ?? '') === 'admin';
         <option value="Extras">Extras</option>
         <option value="Bebidas">Bebidas</option>
         <option value="Otros">Otros</option>
+        <option value="Prendas">Botellas</option>
       </select>
     </div>
 

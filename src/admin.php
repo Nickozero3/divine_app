@@ -1,0 +1,335 @@
+<?php
+session_start();
+include_once __DIR__ . '/const.php';
+
+if (!isset($_SESSION['user'])) {
+    header('Location: login.php');
+    exit;
+}
+
+$currentUser = $_SESSION['user'];
+
+if (($currentUser['role'] ?? '') !== 'admin') {
+    die('Acceso denegado');
+}
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><?= APP_NAME ?> Admin</title>
+<link rel="stylesheet" href="styles.css">
+
+<style>
+.admin-wrap{padding:16px;max-width:1000px;margin:auto}
+.admin-title{font-family:'Cinzel',serif;font-size:28px;color:var(--gold-2);margin-bottom:12px}
+.admin-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px}
+.admin-card{background:var(--bg2);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:12px}
+.admin-num{font-size:26px;font-weight:800;color:var(--gold-2)}
+.admin-label{font-size:12px;color:var(--text2);margin-top:4px}
+.admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.admin-btn{border:0;border-radius:12px;padding:11px 13px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--gold),var(--purple));color:white;text-decoration:none}
+.admin-btn.red{background:rgba(255,95,109,.15);color:var(--red);border:1px solid rgba(255,95,109,.25)}
+.admin-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.admin-name{font-weight:800;color:var(--text)}
+.admin-sub{font-size:12px;color:var(--text2);margin-top:4px}
+.qr-img{width:120px;height:120px;background:white;border-radius:10px;padding:6px;margin-top:10px}
+@media(max-width:650px){.admin-grid{grid-template-columns:1fr}}
+</style>
+</head>
+
+<body>
+
+<div class="topbar">
+  <div class="topbar-title" onclick="goTo('menu')" >Panel Admin</div>
+  <button class="topbar-back" onclick="location.href='index.php'">← App</button>
+</div>
+
+<div class="admin-wrap">
+
+  <div class="admin-title">Administración</div>
+
+  <div class="admin-actions">
+    <a class="admin-btn" href="scanner.php">Escanear QR</a>
+    <button class="admin-btn" onclick="renderAdmin()">Actualizar</button>
+  </div>
+
+  <div class="admin-grid">
+    <div class="admin-card">
+      <div class="admin-num" id="total-general">$0</div>
+      <div class="admin-label">Total general</div>
+    </div>
+
+    <div class="admin-card">
+      <div class="admin-num" id="total-kioskito">$0</div>
+      <div class="admin-label">Kioskito</div>
+    </div>
+
+    <div class="admin-card">
+      <div class="admin-num" id="total-puerta">$0</div>
+      <div class="admin-label">Puerta</div>
+    </div>
+
+    <div class="admin-card">
+      <div class="admin-num" id="total-guardarropas">$0</div>
+      <div class="admin-label">Guardarropas</div>
+    </div>
+  </div>
+
+  <div class="admin-card">
+    <div class="section-title">Resumen de puerta</div>
+    <div id="admin-door"></div>
+  </div>
+
+  <div class="admin-card">
+    <div class="section-title">Productos más vendidos</div>
+    <div id="admin-products"></div>
+  </div>
+
+  <div class="admin-card">
+    <div class="section-title">QR de personas</div>
+    <div id="admin-qr"></div>
+  </div>
+
+</div>
+
+<script>
+async function api(action, data = null) {
+  const options = { credentials: 'same-origin' };
+
+  if (data !== null) {
+    options.method = 'POST';
+    options.headers = { 'Content-Type': 'application/json' };
+    options.body = JSON.stringify(data);
+  }
+
+  const res = await fetch(`api.php?action=${encodeURIComponent(action)}`, options);
+  const json = await res.json();
+
+  if (!res.ok || !json.ok) {
+    throw new Error(json.error || 'Error del servidor');
+  }
+
+  return json;
+}
+
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function fmt(n) {
+  return '$' + Number(n || 0).toLocaleString('es-AR');
+}
+
+function qrUrl(token) {
+  const link = `${location.origin}/qr.php?token=${encodeURIComponent(token)}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(link)}`;
+}
+
+async function renderAdmin() {
+  try {
+    const [salesData, doorData, guardarData, qrData] = await Promise.all([
+      api('sales_history'),
+      api('door_lists'),
+      api('guardarropas_list'),
+      api('admin_qr_people')
+    ]);
+
+    const sales = salesData.sales || [];
+    const lists = doorData.lists || [];
+    const guardarropas = guardarData.items || [];
+    const peopleQR = qrData.people || [];
+
+    const totalKioskito = sales.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
+
+    let totalPuerta = 0;
+    let totalPersonas = 0;
+    let totalEntraron = 0;
+
+    lists.forEach(list => {
+      const people = list.people || [];
+      const price = Number(list.pricePerPerson || 500);
+      const entered = people.filter(p => p.status === 'entro').length;
+
+      totalPersonas += people.length;
+      totalEntraron += entered;
+      totalPuerta += entered * price;
+    });
+
+    const totalGuardarropas = guardarropas.reduce((acc, item) => acc + Number(item.precio || 0), 0);
+    const totalGeneral = totalKioskito + totalPuerta + totalGuardarropas;
+
+    document.getElementById('total-general').textContent = fmt(totalGeneral);
+    document.getElementById('total-kioskito').textContent = fmt(totalKioskito);
+    document.getElementById('total-puerta').textContent = fmt(totalPuerta);
+    document.getElementById('total-guardarropas').textContent = fmt(totalGuardarropas);
+
+    renderDoorSummary(lists, totalPersonas, totalEntraron, totalPuerta);
+    renderTopProducts(sales);
+    renderQRPeople(peopleQR);
+
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+function renderDoorSummary(lists, totalPersonas, totalEntraron, totalPuerta) {
+  const wrap = document.getElementById('admin-door');
+
+  wrap.innerHTML = `
+    <div class="admin-grid">
+      <div>
+        <div class="admin-num">${totalPersonas}</div>
+        <div class="admin-label">Personas anotadas</div>
+      </div>
+      <div>
+        <div class="admin-num">${totalEntraron}</div>
+        <div class="admin-label">Entraron</div>
+      </div>
+    </div>
+
+    ${lists.map(list => {
+      const people = list.people || [];
+      const price = Number(list.pricePerPerson || 500);
+      const entered = people.filter(p => p.status === 'entro').length;
+      const collected = entered * price;
+
+      return `
+        <div class="admin-card">
+          <div class="admin-row">
+            <div>
+              <div class="admin-name">${esc(list.name)}</div>
+              <div class="admin-sub">
+                ${entered}/${people.length} entraron · ${fmt(price)} c/u
+              </div>
+            </div>
+            <div class="list-badge badge-green">${fmt(collected)}</div>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+function renderTopProducts(sales) {
+  const wrap = document.getElementById('admin-products');
+  const map = {};
+
+  sales.forEach(sale => {
+    const items = Array.isArray(sale.items) ? sale.items : [];
+
+    items.forEach(item => {
+      const name = item.name || 'Producto';
+      if (!map[name]) {
+        map[name] = {
+          name,
+          qty: 0,
+          total: 0
+        };
+      }
+
+      map[name].qty += Number(item.qty || 0);
+      map[name].total += Number(item.subtotal || 0);
+    });
+  });
+
+  const products = Object.values(map)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10);
+
+  if (!products.length) {
+    wrap.innerHTML = `<div style="color:var(--text2);">Sin ventas registradas.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = products.map(p => `
+    <div class="admin-card">
+      <div class="admin-row">
+        <div>
+          <div class="admin-name">${esc(p.name)}</div>
+          <div class="admin-sub">Cantidad vendida: ${p.qty}</div>
+        </div>
+        <div class="list-badge badge-green">${fmt(p.total)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderQRPeople(people) {
+  const wrap = document.getElementById('admin-qr');
+
+  if (!people.length) {
+    wrap.innerHTML = `<div style="color:var(--text2);">No hay personas cargadas.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = people.map(p => `
+    <div class="admin-card">
+      <div class="admin-row">
+        <div>
+          <div class="admin-name">${esc(p.name)}</div>
+          <div class="admin-sub">
+            Lista: ${esc(p.list_name)} · ${esc(p.owner_name || '')}<br>
+            Estado: ${esc(p.status)} · QR: ${
+              p.qr_used_at
+                ? 'Usado'
+                : Number(p.qr_enabled)
+                  ? 'Activo'
+                  : 'Sin QR'
+            }
+          </div>
+        </div>
+      </div>
+
+      ${p.qr_token ? `
+        <img class="qr-img" src="${qrUrl(p.qr_token)}">
+        <div class="admin-sub">${location.origin}/qr.php?token=${esc(p.qr_token)}</div>
+      ` : ''}
+
+      <div class="admin-actions" style="margin-top:10px;">
+        <button class="admin-btn" onclick="generateQR(${Number(p.id)})">
+          ${p.qr_token ? 'Regenerar QR' : 'Generar QR'}
+        </button>
+
+        ${p.qr_token ? `
+          <button class="admin-btn" onclick="copyQR('${esc(p.qr_token)}')">
+            Copiar link
+          </button>
+
+          <button class="admin-btn red" onclick="disableQR(${Number(p.id)})">
+            Desactivar
+          </button>
+        ` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function generateQR(personId) {
+  await api('qr_generate', { personId });
+  renderAdmin();
+}
+
+async function disableQR(personId) {
+  if (!confirm('¿Desactivar este QR?')) return;
+  await api('qr_disable', { personId });
+  renderAdmin();
+}
+
+async function copyQR(token) {
+  const link = `${location.origin}/qr.php?token=${token}`;
+  await navigator.clipboard.writeText(link);
+  alert('Link copiado');
+}
+
+renderAdmin();
+</script>
+
+</body>
+</html>

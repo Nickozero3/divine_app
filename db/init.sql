@@ -85,6 +85,13 @@ CREATE TABLE IF NOT EXISTS door_people (
     INDEX idx_door_people_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Agregamos campos para gestión de QR en door_people
+ALTER TABLE door_people
+ADD COLUMN email VARCHAR(150) NULL,
+ADD COLUMN qr_token VARCHAR(120) NULL,
+ADD COLUMN qr_enabled TINYINT(1) NOT NULL DEFAULT 0,
+ADD COLUMN qr_used_at DATETIME NULL;
+
 INSERT INTO products (code, name, price, cat, sub, custom, active)
 VALUES
 ('p1', 'Gancia', 13000, 'Vasos', '', 0, 1),
@@ -116,6 +123,8 @@ VALUES
 -- botellas espumantes/ Vinos
 ('p27', 'Mumm', 24000, 'Botellas', '', 0, 1),
 ('p28', 'Du', 16000, 'Botellas', '', 0, 1)
+
+
 
 ON DUPLICATE KEY UPDATE
 name = VALUES(name),
