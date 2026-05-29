@@ -1365,6 +1365,7 @@ async function enviarQRPersona(personId, personName, personNote, listName, curre
   }
 }
 
+// Genera una imagen personalizada del QR con detalles de la persona y la lista, y luego intenta compartirla o mostrarla al usuario.
 async function generarImagenQR({ token, personName, personNote, listName, expiresAt }) {
   if (typeof QRious === 'undefined') {
     alert('Falta cargar QRious en index.php');
