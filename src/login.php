@@ -58,8 +58,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Login <?= APP_NAME ?> App</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="login.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="login-page">
 <form class="login-box" method="POST">
     <h1><?= APP_NAME ?> APP</h1>
     <div class="sub">Iniciar sesión</div>
