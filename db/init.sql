@@ -87,10 +87,11 @@ CREATE TABLE IF NOT EXISTS door_people (
 
 -- Agregamos campos para gestión de QR en door_people
 ALTER TABLE door_people
-ADD COLUMN email VARCHAR(150) NULL,
+ADD COLUMN email VARCHAR(150) NULL after note,
 ADD COLUMN qr_token VARCHAR(120) NULL,
 ADD COLUMN qr_enabled TINYINT(1) NOT NULL DEFAULT 0,
 ADD COLUMN qr_used_at DATETIME NULL;
+
 
 INSERT INTO products (code, name, price, cat, sub, custom, active)
 VALUES

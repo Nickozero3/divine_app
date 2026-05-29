@@ -613,6 +613,7 @@ function drawPuerta() {
 
   const user = window.DIVINE_USER || {};
   const isAdmin = user.role === 'admin';
+  const isUsuario = user.role === 'usuario';
 
   const listTerm = isAdmin ? normalizeText(searchInput ? searchInput.value : '') : '';
   const personTerm = normalizeText(personSearchInput ? personSearchInput.value : '');
@@ -654,6 +655,7 @@ function drawPuerta() {
 
     const filteredPeople = (list.people || []).filter(person => {
       if (!personTerm) return true;
+
       return normalizeText(person.name).includes(personTerm) ||
              normalizeText(person.note || '').includes(personTerm);
     });
@@ -671,11 +673,19 @@ function drawPuerta() {
             </span>
           </div>
 
-          ${canEditThisList ? `<button class="btn-add-person btn-quick-add" onclick="toggleQuickAdd(${Number(list.id)}); event.stopPropagation();">＋</button>` : ''}
+          ${canEditThisList ? `
+            <button
+              class="btn-add-person btn-quick-add"
+              onclick="toggleQuickAdd(${Number(list.id)}); event.stopPropagation();">
+              ＋
+            </button>
+          ` : ''}
 
           <div class="list-badge badge-green">$${stats.collected.toLocaleString('es-AR')}</div>
 
-          ${canEditThisList ? `<button class="list-delete" onclick="deleteList(${Number(list.id)})">✕</button>` : ''}
+          ${canEditThisList ? `
+            <button class="list-delete" onclick="deleteList(${Number(list.id)})">✕</button>
+          ` : ''}
         </div>
 
         <div class="list-stats">
@@ -692,12 +702,58 @@ function drawPuerta() {
                 <div class="person-info">
                   <div class="person-name">${esc(person.name)}</div>
                   <div class="person-note">${esc(person.note || '')}</div>
+
+                  ${isAdmin && canEditThisList ? `
+                    <div class="qr-mini-actions">
+                      ${person.qr_token ? `
+                        <div class="qr-preview-box">
+                          <img
+                            src="${qrUrl(person.qr_token)}"
+                            class="qr-preview-img"
+                            alt="QR de ${esc(person.name)}"
+                          >
+                        </div>
+
+                        <button
+                          class="qr-mini-btn secondary"
+                          onclick="copyPersonQR('${esc(person.qr_token)}')">
+                          Copiar link
+                        </button>
+                      ` : `
+                        <button
+                          class="qr-mini-btn"
+                          onclick="generatePersonQR(${Number(person.id)})">
+                          Generar QR
+                        </button>
+                      `}
+                    </div>
+                  ` : ''}
                 </div>
 
-                ${statusControl(person)}
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                  ${statusControl(person)}
+
+                  ${isUsuario && canEditThisList ? `
+                    <button
+                      class="qr-send-btn"
+                      onclick='enviarQRPersona(
+                        ${Number(person.id)},
+                        ${JSON.stringify(person.name)},
+                        ${JSON.stringify(person.note || '')},
+                        ${JSON.stringify(list.name)},
+                        ${JSON.stringify(person.qr_token || '')}
+                      )'>
+                      📤 Enviar QR
+                    </button>
+                  ` : ''}
+                </div>
 
                 ${canEditThisList ? `
-                  <button class="btn-del-person" onclick="deletePerson(${Number(list.id)}, ${Number(person.id)})">✕</button>
+                  <button
+                    class="btn-del-person"
+                    onclick="deletePerson(${Number(list.id)}, ${Number(person.id)})">
+                    ✕
+                  </button>
                 ` : ''}
               </div>
             `).join('')
@@ -731,6 +787,7 @@ function drawPuerta() {
     `;
   }).join('');
 }
+
 
 function parseBulkText(rawText) {
   const lines = String(rawText || '').trim().split(/\r?\n/);
@@ -842,7 +899,9 @@ async function addList() {
 
   try {
     const data = await api('list_add', { isBirthday });
+
     closeModal('modal-add-list');
+
     await renderPuerta();
 
     if (data.existing && data.message) {
@@ -871,6 +930,7 @@ async function deleteList(id) {
 async function addPerson(listId) {
   const nameInput = document.getElementById('person-name-' + listId);
   const noteInput = document.getElementById('person-note-' + listId);
+
   if (!nameInput || !noteInput) return;
 
   const name = nameInput.value.trim();
@@ -883,6 +943,12 @@ async function addPerson(listId) {
 
   try {
     await api('person_add', { listId, name, note });
+
+    openQuickAddListId = null;
+
+    nameInput.value = '';
+    noteInput.value = '';
+
     await renderPuerta();
   } catch (error) {
     showError(error);
@@ -1234,6 +1300,157 @@ async function renderGuardarropas() {
   } catch (error) {
     showError(error);
   }
+}
+
+function qrUrl(token) {
+  const link = `${location.origin}/qr.php?token=${encodeURIComponent(token)}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`;
+}
+
+async function generatePersonQR(personId) {
+  if (!personId) {
+    alert('ID de persona inválido');
+    return;
+  }
+
+  try {
+    await api('qr_generate', { personId });
+    await renderPuerta();
+
+    if (typeof toast === 'function') {
+      toast('QR generado');
+    } else {
+      alert('QR generado');
+    }
+  } catch (error) {
+    alert(error.message || 'No se pudo generar el QR');
+  }
+}
+
+async function copyPersonQR(token) {
+  const link = `${location.origin}/qr.php?token=${token}`;
+
+  try {
+    await navigator.clipboard.writeText(link);
+
+    if (typeof toast === 'function') {
+      toast('Link copiado');
+    } else {
+      alert('Link copiado');
+    }
+  } catch {
+    prompt('Copiá este link:', link);
+  }
+}
+
+async function enviarQRPersona(personId, personName, personNote, listName, currentToken = '') {
+  let token = currentToken;
+
+  try {
+    if (!token) {
+      const data = await api('qr_generate', { personId });
+      token = data.token;
+      await renderPuerta();
+    }
+
+    await generarImagenQR({
+      token,
+      personName,
+      personNote,
+      listName,
+      expiresAt: '03:00 AM'
+    });
+  } catch (error) {
+    alert(error.message || 'No se pudo generar el QR');
+  }
+}
+
+async function generarImagenQR({ token, personName, personNote, listName, expiresAt }) {
+  if (typeof QRious === 'undefined') {
+    alert('Falta cargar QRious en index.php');
+    return;
+  }
+
+  const qrLink = `${location.origin}/qr.php?token=${encodeURIComponent(token)}`;
+
+  const qrCanvas = document.createElement('canvas');
+
+  new QRious({
+    element: qrCanvas,
+    value: qrLink,
+    size: 430,
+    background: 'white',
+    foreground: 'black'
+  });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 900;
+  canvas.height = 1300;
+
+  const ctx = canvas.getContext('2d');
+
+  const gradient = ctx.createLinearGradient(0, 0, 900, 1300);
+  gradient.addColorStop(0, '#17121f');
+  gradient.addColorStop(1, '#050506');
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#f0d48d';
+  ctx.font = 'bold 58px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('QR DE ENTRADA', 450, 120);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 48px Arial';
+  ctx.fillText(personName + (personNote ? ` -${personNote}` : '') || 'Invitado', 450, 220);
+
+  ctx.fillStyle = '#b9b3c9';
+  ctx.font = '30px Arial';
+  ctx.fillText(`Lista: ${listName || '-'}`, 450, 285);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(225, 405, 450, 450);
+  ctx.drawImage(qrCanvas, 235, 415, 430, 430);
+
+  ctx.fillStyle = '#f0d48d';
+  ctx.font = 'bold 38px Arial';
+  ctx.fillText(`Válido hasta ${expiresAt}`, 450, 925);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '26px Arial';
+  ctx.fillText('Mostrá este QR en puerta para ingresar', 450, 985);
+
+  ctx.fillStyle = '#777';
+  ctx.font = '22px Arial';
+  ctx.fillText(location.host, 450, 1080);
+
+  canvas.toBlob(async blob => {
+    if (!blob) {
+      alert('No se pudo crear la imagen del QR');
+      return;
+    }
+
+    const safeName = String(personName || 'invitado')
+      .replace(/[^\w\-]+/g, '_')
+      .slice(0, 40);
+
+    const file = new File([blob], `QR_${safeName}.png`, {
+      type: 'image/png'
+    });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'QR de entrada',
+        text: `QR de entrada para ${personName || 'invitado'}`
+      });
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  }, 'image/png');
 }
 
 /* =========================

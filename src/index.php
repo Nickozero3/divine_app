@@ -294,6 +294,7 @@ window.DIVINE_USER = <?= json_encode([
     'role' => $currentUser['role'],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 </script>
+<script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

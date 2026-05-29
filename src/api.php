@@ -5,12 +5,10 @@ require_once __DIR__ . '/config/app_logs.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-function requireAdmin(): void
-{
-    if (($_SESSION["user"]["role"] ?? "") !== "admin") {
-        jsonResponse(false, ["error" => "Solo administradores"], 403);
-    }
-}
+/* =========================================================
+   RESPUESTAS JSON Y VALIDACIONES BASE
+========================================================= */
+
 
 function response_json(array $data, int $status = 200): never
 {
@@ -91,6 +89,10 @@ function normalize_text(string $value): string
     return preg_replace('/\s+/', ' ', $value) ?? $value;
 }
 
+/* =========================================================
+   PERMISOS Y HELPERS DE NORMALIZACIÓN
+========================================================= */
+
 function current_user_can_access_list(PDO $pdo, int $listId, array $user): array
 {
     $stmt = $pdo->prepare('SELECT dl.*, u.display_name AS owner_name FROM door_lists dl INNER JOIN users u ON u.id = dl.user_id WHERE dl.id = :id LIMIT 1');
@@ -108,6 +110,10 @@ function current_user_can_access_list(PDO $pdo, int $listId, array $user): array
     return $list;
 }
 
+/* =========================================================
+   FORMATEADORES DE RESPUESTA
+========================================================= */
+
 function product_row(array $row): array
 {
     return [
@@ -122,15 +128,23 @@ function product_row(array $row): array
     ];
 }
 
-function person_row(array $row): array
+function person_row(array $person): array
 {
     return [
-        'id' => (int) $row['id'],
-        'name' => $row['name'],
-        'note' => $row['note'],
-        'status' => $row['status'],
+        'id' => (int) $person['id'],
+        'listId' => (int) $person['list_id'],
+        'name' => $person['name'] ?? '',
+        'note' => $person['note'] ?? '',
+        'status' => $person['status'] ?? 'no_vino',
+        'qr_token' => $person['qr_token'] ?? null,
+        'qr_enabled' => (int) ($person['qr_enabled'] ?? 0),
+        'qr_used_at' => $person['qr_used_at'] ?? null,
     ];
 }
+
+/* =========================================================
+   INICIO DE API
+========================================================= */
 
 $user = require_login();
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
@@ -142,6 +156,9 @@ try {
             ok(['user' => $user]);
         }
 
+        /* =========================
+           PRODUCTOS / KIOSKITO
+        ========================= */
         case 'products_list': {
             require_admin($user);
             $stmt = $pdo->query('SELECT * FROM products WHERE active = 1 ORDER BY custom ASC, id ASC');
@@ -195,6 +212,9 @@ try {
             ok();
         }
 
+        /* =========================
+           PUERTA / LISTAS
+        ========================= */
         case 'door_lists': {
             $isAdmin = ($user['role'] ?? '') === 'admin';
 
@@ -343,18 +363,34 @@ try {
 
             if ($listId <= 0) fail('Lista inválida.');
             current_user_can_access_list($pdo, $listId, $user);
-            if ($name === '' || $note === '') fail('Completá nombre y dato/número.');
+
+            if ($name === '' || $note === '') {
+                fail('Completá nombre y dato/número.');
+            }
 
             $stmt = $pdo->prepare('SELECT name, note FROM door_people WHERE list_id = :list_id');
             $stmt->execute([':list_id' => $listId]);
+
             foreach ($stmt->fetchAll() as $existing) {
-                if (normalize_text($existing['name']) === normalize_text($name) && trim((string) $existing['note']) === $note) {
+                if (
+                    normalize_text($existing['name']) === normalize_text($name) &&
+                    trim((string) $existing['note']) === $note
+                ) {
                     fail('Esa persona ya está cargada en esta lista.');
                 }
             }
 
-            $stmt = $pdo->prepare('INSERT INTO door_people (list_id, name, note, status) VALUES (:list_id, :name, :note, "no_vino")');
-            $stmt->execute([':list_id' => $listId, ':name' => $name, ':note' => $note]);
+            $stmt = $pdo->prepare('
+                INSERT INTO door_people (list_id, name, note, status)
+                VALUES (:list_id, :name, :note, "no_vino")
+            ');
+
+            $stmt->execute([
+                ':list_id' => $listId,
+                ':name' => $name,
+                ':note' => $note,
+            ]);
+
             ok(['id' => (int) $pdo->lastInsertId()]);
         }
 
@@ -438,6 +474,9 @@ try {
             ok();
         }
 
+        /* =========================
+           USUARIOS
+        ========================= */
         case 'users_list': {
             require_admin($user);
 
@@ -553,6 +592,9 @@ try {
             ]);
         }
 
+        /* =========================
+           GUARDARROPAS
+        ========================= */
         case 'guardarropas_list': {
             $stmt = $pdo->query("
                 SELECT *
@@ -761,6 +803,9 @@ try {
 
             ok();
         }
+        /* =========================
+           VENTAS / HISTORIAL
+        ========================= */
         case 'sale_register': {
             require_admin($user);
 
@@ -828,7 +873,13 @@ try {
             ok(['sales' => $sales]);
         }
 
-        // Administración de QR para puerta
+
+        /* =========================================================
+           QR DE PUERTA
+           - Admin ve todos los QR desde admin.php
+           - Usuario común puede generar QR solo de sus propias listas
+           - No se envían mails: solo se genera token para mostrar QR
+        ========================================================= */
         case 'admin_qr_people': {
             require_admin($user);
 
@@ -838,7 +889,6 @@ try {
                     dp.name,
                     dp.note,
                     dp.status,
-                    dp.email,
                     dp.qr_token,
                     dp.qr_enabled,
                     dp.qr_used_at,
@@ -850,14 +900,42 @@ try {
                 ORDER BY dp.id DESC
             ");
 
-            ok(['people' => $stmt->fetchAll()]);
+            ok(['people' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         }
 
         case 'qr_generate': {
-            require_admin($user);
-
             $personId = (int) ($input['personId'] ?? 0);
-            if ($personId <= 0) fail('Persona inválida.');
+
+            if ($personId <= 0) {
+                fail('Persona inválida.');
+            }
+
+            $stmt = $pdo->prepare("
+                SELECT 
+                    dp.id,
+                    dp.list_id,
+                    dl.user_id
+                FROM door_people dp
+                INNER JOIN door_lists dl ON dl.id = dp.list_id
+                WHERE dp.id = :id
+                LIMIT 1
+            ");
+
+            $stmt->execute([
+                ':id' => $personId
+            ]);
+
+            $person = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$person) {
+                fail('Persona no encontrada.', 404);
+            }
+
+            // Admin puede generar cualquier QR.
+            // Usuario común solo puede generar QR de personas en sus propias listas.
+            if (($user['role'] ?? '') !== 'admin' && (int) $person['user_id'] !== (int) $user['id']) {
+                fail('No tenés permiso para generar este QR.', 403);
+            }
 
             $token = bin2hex(random_bytes(24));
 
@@ -874,7 +952,9 @@ try {
                 ':id' => $personId
             ]);
 
-            ok(['token' => $token]);
+            ok([
+                'token' => $token
+            ]);
         }
 
         case 'qr_disable': {

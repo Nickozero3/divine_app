@@ -19,55 +19,11 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= APP_NAME ?> Scanner QR</title>
+
+<link rel="stylesheet" href="./scanner.css">
 <link rel="stylesheet" href="styles.css">
 <script src="https://unpkg.com/html5-qrcode"></script>
 
-<style>
-.scanner-wrap {
-  padding: 16px;
-  max-width: 520px;
-  margin: auto;
-}
-
-.scanner-box {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 14px;
-  margin-bottom: 14px;
-  box-shadow: var(--shadow);
-}
-
-#reader {
-  width: 100%;
-  overflow: hidden;
-  border-radius: 16px;
-}
-
-.result-ok {
-  color: var(--green);
-  font-weight: 800;
-}
-
-.result-error {
-  color: var(--red);
-  font-weight: 800;
-}
-
-.qr-person {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--gold-2);
-  margin: 8px 0;
-}
-
-.qr-detail {
-  color: var(--text2);
-  font-size: 14px;
-  line-height: 1.5;
-  margin-bottom: 12px;
-}
-</style>
 </head>
 
 <body>
@@ -76,20 +32,34 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 
 <div class="topbar">
   <div class="topbar-title">📷 Escanear QR</div>
-  <button class="topbar-back" onclick="location.href='index.php'">← App</button>
+  <button class="topbar-back" onclick="location.href='index.php'">← Menu</button>
 </div>
 
-<div class="scanner-wrap">
+<main class="scanner-page">
+  <div class="scanner-wrap">
 
-  <div class="scanner-box">
-    <div id="reader"></div>
+    <div class="scanner-header">
+      <div class="scanner-icon">▣</div>
+      <div class="scanner-title">Scanner de entrada</div>
+      <div class="scanner-subtitle">Apuntá la cámara al QR del invitado</div>
+    </div>
+
+    <section class="scanner-card">
+      <div class="reader-frame">
+        <div id="reader"></div>
+        <div class="scan-corners"></div>
+      </div>
+    </section>
+
+    <section class="result-card" id="qr-result">
+      <div class="status-pill status-wait">● Esperando QR</div>
+      <div class="qr-detail">
+        Cuando detecte un código, se verificará automáticamente.
+      </div>
+    </section>
+
   </div>
-
-  <div class="scanner-box" id="qr-result">
-    <div style="color:var(--text2);">Esperando QR...</div>
-  </div>
-
-</div>
+</main>
 
 <script>
 let scanner = null;
@@ -141,6 +111,15 @@ function extractToken(text) {
   }
 }
 
+function renderWaiting() {
+  document.getElementById('qr-result').innerHTML = `
+    <div class="status-pill status-wait">● Esperando QR</div>
+    <div class="qr-detail">
+      Cuando detecte un código, se verificará automáticamente.
+    </div>
+  `;
+}
+
 async function onScanSuccess(decodedText) {
   if (isChecking) return;
 
@@ -154,7 +133,10 @@ async function onScanSuccess(decodedText) {
   const result = document.getElementById('qr-result');
 
   result.innerHTML = `
-    <div style="color:var(--text2);">Verificando QR...</div>
+    <div class="status-pill status-checking">⟳ Verificando QR</div>
+    <div class="qr-detail">
+      Consultando datos del invitado...
+    </div>
   `;
 
   try {
@@ -162,37 +144,39 @@ async function onScanSuccess(decodedText) {
     const p = data.person;
 
     result.innerHTML = `
-      <div class="result-ok">QR válido</div>
+      <div class="status-pill status-ok">✓ QR válido</div>
 
-      <div class="qr-person">
-        ${esc(p.name)}
-      </div>
+      <div class="qr-person">${esc(p.name)}</div>
 
       <div class="qr-detail">
-        Lista: ${esc(p.list_name)}<br>
-        Estado: ${esc(p.status)}<br>
-        Dato: ${esc(p.note || '')}
+        <b>Lista:</b> ${esc(p.list_name)}<br>
+        <b>Estado:</b> ${esc(p.status)}<br>
+        <b>Dato:</b> ${esc(p.note || 'Sin dato')}
       </div>
 
-      <button class="btn-action btn-add" style="width:100%;" onclick="confirmQR('${esc(token)}')">
-        Confirmar entrada
-      </button>
+      <div class="scanner-actions">
+        <button class="scan-btn scan-btn-primary" onclick="confirmQR('${esc(token)}')">
+          Confirmar entrada
+        </button>
 
-      <button class="btn-action" style="width:100%;margin-top:8px;" onclick="resetScanner()">
-        Escanear otro
-      </button>
+        <button class="scan-btn scan-btn-secondary" onclick="resetScanner()">
+          Escanear otro
+        </button>
+      </div>
     `;
   } catch (error) {
     result.innerHTML = `
-      <div class="result-error">QR inválido</div>
+      <div class="status-pill status-error">✕ QR inválido</div>
 
-      <div class="qr-detail" style="margin-top:8px;">
+      <div class="qr-detail">
         ${esc(error.message)}
       </div>
 
-      <button class="btn-action" style="width:100%;margin-top:8px;" onclick="resetScanner()">
-        Escanear otro
-      </button>
+      <div class="scanner-actions">
+        <button class="scan-btn scan-btn-secondary" onclick="resetScanner()">
+          Escanear otro
+        </button>
+      </div>
     `;
   } finally {
     isChecking = false;
@@ -208,22 +192,24 @@ async function confirmQR(token) {
     const p = data.person;
 
     document.getElementById('qr-result').innerHTML = `
-      <div class="result-ok" style="font-size:28px;">
-        ✓ Entrada confirmada
-      </div>
+      <div class="confirmed-box">
+        <div class="confirmed-icon">✓</div>
 
-      <div class="qr-person">
-        ${esc(p.name)}
-      </div>
+        <div class="status-pill status-ok">Entrada confirmada</div>
 
-      <div class="qr-detail">
-        Lista: ${esc(p.list_name)}<br>
-        Marcado como ENTRO
-      </div>
+        <div class="qr-person">${esc(p.name)}</div>
 
-      <button class="btn-action btn-add" style="width:100%;margin-top:8px;" onclick="resetScanner()">
-        Escanear otro
-      </button>
+        <div class="qr-detail">
+          <b>Lista:</b> ${esc(p.list_name)}<br>
+          <b>Estado:</b> Marcado como ENTRO
+        </div>
+
+        <div class="scanner-actions">
+          <button class="scan-btn scan-btn-primary" onclick="resetScanner()">
+            Escanear otro
+          </button>
+        </div>
+      </div>
     `;
   } catch (error) {
     alert(error.message);
@@ -232,9 +218,7 @@ async function confirmQR(token) {
 
 function resetScanner() {
   lastToken = null;
-  document.getElementById('qr-result').innerHTML = `
-    <div style="color:var(--text2);">Esperando QR...</div>
-  `;
+  renderWaiting();
 }
 
 function startScanner() {
