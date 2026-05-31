@@ -17,7 +17,7 @@
 
 ## 🚀 ¿Qué es Divine App?
 
-**Divine App** es una aplicación web para administrar eventos, boliche o fiestas desde un panel simple y responsive.
+**Divine App** es una aplicación web para administrar eventos, boliches o fiestas desde un panel simple, rápido y responsive.
 
 Permite gestionar:
 
@@ -33,15 +33,16 @@ Permite gestionar:
 
 ## ✨ Funciones principales
 
-| Módulo          | Función                                             |
-| --------------- | --------------------------------------------------- |
-| 🚪 Puerta       | Crear listas, agregar personas y controlar ingresos |
-| 📲 QR           | Generar y compartir QR personalizados               |
-| 📷 Scanner      | Validar entradas por QR                             |
-| 🛒 Kioskito     | Vender productos con carrito                        |
-| 🧥 Guardarropas | Registrar prendas y marcar retiradas                |
-| 👑 Admin        | Ver todo, cambiar estados y controlar listas        |
-| 👤 Usuario      | Ver y administrar solo sus propias listas           |
+| Módulo          | Función                                              |
+| --------------- | ---------------------------------------------------- |
+| 🚪 Puerta       | Ver listas, buscar invitados y controlar ingresos    |
+| 📲 QR           | Generar y compartir QR personalizados                |
+| 📷 Scanner      | Validar entradas por QR                              |
+| 🛒 Kioskito     | Vender productos con carrito                         |
+| 🧥 Guardarropas | Registrar prendas y marcar retiradas                 |
+| 👑 Admin        | Control total de listas, usuarios y estadísticas     |
+| 🚪 Puerta rol   | Ver todas las listas, usar scanner y cambiar estados |
+| 👤 Usuario/RRPP | Administrar solo sus propias listas                  |
 
 ---
 
@@ -58,20 +59,54 @@ Puede:
 * Usar Scanner.
 * Acceder al Panel Admin.
 * Enviar QR.
+* Crear usuarios.
+* Modificar roles.
 * Eliminar listas y personas.
+* Administrar productos y ventas.
+
+---
+
+### 🚪 Puerta
+
+Puede:
+
+* Ver todas las listas.
+* Buscar por usuario, lista o persona.
+* Cambiar estados: `No vino`, `Entró`, `Se fue`.
+* Usar Scanner.
+* Confirmar entradas por QR.
+
+No puede:
+
+* Acceder al Panel Admin.
+* Usar Kioskito.
+* Crear usuarios.
+* Modificar productos.
+* Eliminar listas.
+* Eliminar personas.
+* Crear o pegar listas.
+
+---
 
 ### 👤 Usuario / RRPP
 
 Puede:
 
-* Ver solo sus listas.
-* Crear listas normales y cumpleaños.
+* Ver solo sus propias listas.
+* Crear listas normales.
+* Crear listas de cumpleaños.
 * Agregar personas.
 * Pegar listas completas.
-* Buscar invitados.
+* Buscar invitados dentro de sus listas.
 * Enviar QR.
 
-No puede cambiar estados ni ver listas ajenas.
+No puede:
+
+* Ver listas ajenas.
+* Cambiar estados de ingreso.
+* Usar Scanner.
+* Usar Kioskito.
+* Acceder al Panel Admin.
 
 ---
 
@@ -133,11 +168,11 @@ http://localhost:8080/login.php
 Usuarios disponibles:
 
 ```txt
-Camila / camila123
-Nicolas / nicolas123
-Lopez / lopez123
-Publica / publica123
-Candelaria / candelaria123
+Lopez      / lopez123       -> admin
+Nicolas    / nicolas123     -> admin
+Camila     / camila123      -> puerta
+Publica    / publica123     -> usuario
+Candelaria / candelaria123  -> usuario
 ```
 
 Después de crear los usuarios, borrar:
@@ -186,8 +221,24 @@ src/styles.css             Estilos responsive
 src/admin.php              Panel Admin
 src/scanner.php            Scanner QR
 src/qr.php                 Validación QR
+src/setup.php              Creación inicial de usuarios
 src/config/conexion.php    Conexión MySQL
+src/config/app_logs.php    Registro de acciones internas
 db/init.sql                Tablas y productos iniciales
+```
+
+---
+
+## 🗄️ Tablas principales
+
+```txt
+users          Usuarios y roles
+products       Productos del Kioskito
+kiosko_sales   Historial de ventas
+door_lists     Listas de puerta
+door_people    Personas dentro de cada lista
+guardarropas   Prendas registradas
+app_logs        Logs internos de acciones
 ```
 
 ---
@@ -197,9 +248,36 @@ db/init.sql                Tablas y productos iniciales
 * La app **no usa localStorage**.
 * Todo se guarda en **MySQL**.
 * El scanner QR necesita **HTTPS o localhost** para usar la cámara.
-* El live reload se pausa al escribir o abrir modales.
-* Los estados de ingreso solo los cambia un admin.
-* Los QR se guardan en `door_people`.
+* El live reload se pausa al escribir, pegar listas o abrir modales.
+* Los estados de ingreso los pueden cambiar los roles `admin` y `puerta`.
+* El rol `puerta` ve todas las listas, pero no administra productos ni usuarios.
+* Los QR se guardan en la tabla `door_people`.
+* Si se modifica el rol desde la base de datos, el campo `users.role` debe aceptar: `admin`, `usuario` y `puerta`.
+
+---
+
+## 🛠️ Roles permitidos en la base de datos
+
+El campo `role` de la tabla `users` debe aceptar:
+
+```sql
+ENUM('admin', 'usuario', 'puerta')
+```
+
+Ejemplo:
+
+```sql
+ALTER TABLE users
+MODIFY role ENUM('admin', 'usuario', 'puerta') NOT NULL DEFAULT 'usuario';
+```
+
+Para convertir un usuario existente al rol puerta:
+
+```sql
+UPDATE users
+SET role = 'puerta'
+WHERE username = 'camila';
+```
 
 ---
 
