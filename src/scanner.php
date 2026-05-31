@@ -31,7 +31,7 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 <div class="stars"></div>
 
 <div class="topbar">
-  <div class="topbar-title">📷 Escanear QR</div>
+  <div class="topbar-title" onclick="location.href='index.php'">Escanear QR 📷</div>
   <button class="topbar-back" onclick="location.href='index.php'">← Menu</button>
 </div>
 

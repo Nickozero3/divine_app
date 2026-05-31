@@ -89,9 +89,10 @@ $isAdmin = ($currentUser['role'] ?? '') === 'admin';
 <div id="page-kioskito" class="page">
 
   <div class="topbar">
-    <div class="topbar-title" onclick="goTo('menu')">
-      🛒 <?= APP_NAME ?> Kioskito
-    </div>
+      <div class="topbar-title" onclick="goTo('menu')">
+    <?= APP_NAME ?> Kioskito 🛒
+    <span class="live-dot">● live</span>
+  </div>
     <button class="topbar-back" onclick="goTo('menu')">← Menú</button>
   </div>
 
@@ -142,7 +143,10 @@ $isAdmin = ($currentUser['role'] ?? '') === 'admin';
 <!-- PUERTA -->
 <div id="page-puerta" class="page">
   <div class="topbar">
-    <div class="topbar-title" onclick="goTo('menu')"><?= APP_NAME ?> Puerta 🚪</div>
+    <div class="topbar-title" onclick="goTo('menu')">
+      <?= APP_NAME ?> Puerta 🚪
+      <span class="live-dot">● live</span>
+    </div>
     <button class="topbar-back" onclick="goTo('menu')">← Menú</button>
   </div>
 

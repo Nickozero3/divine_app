@@ -58,7 +58,7 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 <body>
 
 <div class="topbar">
-  <div class="topbar-title">
+  <div class="topbar-title" onclick="location.href='index.php'">
     Panel Admin <span class="live-dot" id="live-status">● live</span>
   </div>
   <button class="topbar-back" onclick="location.href='index.php'">← Menu </button>

@@ -1272,3 +1272,428 @@ body {
 .qr-send-btn:active{
   transform:scale(.97);
 }
+/* =========================================================
+   FIX RESPONSIVE TOPBAR + PUERTA + QR + TRANSICIONES
+   Pegarlo al FINAL de styles.css
+========================================================= */
+
+/* Letras generales más responsive */
+body {
+  font-size: clamp(13px, 3.6vw, 15px);
+}
+
+/* TOPBAR: misma altura siempre y letras que no empujan */
+.topbar {
+  min-height: 58px;
+  padding: 10px 12px;
+  gap: 10px;
+  align-items: center;
+  cursor: default;
+}
+
+.topbar-title {
+  flex: 1;
+  min-width: 0;
+  max-width: calc(100% - 92px);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  line-height: 1;
+  font-size: clamp(14px, 4.2vw, 20px);
+  letter-spacing: clamp(0px, 0.25vw, 1px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-back {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 7px 12px;
+  font-size: clamp(12px, 3.4vw, 13px);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Live separado del degradado del título */
+.live-dot {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-family: "DM Sans", sans-serif;
+  font-size: clamp(9px, 2.8vw, 11px);
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  color: #35ff7a;
+  background: rgba(53, 255, 122, 0.1);
+  border: 1px solid rgba(53, 255, 122, 0.22);
+  box-shadow: 0 0 14px rgba(53, 255, 122, 0.2);
+  text-shadow: 0 0 10px rgba(53, 255, 122, 0.75);
+
+  -webkit-text-fill-color: #35ff7a;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+
+  animation: livePulse 1.2s infinite ease-in-out;
+}
+
+@keyframes livePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.55;
+    transform: scale(0.96);
+  }
+}
+
+/* LISTAS: letras responsive */
+.list-header {
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px;
+}
+
+.list-name-txt {
+  min-width: 0;
+  font-size: clamp(14px, 4vw, 18px);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.list-name-txt span {
+  line-height: 1.25;
+}
+
+.list-badge {
+  flex-shrink: 0;
+  font-size: clamp(9px, 2.8vw, 11px);
+}
+
+.list-stats {
+  overflow: hidden;
+}
+
+.stat-num {
+  font-size: clamp(14px, 4vw, 18px);
+}
+
+.stat-lbl {
+  font-size: clamp(8px, 2.5vw, 10px);
+}
+
+/* FILAS PERSONA: estructura más estable */
+.person-list {
+  padding: 8px 10px;
+}
+
+.person-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+
+  transition:
+    background-color 0.38s ease,
+    border-color 0.38s ease,
+    box-shadow 0.38s ease,
+    transform 0.22s ease;
+}
+
+.person-info {
+  min-width: 0;
+}
+
+.person-name {
+  font-size: clamp(13px, 3.8vw, 15px);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.person-note {
+  font-size: clamp(10px, 3vw, 12px);
+  line-height: 1.2;
+}
+
+/* Colores base de cada estado en la fila */
+.person-row.no_vino {
+  background-color: rgba(255, 95, 109, 0.08);
+  border-color: rgba(255, 95, 109, 0.13);
+}
+
+.person-row.entro {
+  background-color: rgba(54, 201, 133, 0.12);
+  border-color: rgba(54, 201, 133, 0.2);
+}
+
+.person-row.se_fue {
+  background-color: rgba(255, 175, 77, 0.12);
+  border-color: rgba(255, 175, 77, 0.22);
+}
+
+/* Botón estado más responsive y suave */
+.btn-status {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: clamp(10px, 3vw, 12px);
+  line-height: 1;
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease,
+    color 0.35s ease,
+    transform 0.15s ease,
+    box-shadow 0.35s ease;
+}
+
+.btn-status:active {
+  transform: scale(0.96);
+}
+
+/* Botón Enviar QR responsive */
+.qr-send-btn {
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 12px;
+  font-size: clamp(10px, 3vw, 13px);
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  color: #1d1200;
+  background: linear-gradient(135deg, #f7d774, #b07cff);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.25s ease,
+    filter 0.25s ease;
+}
+
+.qr-send-btn:active {
+  transform: scale(0.96);
+  filter: brightness(1.08);
+}
+
+/* Botón eliminar persona más compacto */
+.btn-del-person {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  margin-left: 0;
+}
+
+/* Animación real cuando cambia el estado */
+.person-row.status-entro {
+  animation: statusFadeGreen 0.72s ease both;
+}
+
+.person-row.status-no_vino {
+  animation: statusFadeRed 0.72s ease both;
+}
+
+.person-row.status-se_fue {
+  animation: statusFadeOrange 0.72s ease both;
+}
+
+@keyframes statusFadeGreen {
+  0% {
+    background-color: rgba(54, 201, 133, 0.56);
+    border-color: rgba(54, 201, 133, 0.75);
+    box-shadow: 0 0 0 0 rgba(54, 201, 133, 0.45);
+    transform: scale(1.012);
+  }
+
+  55% {
+    box-shadow: 0 0 24px rgba(54, 201, 133, 0.36);
+  }
+
+  100% {
+    background-color: rgba(54, 201, 133, 0.12);
+    border-color: rgba(54, 201, 133, 0.2);
+    box-shadow: 0 0 0 rgba(54, 201, 133, 0);
+    transform: scale(1);
+  }
+}
+
+@keyframes statusFadeRed {
+  0% {
+    background-color: rgba(255, 95, 109, 0.52);
+    border-color: rgba(255, 95, 109, 0.72);
+    box-shadow: 0 0 0 0 rgba(255, 95, 109, 0.45);
+    transform: scale(1.012);
+  }
+
+  55% {
+    box-shadow: 0 0 24px rgba(255, 95, 109, 0.34);
+  }
+
+  100% {
+    background-color: rgba(255, 95, 109, 0.08);
+    border-color: rgba(255, 95, 109, 0.13);
+    box-shadow: 0 0 0 rgba(255, 95, 109, 0);
+    transform: scale(1);
+  }
+}
+
+@keyframes statusFadeOrange {
+  0% {
+    background-color: rgba(255, 175, 77, 0.54);
+    border-color: rgba(255, 175, 77, 0.76);
+    box-shadow: 0 0 0 0 rgba(255, 175, 77, 0.45);
+    transform: scale(1.012);
+  }
+
+  55% {
+    box-shadow: 0 0 24px rgba(255, 175, 77, 0.35);
+  }
+
+  100% {
+    background-color: rgba(255, 175, 77, 0.12);
+    border-color: rgba(255, 175, 77, 0.22);
+    box-shadow: 0 0 0 rgba(255, 175, 77, 0);
+    transform: scale(1);
+  }
+}
+
+/* Responsive fuerte para celulares */
+@media (max-width: 520px) {
+  .topbar {
+    min-height: 54px;
+    padding: 9px 10px;
+  }
+
+  .topbar-title {
+    max-width: calc(100% - 82px);
+    gap: 5px;
+  }
+
+  .topbar-back {
+    padding: 7px 10px;
+  }
+
+  .lists-wrap {
+    padding: 12px 10px 82px;
+  }
+
+  .list-header {
+    flex-wrap: nowrap;
+    padding: 11px 10px;
+  }
+
+  .list-header .btn-quick-add {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+    border-radius: 11px;
+  }
+
+  .person-list {
+    padding: 7px 8px;
+  }
+
+  .person-row {
+    grid-template-columns: 1fr;
+    gap: 9px;
+    padding: 10px;
+  }
+
+  .person-row > div[style*="display:flex"] {
+    width: 100%;
+    justify-content: space-between !important;
+    gap: 7px !important;
+  }
+
+  .btn-status,
+  .qr-send-btn {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .qr-send-btn {
+    padding: 10px 11px;
+  }
+
+  .btn-del-person {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    font-size: 15px;
+  }
+
+  .person-info {
+    padding-right: 34px;
+  }
+
+  .quick-manual {
+    flex-wrap: wrap;
+  }
+
+  .quick-manual input {
+    min-width: 100%;
+  }
+
+  .quick-manual .btn-add-person {
+    width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .topbar-title {
+    font-size: 13px;
+  }
+
+  .live-dot {
+    font-size: 8px;
+    padding: 3px 5px;
+  }
+
+  .topbar-back {
+    font-size: 11px;
+    padding: 7px 8px;
+  }
+
+  .btn-status,
+  .qr-send-btn {
+    font-size: 10px;
+    padding-inline: 8px;
+  }
+}
+/* Fila clickeable solo para admin */
+.person-row-clickable {
+  cursor: pointer;
+}
+
+.person-row-clickable:active {
+  transform: scale(0.985);
+}
+
+/* Evita que los botones internos parezcan parte del toque de fila */
+.person-row button {
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+}
+

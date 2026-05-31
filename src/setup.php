@@ -43,7 +43,7 @@ try {
         ],
         [
             'username' => 'nicolas',
-            'display_name' => 'Nicolas',
+            'display_name' => 'Nicko',
             'password' => 'nicolas123',
             'role' => 'admin'
         ],
@@ -59,6 +59,12 @@ try {
             'password' => 'publica123',
             'role' => 'usuario'
         ],
+        [
+            'username' => 'candela',
+            'display_name' => 'Candela',
+            'password' => 'candela123',
+            'role' => 'usuario'
+        ]
     ];
 
     $check = $pdo->prepare("
@@ -110,14 +116,13 @@ try {
     }
 
     echo "<h1>Base y usuarios creados correctamente</h1>";
-
+    echo "<p>Usuarios creados/actualizados:</p>";
     echo "<ul>";
-    echo "<li>camila / camila123</li>";
-    echo "<li>nicolas / nicolas123</li>";
-    echo "<li>lopez / lopez123</li>";
-    echo "<li>publica / publica123</li>";
+    foreach ($users as $user) {
+        echo "<li>" . htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8') . " (" . htmlspecialchars($user['role'], ENT_QUOTES, 'UTF-8') .
+                ")</li>";
+    }
     echo "</ul>";
-
     echo "<p><a href='login.php'>Ir al login</a></p>";
 
 } catch (Throwable $e) {

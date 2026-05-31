@@ -558,6 +558,8 @@ let doorLists = [];
 let openQuickAddListId = null;
 let collapsedDoorLists = {};
 let lastChangedPersonId = null;
+let statusAnimationTimer = null;
+let statusAnimationUntil = 0;
 
 function getListPrice(list) {
   if (!list) return PERSON_PRICE;
@@ -613,7 +615,6 @@ function drawPuerta() {
 
   const user = window.DIVINE_USER || {};
   const isAdmin = user.role === 'admin';
-  const isUsuario = user.role === 'usuario';
 
   const listTerm = isAdmin ? normalizeText(searchInput ? searchInput.value : '') : '';
   const personTerm = normalizeText(personSearchInput ? personSearchInput.value : '');
@@ -649,8 +650,20 @@ function drawPuerta() {
       const text = `${statusLabel(person.status)}${person.status === 'entro' ? ` · $${pricePerPerson.toLocaleString('es-AR')}` : ''}`;
 
       return isAdmin
-        ? `<button class="btn-status ${esc(person.status)}" onclick="togglePersonStatus(${Number(list.id)}, ${Number(person.id)})">${text}</button>`
-        : `<button class="btn-status ${esc(person.status)} btn-status-readonly" disabled>${text}</button>`;
+        ? `
+          <button
+            class="btn-status ${esc(person.status)}"
+            onclick="event.stopPropagation(); togglePersonStatus(${Number(list.id)}, ${Number(person.id)})">
+            ${text}
+          </button>
+        `
+        : `
+          <button
+            class="btn-status ${esc(person.status)} btn-status-readonly"
+            disabled>
+            ${text}
+          </button>
+        `;
     };
 
     const filteredPeople = (list.people || []).filter(person => {
@@ -676,7 +689,7 @@ function drawPuerta() {
           ${canEditThisList ? `
             <button
               class="btn-add-person btn-quick-add"
-              onclick="toggleQuickAdd(${Number(list.id)}); event.stopPropagation();">
+              onclick="event.stopPropagation(); toggleQuickAdd(${Number(list.id)});">
               ＋
             </button>
           ` : ''}
@@ -684,7 +697,11 @@ function drawPuerta() {
           <div class="list-badge badge-green">$${stats.collected.toLocaleString('es-AR')}</div>
 
           ${canEditThisList ? `
-            <button class="list-delete" onclick="deleteList(${Number(list.id)})">✕</button>
+            <button
+              class="list-delete"
+              onclick="event.stopPropagation(); deleteList(${Number(list.id)})">
+              ✕
+            </button>
           ` : ''}
         </div>
 
@@ -698,45 +715,22 @@ function drawPuerta() {
         <div class="person-list">
           ${filteredPeople.length
             ? filteredPeople.map(person => `
-              <div class="person-row ${esc(person.status)}">
+              <div
+                class="person-row ${esc(person.status)} ${isAdmin ? 'person-row-clickable' : ''} ${lastChangedPersonId === Number(person.id) ? `status-${esc(person.status)}` : ''}"
+                ${isAdmin ? `onclick="togglePersonStatus(${Number(list.id)}, ${Number(person.id)})"` : ''}
+              >
                 <div class="person-info">
                   <div class="person-name">${esc(person.name)}</div>
                   <div class="person-note">${esc(person.note || '')}</div>
-
-                  ${isAdmin && canEditThisList ? `
-                    <div class="qr-mini-actions">
-                      ${person.qr_token ? `
-                        <div class="qr-preview-box">
-                          <img
-                            src="${qrUrl(person.qr_token)}"
-                            class="qr-preview-img"
-                            alt="QR de ${esc(person.name)}"
-                          >
-                        </div>
-
-                        <button
-                          class="qr-mini-btn secondary"
-                          onclick="copyPersonQR('${esc(person.qr_token)}')">
-                          Copiar link
-                        </button>
-                      ` : `
-                        <button
-                          class="qr-mini-btn"
-                          onclick="generatePersonQR(${Number(person.id)})">
-                          Generar QR
-                        </button>
-                      `}
-                    </div>
-                  ` : ''}
                 </div>
 
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
                   ${statusControl(person)}
 
-                  ${isUsuario && canEditThisList ? `
+                  ${canEditThisList ? `
                     <button
                       class="qr-send-btn"
-                      onclick='enviarQRPersona(
+                      onclick='event.stopPropagation(); enviarQRPersona(
                         ${Number(person.id)},
                         ${JSON.stringify(person.name)},
                         ${JSON.stringify(person.note || '')},
@@ -751,7 +745,7 @@ function drawPuerta() {
                 ${canEditThisList ? `
                   <button
                     class="btn-del-person"
-                    onclick="deletePerson(${Number(list.id)}, ${Number(person.id)})">
+                    onclick="event.stopPropagation(); deletePerson(${Number(list.id)}, ${Number(person.id)})">
                     ✕
                   </button>
                 ` : ''}
@@ -787,7 +781,6 @@ function drawPuerta() {
     `;
   }).join('');
 }
-
 
 function parseBulkText(rawText) {
   const lines = String(rawText || '').trim().split(/\r?\n/);
@@ -834,11 +827,14 @@ async function procesarListaPorLista(listId) {
 
   try {
     const data = await api('people_bulk', { listId, people: parsed.people });
+
     textarea.value = '';
+
+    openQuickAddListId = null;
     await renderPuerta();
-    openQuickAddListId = null;  
 
     const ignoredTotal = Number(parsed.ignored || 0) + Number(data.ignored || 0);
+
     if (ignoredTotal > 0 || Number(data.repeated || 0) > 0) {
       alert(`Agregados: ${data.added || 0}\nRepetidos: ${data.repeated || 0}\nIgnorados por formato inválido: ${ignoredTotal}`);
     }
@@ -942,7 +938,17 @@ async function addPerson(listId) {
   }
 
   try {
-    await api('person_add', { listId, name, note });
+    const data = await api('person_add', { listId, name, note });
+
+    const personId = data.personId || data.person_id || data.id || null;
+
+    if (personId) {
+      try {
+        await api('qr_generate', { personId: Number(personId) });
+      } catch (qrError) {
+        console.warn('La persona se agregó, pero no se pudo generar el QR automáticamente:', qrError);
+      }
+    }
 
     openQuickAddListId = null;
 
@@ -957,17 +963,35 @@ async function addPerson(listId) {
 
 async function togglePersonStatus(listId, personId) {
   try {
-    const data = await api('person_toggle_status', { listId, personId });
+    if (statusAnimationTimer) {
+      clearTimeout(statusAnimationTimer);
+      statusAnimationTimer = null;
+    }
+
+    lastChangedPersonId = null;
+
+    await api('person_toggle_status', {
+      listId: Number(listId),
+      personId: Number(personId)
+    });
+
     lastChangedPersonId = Number(personId);
+    statusAnimationUntil = Date.now() + 1100;
+
     await renderPuerta();
 
-    setTimeout(() => {
+    statusAnimationTimer = setTimeout(() => {
       if (lastChangedPersonId === Number(personId)) {
         lastChangedPersonId = null;
+        statusAnimationTimer = null;
         drawPuerta();
       }
-    }, 580);
+    }, 760);
+
   } catch (error) {
+    lastChangedPersonId = null;
+    statusAnimationTimer = null;
+    statusAnimationUntil = 0;
     showError(error);
   }
 }
@@ -1028,13 +1052,14 @@ function startLiveApp() {
     const pegandoLista = !!document.querySelector(".bulk-input:focus");
 
     if (
-      puertaActiva &&
-      !liveIsLoadingPuerta &&
-      !estaEscribiendo &&
-      !modalAbierto &&
-      !panelQuickAbierto &&
-      !pegandoLista
-    ) {
+        puertaActiva &&
+        !liveIsLoadingPuerta &&
+        !estaEscribiendo &&
+        !modalAbierto &&
+        !panelQuickAbierto &&
+        !pegandoLista &&
+        Date.now() > statusAnimationUntil
+      ) {
       liveIsLoadingPuerta = true;
 
       try {
@@ -1159,45 +1184,20 @@ async function entregarGuardarropas(id) {
     showError(error);
   }
 }
+
 async function eliminarGuardarropas(id) {
+  const okDelete = confirm('¿Eliminar este guardarropas?');
 
-    const okDelete = confirm(
-        '¿Eliminar este guardarropas?'
-    );
+  if (!okDelete) {
+    return;
+  }
 
-    if (!okDelete) {
-        return;
-    }
-
-    try {
-
-        const res = await fetch(
-            'api.php?action=guardarropas_delete',
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    id
-                })
-            }
-        );
-
-        const data = await res.json();
-
-        if (!data.ok) {
-            throw new Error(
-                data.error || 'Error al eliminar'
-            );
-        }
-
-
-    } catch (err) {
-
-        alert(err.message);
-
-    }
+  try {
+    await api('guardarropas_delete', { id: Number(id) });
+    await renderGuardarropas();
+  } catch (error) {
+    showError(error);
+  }
 }
 
 async function renderGuardarropas() {
@@ -1301,55 +1301,23 @@ async function renderGuardarropas() {
     showError(error);
   }
 }
-
-function qrUrl(token) {
-  const link = `${location.origin}/qr.php?token=${encodeURIComponent(token)}`;
-  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`;
-}
-
-async function generatePersonQR(personId) {
-  if (!personId) {
-    alert('ID de persona inválido');
-    return;
-  }
-
-  try {
-    await api('qr_generate', { personId });
-    await renderPuerta();
-
-    if (typeof toast === 'function') {
-      toast('QR generado');
-    } else {
-      alert('QR generado');
-    }
-  } catch (error) {
-    alert(error.message || 'No se pudo generar el QR');
-  }
-}
-
-async function copyPersonQR(token) {
-  const link = `${location.origin}/qr.php?token=${token}`;
-
-  try {
-    await navigator.clipboard.writeText(link);
-
-    if (typeof toast === 'function') {
-      toast('Link copiado');
-    } else {
-      alert('Link copiado');
-    }
-  } catch {
-    prompt('Copiá este link:', link);
-  }
-}
+// ---------------------------------------------------------------
+//                      QR DE ENTRADA
+// ---------------------------------------------------------------
 
 async function enviarQRPersona(personId, personName, personNote, listName, currentToken = '') {
   let token = currentToken;
 
   try {
     if (!token) {
-      const data = await api('qr_generate', { personId });
-      token = data.token;
+      const data = await api('qr_generate', { personId: Number(personId) });
+
+      token = data.token || data.qr_token || '';
+
+      if (!token) {
+        throw new Error('No se pudo obtener el token del QR.');
+      }
+
       await renderPuerta();
     }
 
@@ -1365,7 +1333,6 @@ async function enviarQRPersona(personId, personName, personNote, listName, curre
   }
 }
 
-// Genera una imagen personalizada del QR con detalles de la persona y la lista, y luego intenta compartirla o mostrarla al usuario.
 async function generarImagenQR({ token, personName, personNote, listName, expiresAt }) {
   if (typeof QRious === 'undefined') {
     alert('Falta cargar QRious en index.php');
@@ -1402,9 +1369,11 @@ async function generarImagenQR({ token, personName, personNote, listName, expire
   ctx.textAlign = 'center';
   ctx.fillText('QR DE ENTRADA', 450, 120);
 
+  const displayName = `${personName || 'Invitado'}${personNote ? ` - ${personNote}` : ''}`;
+
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 48px Arial';
-  ctx.fillText(personName + (personNote ? ` -${personNote}` : '') || 'Invitado', 450, 220);
+  ctx.fillText(displayName, 450, 220);
 
   ctx.fillStyle = '#b9b3c9';
   ctx.font = '30px Arial';
@@ -1426,6 +1395,7 @@ async function generarImagenQR({ token, personName, personNote, listName, expire
   ctx.font = '22px Arial';
   ctx.fillText(location.host, 450, 1080);
 
+  // La imagen se crea SIEMPRE
   canvas.toBlob(async blob => {
     if (!blob) {
       alert('No se pudo crear la imagen del QR');
@@ -1440,17 +1410,42 @@ async function generarImagenQR({ token, personName, personNote, listName, expire
       type: 'image/png'
     });
 
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        files: [file],
-        title: 'QR de entrada',
-        text: `QR de entrada para ${personName || 'invitado'}`
-      });
-      return;
-    }
+    const imageUrl = URL.createObjectURL(blob);
 
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    // Después de crear la imagen, intenta compartirla
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'QR de entrada',
+          text: `QR de entrada para ${personName || 'invitado'}`
+        });
+
+        setTimeout(() => URL.revokeObjectURL(imageUrl), 3000);
+        return;
+      }
+
+      // Si no puede compartir archivo, intenta compartir el link
+      if (navigator.share) {
+        await navigator.share({
+          title: 'QR de entrada',
+          text: `QR de entrada para ${personName || 'invitado'}`,
+          url: qrLink
+        });
+
+        setTimeout(() => URL.revokeObjectURL(imageUrl), 3000);
+        return;
+      }
+
+      // Si el navegador no soporta compartir, recién ahí muestra la imagen
+      window.open(imageUrl, '_blank');
+
+    } catch (error) {
+      console.error('No se pudo compartir el QR:', error);
+
+      // Si falla compartir, deja ver la imagen ya creada
+      window.open(imageUrl, '_blank');
+    }
   }, 'image/png');
 }
 

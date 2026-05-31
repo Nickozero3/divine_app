@@ -1,131 +1,211 @@
-# Divine App corregida sin localStorage
+<div align="center">
 
-Esta versión guarda todo en MySQL mediante PHP:
+# ✨ Divine App ✨
 
-- Login con sesión PHP.
-- Usuarios: Camila, Nicolas y Lopez como admin; Publica como usuario.
-- Kioskito solo para admin.
-- Puerta para admin y usuario.
-- Publica ve únicamente sus listas.
-- Publica puede crear su lista principal automática con su nombre.
-- Publica puede crear varias listas de cumpleaños automáticas: `Publica Cumpleaños 1`, `Publica Cumpleaños 2`, etc.
-- Publica puede agregar personas una por una o pegando una lista completa.
-- Publica puede buscar nombres dentro de sus listas.
-- Solo admin puede cambiar el estado `No vino / Entró / Se fue`.
-- Admin puede ver todas las listas y buscar por lista, usuario o persona.
-- La creación de listas ya no permite escribir nombres: se toma automáticamente el nombre del usuario logueado.
-- Se guardan logs de inicio de sesión y de borrado de listas en la tabla `app_logs`.
-- Productos, cantidades, listas, personas y estados se guardan en la base de datos.
-- No se usa localStorage.
+<img src="https://readme-typing-svg.demolab.com?font=DM+Sans&weight=700&size=24&pause=1000&color=F0D48D&center=true&vCenter=true&width=600&lines=Sistema+de+gesti%C3%B3n+para+eventos;Puerta+%C2%B7+Kioskito+%C2%B7+QR+%C2%B7+Guardarropas;Hecho+con+PHP+%2B+MySQL" alt="Typing SVG" />
 
+<br>
 
-## Permisos de Puerta
+![PHP](https://img.shields.io/badge/PHP-Backend-777BB4?style=for-the-badge\&logo=php\&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-Database-4479A1?style=for-the-badge\&logo=mysql\&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-Frontend-F7DF1E?style=for-the-badge\&logo=javascript\&logoColor=111)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge\&logo=docker\&logoColor=white)
 
-### Admin
+</div>
 
-- Ve todas las listas: normales y cumpleaños.
-- Puede buscar por lista, usuario y nombre de persona.
-- Puede cambiar el estado de cada persona: `No vino`, `Entró`, `Se fue`.
-- Puede agregar personas, pegar listas, eliminar registros y borrar listas.
-- Si crea una lista, se nombra automáticamente con su propio usuario.
+---
 
-### Publica / usuario
+## 🚀 ¿Qué es Divine App?
 
-- Ve únicamente sus propias listas.
-- Su lista normal se crea automáticamente con su nombre, por ejemplo: `Publica` o `Anna`.
-- Si crea listas de cumpleaños, se nombran automáticamente como `Publica Cumpleaños 1`, `Publica Cumpleaños 2`, o `Anna Cumpleaños 1`, `Anna Cumpleaños 2`, etc.
-- Puede agregar nombres manualmente o pegar una lista completa.
-- Puede buscar nombres dentro de sus propias listas.
-- No puede cambiar si una persona vino o no; el estado aparece solo para lectura.
+**Divine App** es una aplicación web para administrar eventos, boliche o fiestas desde un panel simple y responsive.
 
-## Levantar con Docker
+Permite gestionar:
 
-Desde la carpeta raíz del proyecto:
+* 🚪 **Puerta:** listas, invitados y estados de ingreso.
+* 📲 **QR:** generación, envío y validación de entradas.
+* 📷 **Scanner:** lectura de QR desde cámara.
+* 🛒 **Kioskito:** ventas tipo carrito.
+* 🧥 **Guardarropas:** registro y entrega de prendas.
+* 📊 **Admin:** estadísticas y control general.
+* 🔴 **Live reload:** actualización automática sin recargar.
 
-```powershell
+---
+
+## ✨ Funciones principales
+
+| Módulo          | Función                                             |
+| --------------- | --------------------------------------------------- |
+| 🚪 Puerta       | Crear listas, agregar personas y controlar ingresos |
+| 📲 QR           | Generar y compartir QR personalizados               |
+| 📷 Scanner      | Validar entradas por QR                             |
+| 🛒 Kioskito     | Vender productos con carrito                        |
+| 🧥 Guardarropas | Registrar prendas y marcar retiradas                |
+| 👑 Admin        | Ver todo, cambiar estados y controlar listas        |
+| 👤 Usuario      | Ver y administrar solo sus propias listas           |
+
+---
+
+## 🔐 Roles
+
+### 👑 Admin
+
+Puede:
+
+* Ver todas las listas.
+* Buscar por usuario, lista o persona.
+* Cambiar estados: `No vino`, `Entró`, `Se fue`.
+* Usar Kioskito.
+* Usar Scanner.
+* Acceder al Panel Admin.
+* Enviar QR.
+* Eliminar listas y personas.
+
+### 👤 Usuario / RRPP
+
+Puede:
+
+* Ver solo sus listas.
+* Crear listas normales y cumpleaños.
+* Agregar personas.
+* Pegar listas completas.
+* Buscar invitados.
+* Enviar QR.
+
+No puede cambiar estados ni ver listas ajenas.
+
+---
+
+## 🧩 Tecnologías
+
+```txt
+Frontend: HTML + CSS + JavaScript
+Backend: PHP
+Base de datos: MySQL
+Sesiones: PHP Sessions
+Deploy local: Docker / XAMPP
+```
+
+---
+
+## 🐳 Levantar con Docker
+
+```bash
 docker compose up --build
 ```
 
-Abrí:
+Abrir la app:
 
-- App: http://localhost:8080
-- phpMyAdmin: http://localhost:8081
+```txt
+http://localhost:8080
+```
 
-Datos phpMyAdmin:
+phpMyAdmin:
 
-- Servidor: mysql
-- Usuario: usuario
-- Contraseña: password
-- Base: divine_db
+```txt
+http://localhost:8081
+```
 
-Luego abrí una vez:
+Datos de phpMyAdmin:
 
-```text
+```txt
+Servidor: mysql
+Usuario: usuario
+Contraseña: password
+Base: divine_db
+```
+
+---
+
+## 🧪 Crear usuarios iniciales
+
+Abrir una vez:
+
+```txt
 http://localhost:8080/setup_user.php
 ```
 
-Después entrá al login:
+Luego entrar al login:
 
-```text
+```txt
 http://localhost:8080/login.php
 ```
 
-Usuarios:
+Usuarios disponibles:
 
-- Camila / camila123
-- Nicolas / nicolas123
-- Lopez / lopez123
-- Publica / publica123
+```txt
+Camila / camila123
+Nicolas / nicolas123
+Lopez / lopez123
+Publica / publica123
+```
 
-Cuando confirmes que los usuarios existen, borrá `src/setup_user.php`.
+Después de crear los usuarios, borrar:
 
-## Usar con XAMPP
+```txt
+src/setup_user.php
+```
 
-1. Copiá la carpeta `src` dentro de `htdocs`, por ejemplo:
+---
 
-```text
+## 🖥️ Usar con XAMPP
+
+Copiar `src` dentro de:
+
+```txt
 C:\xampp\htdocs\divine
 ```
 
-2. En phpMyAdmin creá una base llamada:
+Crear la base:
 
-```text
+```txt
 divine_db
 ```
 
-3. Importá el archivo:
+Importar:
 
-```text
+```txt
 db/init.sql
 ```
 
-4. Si usás XAMPP normal, en `src/config/conexion.php` ya queda por defecto:
+Abrir:
 
-```php
-DB_HOST = localhost
-DB_NAME = divine_db
-DB_USER = root
-DB_PASSWORD = vacío
-DB_PORT = 3306
-```
-
-5. Abrí una vez:
-
-```text
-http://localhost/divine/setup_user.php
-```
-
-6. Después entrá a:
-
-```text
+```txt
 http://localhost/divine/login.php
 ```
 
-## Archivos importantes
+---
 
-- `src/api.php`: endpoints que reemplazan localStorage.
-- `src/script.js`: frontend usando fetch hacia MySQL/PHP.
-- `src/config/conexion.php`: conexión corregida.
-- `src/config/app_logs.php`: crea y guarda logs de login/listas.
-- `db/init.sql`: tablas y productos iniciales.
-- `src/setup_user.php`: crea los usuarios iniciales.
+## 📁 Archivos importantes
+
+```txt
+src/index.php              Pantalla principal
+src/api.php                Endpoints PHP
+src/script.js              Lógica frontend
+src/styles.css             Estilos responsive
+src/admin.php              Panel Admin
+src/scanner.php            Scanner QR
+src/qr.php                 Validación QR
+src/config/conexion.php    Conexión MySQL
+db/init.sql                Tablas y productos iniciales
+```
+
+---
+
+## ⚠️ Notas importantes
+
+* La app **no usa localStorage**.
+* Todo se guarda en **MySQL**.
+* El scanner QR necesita **HTTPS o localhost** para usar la cámara.
+* El live reload se pausa al escribir o abrir modales.
+* Los estados de ingreso solo los cambia un admin.
+* Los QR se guardan en `door_people`.
+
+---
+
+<div align="center">
+
+### 💜 Divine App
+
+Sistema simple, rápido y responsive para controlar eventos.
+
+</div>
