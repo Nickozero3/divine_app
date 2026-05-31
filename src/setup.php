@@ -60,9 +60,9 @@ try {
             'role' => 'usuario'
         ],
         [
-            'username' => 'candela',
-            'display_name' => 'Candela',
-            'password' => 'candela123',
+            'username' => 'candelaria',
+            'display_name' => 'Candelaria',
+            'password' => 'candelaria123',
             'role' => 'usuario'
         ]
     ];

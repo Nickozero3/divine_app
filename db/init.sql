@@ -22,6 +22,7 @@ SET FOREIGN_KEY_CHECKS = 0;
    Guarda los usuarios que pueden iniciar sesión.
    role:
    - admin   = acceso completo
+   - puerta  = acceso a scanner y puerta
    - usuario = acceso limitado a sus listas
    ========================================================= */
 
@@ -32,7 +33,7 @@ CREATE TABLE IF NOT EXISTS users (
     display_name VARCHAR(80) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
 
-    role ENUM('admin', 'usuario') NOT NULL DEFAULT 'usuario',
+    role ENUM('admin', 'usuario', 'puerta') NOT NULL DEFAULT 'usuario',
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 

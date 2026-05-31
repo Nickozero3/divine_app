@@ -8,7 +8,17 @@ if (!isset($_SESSION['user'])) {
 }
 
 $currentUser = $_SESSION['user'];
-$isAdmin = ($currentUser['role'] ?? '') === 'admin';
+
+$currentRole = strtolower(trim((string)($currentUser['role'] ?? '')));
+
+$isAdmin  = $currentRole === 'admin';
+$isPuerta = $currentRole === 'puerta';
+
+$canSeeAdmin    = $isAdmin;
+$canSeeScanner  = $isAdmin || $isPuerta;
+$canSeeKioskito = $isAdmin;
+$canManageDoor  = $isAdmin || $isPuerta;
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -22,8 +32,6 @@ $isAdmin = ($currentUser['role'] ?? '') === 'admin';
 <body>
 
 <div class="stars"></div>
-
-<!-- MENU -->
 <!-- MENU -->
 <div id="page-menu" class="page active">
   <div class="menu-wrap">
@@ -34,7 +42,7 @@ $isAdmin = ($currentUser['role'] ?? '') === 'admin';
       <div style="text-align:center;margin-top:12px;color:var(--text2);font-size:13px;">
         <?= htmlspecialchars($currentUser['display_name'], ENT_QUOTES, 'UTF-8') ?>
         ·
-        <?= htmlspecialchars($currentUser['role'], ENT_QUOTES, 'UTF-8') ?>
+        <?= htmlspecialchars(ucfirst($currentRole), ENT_QUOTES, 'UTF-8') ?>
         ·
         <a href="logout.php" style="color:var(--gold-2);text-decoration:none;">Salir</a>
       </div>
@@ -42,33 +50,37 @@ $isAdmin = ($currentUser['role'] ?? '') === 'admin';
 
     <div class="menu-cards">
 
-      <?php if ($isAdmin): ?>
-      <div class="menu-card" onclick="location.href='admin.php'">
-        <div class="menu-icon">📊</div>
-        <div class="menu-info">
-          <div class="menu-name">ADMIN</div>
-          <div class="menu-desc">Dashboard · QR · Estadísticas</div>
+      <?php if ($canSeeAdmin): ?>
+        <div class="menu-card" onclick="location.href='admin.php'">
+          <div class="menu-icon">📊</div>
+          <div class="menu-info">
+            <div class="menu-name">ADMIN</div>
+            <div class="menu-desc">Dashboard · QR · Estadísticas</div>
+          </div>
+          <div class="menu-arr">›</div>
         </div>
-        <div class="menu-arr">›</div>
-      </div>
+      <?php endif; ?>
 
-      <div class="menu-card" onclick="location.href='scanner.php'">
-        <div class="menu-icon">📷</div>
-        <div class="menu-info">
-          <div class="menu-name">SCANNER</div>
-          <div class="menu-desc">Escanear QR · Confirmar entrada</div>
+      <?php if ($canSeeScanner): ?>
+        <div class="menu-card" onclick="location.href='scanner.php'">
+          <div class="menu-icon">📷</div>
+          <div class="menu-info">
+            <div class="menu-name">SCANNER</div>
+            <div class="menu-desc">Escanear QR · Confirmar entrada</div>
+          </div>
+          <div class="menu-arr">›</div>
         </div>
-        <div class="menu-arr">›</div>
-      </div>
+      <?php endif; ?>
 
-      <div class="menu-card" onclick="goTo('kioskito')">
-        <div class="menu-icon">🛒</div>
-        <div class="menu-info">
-          <div class="menu-name">KIOSKITO</div>
-          <div class="menu-desc">Ventas · Productos · Caja</div>
+      <?php if ($canSeeKioskito): ?>
+        <div class="menu-card" onclick="goTo('kioskito')">
+          <div class="menu-icon">🛒</div>
+          <div class="menu-info">
+            <div class="menu-name">KIOSKITO</div>
+            <div class="menu-desc">Ventas · Productos · Caja</div>
+          </div>
+          <div class="menu-arr">›</div>
         </div>
-        <div class="menu-arr">›</div>
-      </div>
       <?php endif; ?>
 
       <div class="menu-card" onclick="goTo('puerta')">
@@ -83,9 +95,9 @@ $isAdmin = ($currentUser['role'] ?? '') === 'admin';
     </div>
   </div>
 </div>
+
 <!-- KIOSKITO -->
-<!-- KIOSKITO -->
-<?php if ($isAdmin): ?>
+<?php if ($canSeeKioskito): ?>
 <div id="page-kioskito" class="page">
 
   <div class="topbar">
@@ -152,7 +164,7 @@ $isAdmin = ($currentUser['role'] ?? '') === 'admin';
 
   <div class="lists-wrap">
     <div style="padding:0 0 12px;display:flex;flex-direction:column;gap:10px;">
-      <?php if ($isAdmin): ?>
+      <?php if ($canManageDoor): ?>
       <input
         id="list-search"
         type="text"
@@ -165,7 +177,7 @@ $isAdmin = ($currentUser['role'] ?? '') === 'admin';
       <input
         id="person-search"
         type="text"
-        placeholder="<?= $isAdmin ? 'Buscar por nombre en todas las listas...' : 'Buscar nombre dentro de tu lista...' ?>"
+        placeholder="<?= $canManageDoor ? 'Buscar por nombre en todas las listas...' : 'Buscar nombre dentro de tu lista...' ?>"
         oninput="drawPuerta()"
         style="width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--text);outline:none;font-size:14px;"
       >
@@ -295,7 +307,10 @@ window.DIVINE_USER = <?= json_encode([
     'id' => (int) $currentUser['id'],
     'username' => $currentUser['username'],
     'display_name' => $currentUser['display_name'],
-    'role' => $currentUser['role'],
+    'role' => $currentRole,
+    'is_admin' => $isAdmin,
+    'is_puerta' => $isPuerta,
+    'can_manage_door' => $canManageDoor,
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 </script>
 <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>

@@ -69,6 +69,27 @@ function require_admin(array $user): void
         fail('No tenés permiso para realizar esta acción.', 403);
     }
 }
+function is_admin(array $user): bool
+{
+    return ($user['role'] ?? '') === 'admin';
+}
+
+function is_puerta(array $user): bool
+{
+    return ($user['role'] ?? '') === 'puerta';
+}
+
+function is_door_manager(array $user): bool
+{
+    return is_admin($user) || is_puerta($user);
+}
+
+function require_door_manager(array $user): void
+{
+    if (!is_door_manager($user)) {
+        fail('No tenés permiso para controlar puerta.', 403);
+    }
+}
 
 function read_input(): array
 {
@@ -216,14 +237,27 @@ try {
            PUERTA / LISTAS
         ========================= */
         case 'door_lists': {
-            $isAdmin = ($user['role'] ?? '') === 'admin';
+            $isDoorManager = is_door_manager($user);
 
-            if ($isAdmin) {
-                $stmt = $pdo->query('SELECT dl.*, u.display_name AS owner_name FROM door_lists dl INNER JOIN users u ON u.id = dl.user_id ORDER BY dl.created_at DESC, dl.id DESC');
+            if ($isDoorManager) {
+                $stmt = $pdo->query('
+                    SELECT dl.*, u.display_name AS owner_name
+                    FROM door_lists dl
+                    INNER JOIN users u ON u.id = dl.user_id
+                    ORDER BY dl.created_at DESC, dl.id DESC
+                ');
                 $lists = $stmt->fetchAll();
             } else {
-                $stmt = $pdo->prepare('SELECT dl.*, u.display_name AS owner_name FROM door_lists dl INNER JOIN users u ON u.id = dl.user_id WHERE dl.user_id = :user_id ORDER BY dl.created_at DESC, dl.id DESC');
-                $stmt->execute([':user_id' => (int) $user['id']]);
+                $stmt = $pdo->prepare('
+                    SELECT dl.*, u.display_name AS owner_name
+                    FROM door_lists dl
+                    INNER JOIN users u ON u.id = dl.user_id
+                    WHERE dl.user_id = :user_id
+                    ORDER BY dl.created_at DESC, dl.id DESC
+                ');
+                $stmt->execute([
+                    ':user_id' => (int) $user['id']
+                ]);
                 $lists = $stmt->fetchAll();
             }
 
@@ -232,8 +266,16 @@ try {
 
             if ($ids) {
                 $placeholders = implode(',', array_fill(0, count($ids), '?'));
-                $stmtPeople = $pdo->prepare("SELECT * FROM door_people WHERE list_id IN ($placeholders) ORDER BY id ASC");
+
+                $stmtPeople = $pdo->prepare("
+                    SELECT *
+                    FROM door_people
+                    WHERE list_id IN ($placeholders)
+                    ORDER BY id ASC
+                ");
+
                 $stmtPeople->execute($ids);
+
                 foreach ($stmtPeople->fetchAll() as $person) {
                     $peopleByList[(int) $person['list_id']][] = person_row($person);
                 }
@@ -241,6 +283,7 @@ try {
 
             $result = array_map(function ($list) use ($peopleByList) {
                 $id = (int) $list['id'];
+
                 return [
                     'id' => $id,
                     'userId' => (int) $list['user_id'],
@@ -439,27 +482,55 @@ try {
         }
 
         case 'person_toggle_status': {
-            require_admin($user);
+            require_door_manager($user);
 
             $listId = (int) ($input['listId'] ?? 0);
             $personId = (int) ($input['personId'] ?? 0);
-            if ($listId <= 0 || $personId <= 0) fail('Datos inválidos.');
-            current_user_can_access_list($pdo, $listId, $user);
 
-            $stmt = $pdo->prepare('SELECT status FROM door_people WHERE id = :person_id AND list_id = :list_id LIMIT 1');
-            $stmt->execute([':person_id' => $personId, ':list_id' => $listId]);
+            if ($listId <= 0 || $personId <= 0) {
+                fail('Datos inválidos.');
+            }
+
+            $stmt = $pdo->prepare('
+                SELECT status
+                FROM door_people
+                WHERE id = :person_id
+                AND list_id = :list_id
+                LIMIT 1
+            ');
+
+            $stmt->execute([
+                ':person_id' => $personId,
+                ':list_id' => $listId
+            ]);
+
             $person = $stmt->fetch();
-            if (!$person) fail('Persona no encontrada.', 404);
+
+            if (!$person) {
+                fail('Persona no encontrada.', 404);
+            }
 
             $current = $person['status'];
+
             $next = match ($current) {
                 'no_vino' => 'entro',
                 'entro' => 'se_fue',
                 default => 'no_vino',
             };
 
-            $stmt = $pdo->prepare('UPDATE door_people SET status = :status WHERE id = :person_id AND list_id = :list_id');
-            $stmt->execute([':status' => $next, ':person_id' => $personId, ':list_id' => $listId]);
+            $stmt = $pdo->prepare('
+                UPDATE door_people
+                SET status = :status
+                WHERE id = :person_id
+                AND list_id = :list_id
+            ');
+
+            $stmt->execute([
+                ':status' => $next,
+                ':person_id' => $personId,
+                ':list_id' => $listId
+            ]);
+
             ok(['status' => $next]);
         }
 
@@ -503,7 +574,7 @@ try {
                 fail('Faltan datos.', 422);
             }
 
-            if (!in_array($role, ['admin', 'usuario'], true)) {
+            if (!in_array($role, ['admin', 'usuario', 'puerta'], true)) {
                 fail('Rol inválido.', 422);
             }
 
@@ -552,7 +623,7 @@ try {
                 fail('ID inválido.', 422);
             }
 
-            if (!in_array($role, ['admin', 'usuario'], true)) {
+            if (!in_array($role, ['admin', 'usuario', 'puerta'], true)) {
                 fail('Rol inválido.', 422);
             }
 
@@ -974,8 +1045,8 @@ try {
             ok();
         }
         case 'qr_check': {
-            require_admin($user);
-
+            require_door_manager($user);
+        
             $token = trim((string) ($input['token'] ?? ''));
 
             if ($token === '') {
@@ -1021,7 +1092,7 @@ try {
         }
 
         case 'qr_confirm': {
-            require_admin($user);
+            require_door_manager($user);
 
             $token = trim((string) ($input['token'] ?? ''));
 

@@ -1158,8 +1158,13 @@ body {
   }
 }.section.collapsed-products .product-grid {
   display: none !important;
-}
+}/* =========================================================
+   KIOSKITO - ANIMACIÓN AL PULSAR PRODUCTO
+   Pulso verde limpio sin deformar la card
+========================================================= */
+
 .pos-product-card {
+  position: relative;
   overflow: hidden;
 }
 
@@ -1169,35 +1174,51 @@ body {
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  border: 2px solid transparent;
+
+  opacity: 0;
+  border: 2px solid var(--green);
+  box-shadow:
+    inset 0 0 0 1px rgba(54, 201, 133, 0.35),
+    0 0 18px rgba(54, 201, 133, 0.28);
+
+  transform: scale(0.96);
 }
 
 .pos-product-card.wave-active::after {
-  animation: greenBorderWave 3s ease forwards;
+  animation: productTapPulse 0.55s ease-out forwards;
 }
 
-@keyframes greenBorderWave {
+.pos-product-card.wave-active {
+  animation: productCardPress 0.22s ease-out;
+}
+
+@keyframes productTapPulse {
   0% {
-    box-shadow:
-      inset 0 3px 0 var(--green),
-      inset 0 0 0 transparent;
-    clip-path: inset(0 100% 100% 0);
+    opacity: 0;
+    transform: scale(0.96);
   }
 
-  35% {
-    clip-path: inset(0 0 100% 0);
-  }
-
-  65% {
-    clip-path: inset(0 0 0 100%);
+  18% {
+    opacity: 1;
+    transform: scale(1);
   }
 
   100% {
-    box-shadow:
-      inset 0 0 0 2px var(--green);
-    clip-path: inset(0 0 0 0);
+    opacity: 0;
+    transform: scale(1.045);
   }
 }
+
+@keyframes productCardPress {
+  0% {
+    transform: scale(0.98);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
 .qr-mini-actions{
   margin-top:10px;
   display:flex;
@@ -1697,3 +1718,174 @@ body {
   z-index: 2;
 }
 
+/* =========================================================
+   PUERTA - FILA PERSONA FINAL
+   Nombre + dato arriba
+   Botones abajo con tamaño mínimo:
+   [Estado] [Enviar QR] [X]
+========================================================= */
+
+.person-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 10px;
+}
+
+.person-row {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 9px;
+
+  padding: 12px !important;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* ARRIBA: nombre y dato */
+.person-info {
+  min-width: 0;
+  width: 100%;
+  padding-right: 0 !important;
+}
+
+.person-name {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.person-note {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--text2);
+
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* ABAJO: botones con tamaño mínimo */
+.person-actions {
+  width: auto !important;
+  max-width: 100%;
+  min-width: 0;
+
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+/* Estado y QR: tamaño según texto */
+.person-actions .btn-status,
+.person-actions .qr-send-btn {
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: 100% !important;
+
+  height: 34px !important;
+  min-height: 34px !important;
+
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 12px !important;
+  border-radius: 999px;
+
+  font-size: 10px !important;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+
+  white-space: nowrap;
+}
+
+/* X al lado, tamaño mínimo */
+.person-actions .btn-del-person,
+.person-row .btn-del-person {
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+
+  width: 34px !important;
+  min-width: 34px !important;
+  max-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  display: inline-grid !important;
+  place-items: center !important;
+
+  border-radius: 11px !important;
+  border: 1px solid rgba(255, 95, 109, 0.22) !important;
+  background: rgba(255, 95, 109, 0.13) !important;
+  color: var(--red) !important;
+
+  font-size: 14px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+}
+
+/* Mantiene botones por encima del click de la fila */
+.person-row button {
+  position: relative;
+  z-index: 6;
+}
+
+/* Celular chico */
+@media (max-width: 390px) {
+  .person-row {
+    padding: 10px !important;
+    gap: 8px;
+  }
+
+  .person-name {
+    font-size: 13px;
+  }
+
+  .person-note {
+    font-size: 11px;
+  }
+
+  .person-actions {
+    gap: 6px;
+  }
+
+  .person-actions .btn-status,
+  .person-actions .qr-send-btn {
+    height: 31px !important;
+    min-height: 31px !important;
+    font-size: 9px !important;
+    padding: 0 10px !important;
+  }
+
+  .person-actions .btn-del-person,
+  .person-row .btn-del-person {
+    width: 31px !important;
+    min-width: 31px !important;
+    max-width: 31px !important;
+    height: 31px !important;
+    min-height: 31px !important;
+    font-size: 13px !important;
+  }
+}

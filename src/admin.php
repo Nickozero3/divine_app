@@ -86,7 +86,7 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 
     <div class="admin-card">
       <div class="admin-num" id="total-puerta">$0</div>
-      <div class="admin-label">Puerta</div>
+      <div class="admin-label">Puerta (presencias)</div>
     </div>
 
     <div class="admin-card">

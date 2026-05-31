@@ -121,7 +121,7 @@ Base: divine_db
 Abrir una vez:
 
 ```txt
-http://localhost:8080/setup_user.php
+http://localhost:8080/setup.php
 ```
 
 Luego entrar al login:
@@ -137,12 +137,13 @@ Camila / camila123
 Nicolas / nicolas123
 Lopez / lopez123
 Publica / publica123
+Candelaria / candelaria123
 ```
 
 Después de crear los usuarios, borrar:
 
 ```txt
-src/setup_user.php
+src/setup.php
 ```
 
 ---
