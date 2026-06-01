@@ -113,6 +113,100 @@ function normalize_text(string $value): string
 /* =========================================================
    PERMISOS Y HELPERS DE NORMALIZACIÓN
 ========================================================= */
+function normalize_payment_method(string $method): string
+{
+    $method = strtolower(trim($method));
+
+    return in_array($method, ['efectivo', 'transferencia', 'tarjeta', 'regalo'], true)
+        ? $method
+        : 'efectivo';
+}
+
+function payment_label(string $method): string
+{
+    return match ($method) {
+        'transferencia' => 'Transferencia',
+        'tarjeta' => 'Tarjeta',
+        'regalo' => 'Regalo',
+        default => 'Efectivo',
+    };
+}
+
+
+function build_kiosko_summary(PDO $pdo, int $fromSaleId = 0): array
+{
+    $stmt = $pdo->prepare("
+        SELECT id, items, total, payment_method, created_at
+        FROM kiosko_sales
+        WHERE id > :from_sale_id
+        ORDER BY id ASC
+    ");
+
+    $stmt->execute([
+        ':from_sale_id' => $fromSaleId
+    ]);
+
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $summary = [
+        'sales_count' => count($rows),
+        'total_amount' => 0,
+        'from_sale_id' => $rows ? (int) $rows[0]['id'] : 0,
+        'to_sale_id' => $rows ? (int) $rows[count($rows) - 1]['id'] : 0,
+        'by_payment' => [
+            'efectivo' => 0,
+            'transferencia' => 0,
+            'tarjeta' => 0,
+            'regalo' => 0,
+        ],
+        'products' => [],
+    ];
+
+    $products = [];
+
+    foreach ($rows as $row) {
+        $total = (int) $row['total'];
+        $paymentMethod = normalize_payment_method((string) ($row['payment_method'] ?? 'efectivo'));
+
+        $summary['total_amount'] += $total;
+        $summary['by_payment'][$paymentMethod] += $total;
+
+        $items = json_decode((string) $row['items'], true);
+
+        if (!is_array($items)) {
+            continue;
+        }
+
+        foreach ($items as $item) {
+            $name = trim((string) ($item['name'] ?? 'Producto'));
+            $qty = (int) ($item['qty'] ?? 0);
+            $subtotal = (int) ($item['subtotal'] ?? 0);
+
+            if ($name === '' || $qty <= 0) {
+                continue;
+            }
+
+            if (!isset($products[$name])) {
+                $products[$name] = [
+                    'name' => $name,
+                    'qty' => 0,
+                    'subtotal' => 0,
+                ];
+            }
+
+            $products[$name]['qty'] += $qty;
+            $products[$name]['subtotal'] += $subtotal;
+        }
+    }
+
+    usort($products, function ($a, $b) {
+        return $b['qty'] <=> $a['qty'];
+    });
+
+    $summary['products'] = array_values($products);
+
+    return $summary;
+}
 
 function current_user_can_access_list(PDO $pdo, int $listId, array $user): array
 {
@@ -882,21 +976,69 @@ try {
 
             $items = $input['items'] ?? [];
             $total = max(0, (int) ($input['total'] ?? 0));
+            $paymentMethod = normalize_payment_method((string) ($input['paymentMethod'] ?? 'efectivo'));
+            $clientSaleId = trim((string) ($input['clientSaleId'] ?? ''));
 
             if (!is_array($items) || count($items) === 0) {
                 fail('No hay productos en la venta.');
             }
 
+            if ($total <= 0 && $paymentMethod !== 'regalo') {
+                fail('Total inválido.');
+            }
+
+            if ($clientSaleId === '') {
+                $clientSaleId = bin2hex(random_bytes(16));
+            }
+
+            $stmtExisting = $pdo->prepare("
+                SELECT id
+                FROM kiosko_sales
+                WHERE client_sale_id = :client_sale_id
+                LIMIT 1
+            ");
+
+            $stmtExisting->execute([
+                ':client_sale_id' => $clientSaleId
+            ]);
+
+            $existingId = $stmtExisting->fetchColumn();
+
+            if ($existingId) {
+                ok([
+                    'id' => (int) $existingId,
+                    'duplicate' => true,
+                    'message' => 'Venta ya registrada previamente.'
+                ]);
+            }
+
+            $pdo->beginTransaction();
+
             $stmt = $pdo->prepare("
-                INSERT INTO kiosko_sales (user_id, items, total)
-                VALUES (:user_id, :items, :total)
+                INSERT INTO kiosko_sales (
+                    user_id,
+                    items,
+                    total,
+                    payment_method,
+                    client_sale_id
+                ) VALUES (
+                    :user_id,
+                    :items,
+                    :total,
+                    :payment_method,
+                    :client_sale_id
+                )
             ");
 
             $stmt->execute([
                 ':user_id' => (int) $user['id'],
-                ':items'   => json_encode($items, JSON_UNESCAPED_UNICODE),
-                ':total'   => $total,
+                ':items' => json_encode($items, JSON_UNESCAPED_UNICODE),
+                ':total' => $total,
+                ':payment_method' => $paymentMethod,
+                ':client_sale_id' => $clientSaleId,
             ]);
+
+            $saleId = (int) $pdo->lastInsertId();
 
             $updQty = $pdo->prepare("
                 UPDATE products
@@ -906,25 +1048,29 @@ try {
 
             foreach ($items as $item) {
                 $productId = (int) ($item['id'] ?? 0);
-                $qty       = (int) ($item['qty'] ?? 0);
+                $qty = (int) ($item['qty'] ?? 0);
 
                 if ($productId > 0 && $qty > 0) {
                     $updQty->execute([
                         ':qty' => $qty,
-                        ':id'  => $productId,
+                        ':id' => $productId,
                     ]);
                 }
             }
 
+            $pdo->commit();
+
             ok([
-                'id' => (int) $pdo->lastInsertId()
+                'id' => $saleId,
+                'paymentMethod' => $paymentMethod,
+                'paymentLabel' => payment_label($paymentMethod),
             ]);
         }
         case 'sales_history': {
             require_admin($user);
 
             $stmt = $pdo->query("
-                SELECT id, items, total, created_at
+                SELECT id, items, total, payment_method, created_at
                 FROM kiosko_sales
                 ORDER BY id DESC
                 LIMIT 100
@@ -933,15 +1079,105 @@ try {
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             $sales = array_map(function ($row) {
+                $paymentMethod = normalize_payment_method((string) ($row['payment_method'] ?? 'efectivo'));
+
                 return [
-                    'id'         => (int) $row['id'],
-                    'items'      => json_decode($row['items'], true) ?: [],
-                    'total'      => (int) $row['total'],
+                    'id' => (int) $row['id'],
+                    'items' => json_decode($row['items'], true) ?: [],
+                    'total' => (int) $row['total'],
+                    'payment_method' => $paymentMethod,
+                    'payment_label' => payment_label($paymentMethod),
                     'created_at' => $row['created_at'],
                 ];
             }, $rows);
 
             ok(['sales' => $sales]);
+        }
+        case 'kiosko_summary': {
+            require_admin($user);
+
+            $stmtLast = $pdo->query("
+                SELECT COALESCE(MAX(to_sale_id), 0)
+                FROM kiosko_closings
+            ");
+
+            $lastClosedSaleId = (int) $stmtLast->fetchColumn();
+
+            $summary = build_kiosko_summary($pdo, $lastClosedSaleId);
+
+            ok([
+                'lastClosedSaleId' => $lastClosedSaleId,
+                'summary' => $summary,
+            ]);
+        }
+
+        case 'kiosko_close': {
+            require_admin($user);
+
+            $pdo->beginTransaction();
+
+            $stmtLast = $pdo->query("
+                SELECT COALESCE(MAX(to_sale_id), 0)
+                FROM kiosko_closings
+                FOR UPDATE
+            ");
+
+            $lastClosedSaleId = (int) $stmtLast->fetchColumn();
+
+            $summary = build_kiosko_summary($pdo, $lastClosedSaleId);
+
+            if ((int) $summary['sales_count'] <= 0) {
+                fail('No hay ventas nuevas para cerrar.');
+            }
+
+            $stmt = $pdo->prepare("
+                INSERT INTO kiosko_closings (
+                    user_id,
+                    from_sale_id,
+                    to_sale_id,
+                    sales_count,
+                    total_amount,
+                    efectivo_total,
+                    transferencia_total,
+                    tarjeta_total,
+                    regalo_total,
+                    summary
+                ) VALUES (
+                    :user_id,
+                    :from_sale_id,
+                    :to_sale_id,
+                    :sales_count,
+                    :total_amount,
+                    :efectivo_total,
+                    :transferencia_total,
+                    :tarjeta_total,
+                    :regalo_total,
+                    :summary
+                )
+            ");
+
+            $stmt->execute([
+                ':user_id' => (int) $user['id'],
+                ':from_sale_id' => (int) $summary['from_sale_id'],
+                ':to_sale_id' => (int) $summary['to_sale_id'],
+                ':sales_count' => (int) $summary['sales_count'],
+                ':total_amount' => (int) $summary['total_amount'],
+                ':efectivo_total' => (int) $summary['by_payment']['efectivo'],
+                ':transferencia_total' => (int) $summary['by_payment']['transferencia'],
+                ':tarjeta_total' => (int) $summary['by_payment']['tarjeta'],
+                ':regalo_total' => (int) $summary['by_payment']['regalo'],
+                ':summary' => json_encode($summary, JSON_UNESCAPED_UNICODE),
+            ]);
+
+            $closingId = (int) $pdo->lastInsertId();
+
+            $pdo->commit();
+
+            ok([
+                'id' => $closingId,
+                'summary' => $summary,
+                'message' => 'Caja cerrada correctamente.'
+            ]);
         }
 
 

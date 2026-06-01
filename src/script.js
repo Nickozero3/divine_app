@@ -283,6 +283,8 @@ function goTo(page) {
     if (page === "kioskito") {
       safeRunAsync('No se pudo cargar Kioskito', renderKioskito, 'k-categories');
       safeRunAsync('No se pudo cargar historial de ventas', renderSalesHistory, 'sales-history');
+      safeRunAsync('No se pudo cargar resumen de caja', renderKioskoSummary, 'kiosko-summary');
+
 
       setTimeout(() => {
         safeRun('No se pudo instalar Guardarropas', instalarGuardarropas);
@@ -471,6 +473,10 @@ function renderCart() {
 }
 
 async function confirmCurrentSale() {
+  if (saleIsProcessing) {
+    return;
+  }
+
   const ids = Object.keys(cart);
 
   if (!ids.length) {
@@ -498,32 +504,55 @@ async function confirmCurrentSale() {
     });
   });
 
-  if (!confirm(`Confirmar venta por ${fmt(total)}?`)) return;
+  const paymentText = paymentLabel(selectedPaymentMethod);
 
-  try {
-    await api('sale_register', { items: lines, total });
-  } catch (error) {
-    showError(error);
+  if (!confirm(`Confirmar venta por ${fmt(total)}?\nMétodo de pago: ${paymentText}`)) {
     return;
   }
 
-  if (confirm('¿Imprimir ticket?')) {
-    printTicket(lines, total);
-  }
+  const clientSaleId = makeClientSaleId();
 
-  cart = {};
-  renderCart();
-  await renderSalesHistory();
+  setSaleProcessing(true);
+
+  try {
+    const data = await api('sale_register', {
+      items: lines,
+      total,
+      paymentMethod: selectedPaymentMethod,
+      clientSaleId
+    });
+
+    if (data.duplicate) {
+      alert('Esta venta ya había sido registrada. No se duplicó.');
+    }
+
+    if (confirm('¿Imprimir ticket?')) {
+      printTicket(lines, total, paymentText);
+    }
+
+    cart = {};
+    renderCart();
+
+    await renderSalesHistory();
+    await renderKioskoSummary();
+
+  } catch (error) {
+    showError(error);
+  } finally {
+    setSaleProcessing(false);
+  }
 }
 
-function printTicket(lines, total) {
+function printTicket(lines, total, paymentMethod = '') {
   let html = '<h2>Kioskito</h2><hr>';
 
   lines.forEach(item => {
     html += `<div>${esc(item.name)} x${item.qty} — ${fmt(item.subtotal)}</div>`;
   });
 
-  html += `<hr><h3>Total: ${fmt(total)}</h3>`;
+  html += `<hr>`;
+  html += `<div>Método de pago: <b>${esc(paymentMethod)}</b></div>`;
+  html += `<h3>Total: ${fmt(total)}</h3>`;
 
   const win = window.open('', '', 'width=300,height=600');
   win.document.write(html);
@@ -570,10 +599,16 @@ async function renderSalesHistory() {
               <div class="list-header">
                 <div class="list-name-txt">
                   <span style="font-size:13px;font-weight:500;">${hora}</span>
+
                   <span style="font-size:12px;color:var(--text2);display:block;margin-top:2px;">
                     ${items.map(i => `${esc(i.name)} ×${Number(i.qty)}`).join(' · ')}
                   </span>
+
+                  <span style="font-size:11px;color:var(--gold-2);display:block;margin-top:4px;">
+                    ${esc(sale.payment_label || paymentLabel(sale.payment_method))}
+                  </span>
                 </div>
+
                 <div class="list-badge badge-green">${fmt(sale.total)}</div>
               </div>
             </div>
@@ -583,6 +618,100 @@ async function renderSalesHistory() {
     `;
   } catch (error) {
     console.error('Error cargando historial:', error);
+  }
+}
+
+async function renderKioskoSummary() {
+  const wrap = document.getElementById('kiosko-summary');
+  if (!wrap) return;
+
+  try {
+    const data = await api('kiosko_summary');
+    const summary = data.summary || {};
+
+    const byPayment = summary.by_payment || {};
+    const products = Array.isArray(summary.products) ? summary.products : [];
+
+    wrap.innerHTML = `
+      <div class="section">
+        <div class="section-title">Cierre de caja actual</div>
+
+        <div class="list-card">
+          <div style="padding:14px 16px;">
+            <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:10px;">
+              <span style="color:var(--text2);">Ventas realizadas</span>
+              <strong>${Number(summary.sales_count || 0)}</strong>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:10px;">
+              <span style="color:var(--text2);">Total vendido</span>
+              <strong style="color:var(--gold-2);">${fmt(summary.total_amount || 0)}</strong>
+            </div>
+
+            <div style="border-top:1px solid rgba(240,212,141,.08);padding-top:10px;margin-top:10px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                <span>💵 Efectivo</span>
+                <strong>${fmt(byPayment.efectivo || 0)}</strong>
+              </div>
+
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                <span>📲 Transferencia</span>
+                <strong>${fmt(byPayment.transferencia || 0)}</strong>
+              </div>
+
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                <span>💳 Tarjeta</span>
+                <strong>${fmt(byPayment.tarjeta || 0)}</strong>
+              </div>
+
+              <div style="display:flex;justify-content:space-between;">
+                <span>🎁 Regalo</span>
+                <strong>${fmt(byPayment.regalo || 0)}</strong>
+              </div>
+            </div>
+
+            ${products.length ? `
+              <div style="border-top:1px solid rgba(240,212,141,.08);padding-top:10px;margin-top:10px;">
+                <div style="color:var(--text2);font-size:12px;margin-bottom:8px;">Productos más vendidos</div>
+
+                ${products.slice(0, 5).map(item => `
+                  <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:5px;font-size:13px;">
+                    <span>${esc(item.name)} ×${Number(item.qty)}</span>
+                    <strong>${fmt(item.subtotal)}</strong>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+
+            <button
+              class="btn-action btn-reset"
+              style="width:100%;margin-top:14px;"
+              onclick="closeKioskoCash()">
+              🔒 Cerrar caja
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Error cargando resumen de caja:', error);
+  }
+}
+
+async function closeKioskoCash() {
+  const ok = confirm('¿Cerrar caja del Kioskito? Se guardará el resumen de ventas actuales.');
+  if (!ok) return;
+
+  try {
+    const data = await api('kiosko_close');
+
+    alert(data.message || 'Caja cerrada correctamente.');
+
+    await renderKioskoSummary();
+    await renderSalesHistory();
+
+  } catch (error) {
+    showError(error);
   }
 }
 
@@ -1408,6 +1537,7 @@ function startLiveApp() {
       try {
         await renderKioskito();
         await renderGuardarropas();
+        await renderKioskoSummary();
       } catch (e) {
         console.error("Error actualizando kioskito:", e);
       } finally {
@@ -1774,7 +1904,39 @@ async function generarImagenQR({ token, personName, personNote, listName, expire
     }
   }, 'image/png');
 }
+let selectedPaymentMethod = 'efectivo';
+let saleIsProcessing = false;
 
+function paymentLabel(method) {
+  if (method === 'transferencia') return 'Transferencia';
+  if (method === 'tarjeta') return 'Tarjeta';
+  if (method === 'regalo') return 'Regalo';
+  return 'Efectivo';
+}
+
+function selectPaymentMethod(method) {
+  selectedPaymentMethod = method || 'efectivo';
+
+  document.querySelectorAll('.payment-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.payment === selectedPaymentMethod);
+  });
+}
+
+function makeClientSaleId() {
+  const random = Math.random().toString(16).slice(2);
+  return `sale_${Date.now()}_${random}`;
+}
+
+function setSaleProcessing(isProcessing) {
+  saleIsProcessing = isProcessing;
+
+  const btn = document.getElementById('confirm-sale-btn');
+
+  if (!btn) return;
+
+  btn.disabled = isProcessing;
+  btn.textContent = isProcessing ? 'Confirmando...' : '✓ Confirmar venta';
+}
 /* =========================
    INIT
 ========================= */

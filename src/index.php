@@ -121,19 +121,38 @@ $canManageDoor  = $isAdmin || $isPuerta;
         <div style="padding:14px 16px;font-size:14px;color:var(--text2);">Sin productos agregados.</div>
       </div>
 
+      <div class="payment-methods">
+        <button class="payment-btn active" data-payment="efectivo" onclick="selectPaymentMethod('efectivo')">
+          💵 Efectivo
+        </button>
+
+        <button class="payment-btn" data-payment="transferencia" onclick="selectPaymentMethod('transferencia')">
+          📲 Transferencia
+        </button>
+
+        <button class="payment-btn" data-payment="tarjeta" onclick="selectPaymentMethod('tarjeta')">
+          💳 Tarjeta
+        </button>
+
+        <button class="payment-btn" data-payment="regalo" onclick="selectPaymentMethod('regalo')">
+          🎁 Regalo
+        </button>
+      </div>
+
       <div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;">
-        <button onclick="confirmCurrentSale()" class="btn-action btn-add" style="flex:1;">
+        <button id="confirm-sale-btn" onclick="confirmCurrentSale()" class="btn-action btn-add" style="flex:1;">
           ✓ Confirmar venta
         </button>
       </div>
 
     </div>
-
+    
     <div id="sales-history"></div>
 
     <div id="k-categories"></div>
 
     <div class="kioskito-bottom">
+      <div id="kiosko-summary"></div>
       <div class="action-row">
         <button class="btn-action btn-add" onclick="openAddProduct()">
           ＋ Añadir
