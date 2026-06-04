@@ -175,6 +175,7 @@ CREATE TABLE IF NOT EXISTS kiosko_sales (
 
     items LONGTEXT NOT NULL,
     total INT NOT NULL DEFAULT 0,
+    payment_method ENUM('efectivo', 'transferencia', 'tarjeta', 'regalo') NOT NULL DEFAULT 'efectivo',
 
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
@@ -187,7 +188,6 @@ CREATE TABLE IF NOT EXISTS kiosko_sales (
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-
 /* =========================================================
    TABLA: guardarropas
    ---------------------------------------------------------
@@ -197,37 +197,27 @@ CREATE TABLE IF NOT EXISTS kiosko_sales (
    - retirado  = la prenda ya fue entregada
    ========================================================= */
 
-CREATE TABLE IF NOT EXISTS guardarropas (
+CREATE TABLE IF NOT EXISTS kiosko_sales (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
-    numero INT NOT NULL UNIQUE,
-    codigo VARCHAR(20) NOT NULL,
+    client_sale_id VARCHAR(80) DEFAULT NULL,
+    user_id INT NOT NULL,
 
-    nombre VARCHAR(120) NOT NULL,
-    dni VARCHAR(50) DEFAULT NULL,
-    telefono VARCHAR(50) DEFAULT NULL,
+    items LONGTEXT NOT NULL,
+    total INT NOT NULL DEFAULT 0,
+    payment_method ENUM('efectivo', 'transferencia', 'tarjeta', 'regalo') NOT NULL DEFAULT 'efectivo',
 
-    precio INT NOT NULL DEFAULT 2000,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
-    estado ENUM('pendiente', 'retirado') NOT NULL DEFAULT 'pendiente',
+    UNIQUE KEY uq_kiosko_sales_client_sale_id (client_sale_id),
+    INDEX idx_kiosko_sales_user_id (user_id),
+    INDEX idx_kiosko_sales_created_at (created_at),
 
-    hora_ingreso DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    hora_retirado DATETIME DEFAULT NULL,
-
-    created_by INT DEFAULT NULL,
-
-    INDEX idx_guardarropas_estado (estado),
-    INDEX idx_guardarropas_nombre (nombre),
-    INDEX idx_guardarropas_numero (numero),
-    INDEX idx_guardarropas_codigo (codigo),
-    INDEX idx_guardarropas_created_by (created_by),
-
-    CONSTRAINT fk_guardarropas_user
-        FOREIGN KEY (created_by)
+    CONSTRAINT fk_kiosko_sales_user
+        FOREIGN KEY (user_id)
         REFERENCES users(id)
-        ON DELETE SET NULL
+        ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 
 /* =========================================================
    TABLA: app_logs
@@ -307,6 +297,8 @@ VALUES
 ('p26', 'Jaggermeister',             22000, 'Vasos',     '',                                      0, 1),
 ('p27', 'Mumm',                      24000, 'Botellas',  '',                                      0, 1),
 ('p28', 'Du',                        16000, 'Botellas',  '',                                      0, 1)
+
+
 
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
