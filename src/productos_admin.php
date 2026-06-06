@@ -284,7 +284,7 @@ unset($_SESSION['flash_products']);
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Productos · <?= e($appName) ?></title>
+<title>Productos · <?= APP_NAME ?></title>
 <link rel="stylesheet" href="styles.css">
 
 <style>

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 session_start();
@@ -44,20 +45,21 @@ function normalizeUsername(string $username): string
 {
     $username = trim($username);
     $username = mb_strtolower($username, 'UTF-8');
+
     return preg_replace('/[^a-z0-9_.-]/i', '', $username) ?? '';
 }
 
 $roles = [
     'admin' => [
-        'label' => 'Admin',
+        'label' => 'Rol: Admin',
         'desc' => 'Acceso completo al sistema.',
     ],
     'puerta' => [
-        'label' => 'Puerta',
+        'label' => 'Rol: Puerta',
         'desc' => 'Acceso a puerta y scanner.',
     ],
     'usuario' => [
-        'label' => 'Usuario',
+        'label' => 'Rol: Usuario',
         'desc' => 'Acceso limitado a sus listas.',
     ],
 ];
@@ -66,6 +68,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string)($_POST['action'] ?? '');
 
     try {
+        /*
+        |--------------------------------------------------------------------------
+        | CREAR USUARIO
+        |--------------------------------------------------------------------------
+        */
+
         if ($action === 'add_user') {
             $username = normalizeUsername((string)($_POST['username'] ?? ''));
             $displayName = trim((string)($_POST['display_name'] ?? ''));
@@ -91,8 +99,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 
             $stmt = $pdo->prepare("
-                INSERT INTO users (username, display_name, password_hash, role)
-                VALUES (:username, :display_name, :password_hash, :role)
+                INSERT INTO users 
+                (username, display_name, password_hash, role)
+                VALUES 
+                (:username, :display_name, :password_hash, :role)
             ");
 
             $stmt->execute([
@@ -108,8 +118,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $listName = $displayName;
 
                 $stmtList = $pdo->prepare("
-                    INSERT INTO door_lists (user_id, name, is_birthday, price_per_person)
-                    VALUES (:user_id, :name, 0, 500)
+                    INSERT INTO door_lists 
+                    (user_id, name, is_birthday, price_per_person)
+                    VALUES 
+                    (:user_id, :name, 0, 500)
                 ");
 
                 $stmtList->execute([
@@ -121,14 +133,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirectWithMessage('success', 'Usuario creado correctamente.');
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | ACTUALIZAR USUARIO
+        |--------------------------------------------------------------------------
+        | Ahora también permite cambiar el username, no solo el nombre visible.
+        |--------------------------------------------------------------------------
+        */
+
         if ($action === 'update_user') {
             $id = (int)($_POST['id'] ?? 0);
+            $username = normalizeUsername((string)($_POST['username'] ?? ''));
             $displayName = trim((string)($_POST['display_name'] ?? ''));
             $role = (string)($_POST['role'] ?? 'usuario');
             $newPassword = (string)($_POST['new_password'] ?? '');
 
             if ($id <= 0) {
                 redirectWithMessage('error', 'Usuario inválido.');
+            }
+
+            if ($username === '' || mb_strlen($username) < 3) {
+                redirectWithMessage('error', 'El usuario debe tener al menos 3 caracteres.');
             }
 
             if ($displayName === '') {
@@ -144,12 +169,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $sets = [
+                'username = :username',
                 'display_name = :display_name',
                 'role = :role',
             ];
 
             $params = [
                 ':id' => $id,
+                ':username' => $username,
                 ':display_name' => $displayName,
                 ':role' => $role,
             ];
@@ -171,6 +198,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ");
 
             $stmt->execute($params);
+
+            /*
+            |--------------------------------------------------------------------------
+            | SI EL ADMIN EDITA SU PROPIO USUARIO, ACTUALIZAR LA SESIÓN
+            |--------------------------------------------------------------------------
+            */
+
+            if ($id === $currentUserId) {
+                $_SESSION['user']['username'] = $username;
+                $_SESSION['user']['display_name'] = $displayName;
+                $_SESSION['user']['role'] = $role;
+            }
 
             redirectWithMessage('success', 'Usuario actualizado correctamente.');
         }
@@ -211,7 +250,8 @@ unset($_SESSION['flash_users']);
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Usuarios y roles · <?= e($appName) ?></title>
+
+<title>Usuarios y roles · <?= APP_NAME ?></title>
 <link rel="stylesheet" href="styles.css">
 
 <style>
@@ -260,6 +300,7 @@ body {
   color: var(--gold);
   font-weight: 900;
   font-size: 18px;
+  cursor: pointer;
 }
 
 .topbar-back {
@@ -450,7 +491,7 @@ body {
 
 .user-edit-grid {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr auto;
+  grid-template-columns: 1fr 1.2fr 1fr 1fr auto;
   gap: 9px;
   align-items: end;
 }
@@ -463,7 +504,7 @@ body {
   text-align: center;
 }
 
-@media(max-width:850px) {
+@media(max-width:950px) {
   .roles-info {
     grid-template-columns: 1fr;
   }
@@ -601,8 +642,23 @@ body {
           <input type="hidden" name="id" value="<?= (int)$user['id'] ?>">
 
           <div class="field">
+            <label>Usuario</label>
+            <input
+              type="text"
+              name="username"
+              value="<?= e((string)$user['username']) ?>"
+              required
+            >
+          </div>
+
+          <div class="field">
             <label>Nombre visible</label>
-            <input type="text" name="display_name" value="<?= e((string)$user['display_name']) ?>" required>
+            <input
+              type="text"
+              name="display_name"
+              value="<?= e((string)$user['display_name']) ?>"
+              required
+            >
           </div>
 
           <div class="field">
@@ -618,7 +674,11 @@ body {
 
           <div class="field">
             <label>Nueva contraseña</label>
-            <input type="text" name="new_password" placeholder="Dejar vacío para no cambiar">
+            <input
+              type="text"
+              name="new_password"
+              placeholder="Dejar vacío para no cambiar"
+            >
           </div>
 
           <button class="btn" type="submit">Guardar</button>

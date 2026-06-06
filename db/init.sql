@@ -162,39 +162,8 @@ CREATE TABLE IF NOT EXISTS door_people (
    TABLA: kiosko_sales
    ---------------------------------------------------------
    Guarda el historial de ventas del Kioskito.
-   items:
-   - JSON o texto largo con los productos vendidos
-   total:
-   - total de la venta en pesos
-   ========================================================= */
-
-CREATE TABLE IF NOT EXISTS kiosko_sales (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    user_id INT NOT NULL,
-
-    items LONGTEXT NOT NULL,
-    total INT NOT NULL DEFAULT 0,
-    payment_method ENUM('efectivo', 'transferencia', 'tarjeta', 'regalo') NOT NULL DEFAULT 'efectivo',
-
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    INDEX idx_kiosko_sales_user_id (user_id),
-    INDEX idx_kiosko_sales_created_at (created_at),
-
-    CONSTRAINT fk_kiosko_sales_user
-        FOREIGN KEY (user_id)
-        REFERENCES users(id)
-        ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-/* =========================================================
-   TABLA: guardarropas
-   ---------------------------------------------------------
-   Guarda los números de guardarropas.
-   estado:
-   - pendiente = la prenda sigue guardada
-   - retirado  = la prenda ya fue entregada
+   client_sale_id:
+   - evita ventas duplicadas cuando se reintenta una venta
    ========================================================= */
 
 CREATE TABLE IF NOT EXISTS kiosko_sales (
@@ -218,6 +187,41 @@ CREATE TABLE IF NOT EXISTS kiosko_sales (
         REFERENCES users(id)
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+/* =========================================================
+   TABLA: guardarropas
+   ---------------------------------------------------------
+   Guarda los números de guardarropas.
+   estado:
+   - pendiente = la prenda sigue guardada
+   - retirado  = la prenda ya fue entregada
+   ========================================================= */
+
+CREATE TABLE IF NOT EXISTS guardarropas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    numero INT NOT NULL,
+    nombre VARCHAR(120) NOT NULL,
+    dni VARCHAR(30) DEFAULT NULL,
+    telefono VARCHAR(40) DEFAULT NULL,
+
+    prendas INT NOT NULL DEFAULT 1,
+    precio INT NOT NULL DEFAULT 2000,
+
+    estado ENUM('pendiente', 'retirado') NOT NULL DEFAULT 'pendiente',
+
+    user_id INT DEFAULT NULL,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    retirado_at DATETIME DEFAULT NULL,
+
+    UNIQUE KEY uq_guardarropas_numero (numero),
+    INDEX idx_guardarropas_estado (estado),
+    INDEX idx_guardarropas_created_at (created_at),
+    INDEX idx_guardarropas_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 /* =========================================================
    TABLA: app_logs
@@ -285,18 +289,23 @@ VALUES
 ('p14', 'Combo Absolut',             75000, 'Combos',    '1 Absolut + 3 Speed',                   0, 1),
 ('p15', 'Gaseosa',                    6000, 'Bebidas',   '',                                      0, 1),
 ('p16', 'Speed',                      6000, 'Bebidas',   '',                                      0, 1),
-('p17', 'Agua | Soda',                5000, 'Bebidas',   '',                                      0, 1),
-('p18', 'Soda',                       5000, 'Bebidas',   '',                                      0, 1),
+('p17', 'Agua',                       5000, 'Bebidas',   '',                                      0, 1),
+('p18', 'Combo de Bombarder',41000, 'Combos',   'Botella de bombarder de caramelo + 3 speeds',                                      0, 1),
 ('p19', 'Lata Cerveza',               8000, 'Bebidas',   '',                                      0, 1),
-('p20', 'Dilema B | R | T',          15000, 'Bebidas',   '',                                      0, 1),
+('p20', 'Otro loco Tinto',          15000, 'Botellas',   '',                                      0, 1),
 ('p21', 'Vodka barato',              12500, 'Vasos',     '',                                      0, 1),
 ('p22', 'Fernet',                    14000, 'Vasos',     '',                                      0, 1),
-('p23', 'Vodka Absolut',             22000, 'Vasos',     '',                                      0, 1),
+('p23', 'Vodka Absolut',             22000, 'Vasos',     ' Mandarina, WildBerry, Raspberry, orignal',                                      0, 1),
 ('p24', 'Beefeater',                 22000, 'Vasos',     '',                                      0, 1),
 ('p25', 'Malibu',                    14500, 'Vasos',     '',                                      0, 1),
 ('p26', 'Jaggermeister',             22000, 'Vasos',     '',                                      0, 1),
 ('p27', 'Mumm',                      24000, 'Botellas',  '',                                      0, 1),
-('p28', 'Du',                        16000, 'Botellas',  '',                                      0, 1)
+('p28', 'Du',                        16000, 'Botellas',  '',                                      0, 1),
+('p29', 'Dilema Blanco',             15000, 'Botellas',  '',                                      0, 1),
+('p30', 'Dilema Rosado',             15000, 'Botellas',  '',                                      0, 1),
+('p31', 'Dilema Tinto',             15000, 'Botellas',  '',                                      0, 1),
+('p32', 'Santa julia',               21000, 'Botellas',  '',                                      0, 1),
+('p33', 'Combo Champagne',            28000, 'Combos',    '1 Champagne + 2 Speed',                 0, 1)
 
 
 
