@@ -153,7 +153,7 @@ $canManageDoor  = $isAdmin || $isPuerta;
 
     <div class="kioskito-bottom">
       <div id="kiosko-summary"></div>
-      <div class="action-row">
+      <!-- <div class="action-row">
         <button class="btn-action btn-add" onclick="openAddProduct()">
           ＋ Añadir
         </button>
@@ -165,7 +165,7 @@ $canManageDoor  = $isAdmin || $isPuerta;
         <button class="btn-action btn-reset" onclick="openPin()">
           🔒 Reiniciar
         </button>
-      </div>
+      </div> -->
     </div>
 
   </div>
@@ -228,12 +228,12 @@ $canManageDoor  = $isAdmin || $isPuerta;
       <label>Categoría</label>
       <select id="ap-cat">
         <option value="Vasos">Vasos</option>
-        <option value="Snacks">Snacks</option>
         <option value="Combos">Combos</option>
+        <option value="Botellas">Botellas</option>
+        <option value="Snacks">Snacks</option>
         <option value="Extras">Extras</option>
-        <option value="Bebidas">Bebidas</option>
         <option value="Otros">Otros</option>
-        <option value="Prendas">Botellas</option>
+
       </select>
     </div>
 

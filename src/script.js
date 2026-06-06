@@ -305,7 +305,7 @@ function goTo(page) {
 let products = [];
 let cart = {};
 let editingProductId = null;
-let editProductsMode = false;
+let   editProductsMode = false;
 
 function toggleEditProducts() {
   editProductsMode = !editProductsMode;

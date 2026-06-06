@@ -135,7 +135,7 @@ body {
 }
 
 .menu-wrap {
-  min-height: 100vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -770,6 +770,7 @@ body {
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  line-height: 0;
 }
 
 .fab {
@@ -785,6 +786,7 @@ body {
   font-size: 28px;
   box-shadow: 0 12px 28px rgba(142, 91, 255, 0.22);
   cursor: pointer;
+  line-height: 0;
 }
 
 .fab:active {

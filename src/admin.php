@@ -22,36 +22,216 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 <link rel="stylesheet" href="styles.css">
 
 <style>
-.admin-wrap{padding:16px;max-width:1000px;margin:auto}
-.admin-title{font-family:'Cinzel',serif;font-size:28px;color:var(--gold-2);margin-bottom:12px}
-.admin-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px}
-.admin-card{background:var(--bg2);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:12px}
-.admin-num{font-size:26px;font-weight:800;color:var(--gold-2)}
-.admin-label{font-size:12px;color:var(--text2);margin-top:4px}
-.admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.admin-btn{border:0;border-radius:12px;padding:11px 13px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,var(--gold),var(--purple));color:white;text-decoration:none}
-.admin-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.admin-name{font-weight:800;color:var(--text)}
-.admin-sub{font-size:12px;color:var(--text2);margin-top:4px}
-.qr-img{width:120px;height:120px;background:white;border-radius:10px;padding:6px;margin-top:10px}
-.live-dot{font-size:12px;color:var(--green);margin-left:8px}
-@media(max-width:650px){.admin-grid{grid-template-columns:1fr}}
+.admin-wrap {
+  padding: 16px;
+  max-width: 1000px;
+  margin: auto;
+}
 
-.qr-person-card{display:flex;justify-content:space-between;align-items:center;gap:14px;}
+.admin-title {
+  font-family: 'Cinzel', serif;
+  font-size: 28px;
+  color: var(--gold-2);
+  margin-bottom: 12px;
+}
 
-.qr-left{display:flex;align-items:center;gap:14px;min-width:0;}
+.admin-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
 
-.qr-img{width:120px;height:120px;background:white;border-radius:12px;padding:6px;flex-shrink:0;}
+.admin-btn {
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--gold), var(--purple));
+  color: white;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 
-.qr-actions-right{display:flex;flex-direction:column;gap:8px;min-width:140px;}
+.admin-btn.secondary {
+  background: rgba(255,255,255,.08);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
 
-.qr-actions-right .admin-btn{width:100%;text-align:center;}
+.admin-night-counters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
 
-@media(max-width:650px){
-.qr-person-card{align-items:flex-start;}
-.qr-left{flex-direction:column;align-items:flex-start;}
+.admin-counter-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
 
-  .qr-actions-right{min-width:120px;}}
+.admin-counter-info {
+  min-width: 0;
+}
+
+.admin-num {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--gold-2);
+  white-space: nowrap;
+}
+
+.admin-label {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 4px;
+}
+
+.admin-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.admin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-name {
+  font-weight: 800;
+  color: var(--text);
+}
+
+.admin-sub {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 4px;
+}
+
+.live-dot {
+  font-size: 12px;
+  color: var(--green);
+  margin-left: 8px;
+}
+
+.admin-links-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.admin-link-card {
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 13px;
+  text-decoration: none;
+  color: var(--text);
+  display: block;
+}
+
+.admin-link-title {
+  color: var(--gold-2);
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.admin-link-sub {
+  margin-top: 5px;
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.door-counter-stack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.door-counter-item {
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.qr-person-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.qr-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.qr-img {
+  width: 120px;
+  height: 120px;
+  background: white;
+  border-radius: 12px;
+  padding: 6px;
+  flex-shrink: 0;
+}
+
+.qr-actions-right {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.qr-actions-right .admin-btn {
+  width: 100%;
+  text-align: center;
+}
+
+@media(max-width:650px) {
+  .admin-links-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-counter-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .qr-person-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .qr-left {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .qr-actions-right {
+    min-width: 100%;
+    width: 100%;
+  }
+}
 </style>
 </head>
 
@@ -61,42 +241,79 @@ if (($currentUser['role'] ?? '') !== 'admin') {
   <div class="topbar-title" onclick="location.href='index.php'">
     Panel Admin <span class="live-dot" id="live-status">● live</span>
   </div>
-  <button class="topbar-back" onclick="location.href='index.php'">← Menu </button>
+  <button class="topbar-back" onclick="location.href='index.php'">← Menu</button>
 </div>
 
 <div class="admin-wrap">
 
   <div class="admin-title">Administración</div>
 
-  <div class="admin-actions">
-    <a class="admin-btn" href="scanner.php">Escanear QR</a>
-    <button class="admin-btn" onclick="manualRefreshAdmin()">Actualizar</button>
-  </div>
+  <div class="admin-card">
+    <div class="section-title">Gestión del comercio</div>
 
-  <div class="admin-grid">
-    <div class="admin-card">
-      <div class="admin-num" id="total-general">$0</div>
-      <div class="admin-label">Total general</div>
-    </div>
+    <div class="admin-links-grid">
+      <a class="admin-link-card" href="usuarios_admin.php">
+        <div class="admin-link-title">Usuarios y roles</div>
+        <div class="admin-link-sub">Crear usuarios, cambiar roles y actualizar contraseñas.</div>
+      </a>
 
-    <div class="admin-card">
-      <div class="admin-num" id="total-kioskito">$0</div>
-      <div class="admin-label">Kioskito</div>
-    </div>
+      <a class="admin-link-card" href="productos_admin.php">
+        <div class="admin-link-title">Productos de la Base de datos</div>
+        <div class="admin-link-sub">Añadir productos, modificar precios, categorías y descripciones.</div>
+      </a>
 
-    <div class="admin-card">
-      <div class="admin-num" id="total-puerta">$0</div>
-      <div class="admin-label">Puerta (presencias)</div>
-    </div>
+      <a class="admin-link-card" href="menu.php" target="_blank">
+        <div class="admin-link-title">Menú público</div>
+        <div class="admin-link-sub">Vista que ven los clientes al escanear el QR.</div>
+      </a>
 
-    <div class="admin-card">
-      <div class="admin-num" id="total-guardarropas">$0</div>
-      <div class="admin-label">Guardarropas</div>
+      <a class="admin-link-card" href="menu_qr.php" target="_blank">
+        <div class="admin-link-title">QR fijo del menú</div>
+        <div class="admin-link-sub">QR para imprimir o dejar fijo en barra/mesa.</div>
+      </a>
     </div>
   </div>
 
   <div class="admin-card">
-    <div class="section-title">Resumen de puerta</div>
+    <div class="section-title">Contadores de la noche</div>
+
+    <div class="admin-night-counters">
+      <div class="admin-counter-card">
+        <div class="admin-counter-info">
+          <div class="admin-name">Total general</div>
+          <div class="admin-label">Kioskito + puerta + guardarropas</div>
+        </div>
+        <div class="admin-num" id="total-general">$0</div>
+      </div>
+
+      <div class="admin-counter-card">
+        <div class="admin-counter-info">
+          <div class="admin-name">Kioskito</div>
+          <div class="admin-label">Ventas registradas</div>
+        </div>
+        <div class="admin-num" id="total-kioskito">$0</div>
+      </div>
+
+      <div class="admin-counter-card">
+        <div class="admin-counter-info">
+          <div class="admin-name">Puerta</div>
+          <div class="admin-label">Presencias cobradas</div>
+        </div>
+        <div class="admin-num" id="total-puerta">$0</div>
+      </div>
+
+      <div class="admin-counter-card">
+        <div class="admin-counter-info">
+          <div class="admin-name">Guardarropas</div>
+          <div class="admin-label">Prendas cargadas</div>
+        </div>
+        <div class="admin-num" id="total-guardarropas">$0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-card">
+    <div class="section-title">Resumen de puerta a pagar (publicas) </div>
     <div id="admin-door"></div>
   </div>
 
@@ -167,11 +384,6 @@ function qrUrl(token) {
 function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value;
-}
-
-function setHTML(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.innerHTML = value;
 }
 
 async function renderAdmin(silent = false) {
@@ -254,12 +466,13 @@ function renderDoorSummary(lists, totalPersonas, totalEntraron) {
   if (!wrap) return;
 
   wrap.innerHTML = `
-    <div class="admin-grid">
-      <div>
+    <div class="door-counter-stack">
+      <div class="door-counter-item">
         <div class="admin-num">${totalPersonas}</div>
         <div class="admin-label">Personas anotadas</div>
       </div>
-      <div>
+
+      <div class="door-counter-item">
         <div class="admin-num">${totalEntraron}</div>
         <div class="admin-label">Entraron</div>
       </div>
