@@ -21,6 +21,9 @@ ini_set('display_errors', '1');
 error_reporting(E_ALL);
 
 $startedAt = microtime(true);
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
 
 /* =========================================================
    HELPERS VISUALES
@@ -189,30 +192,52 @@ $constPath = __DIR__ . '/const.php';
 if (file_exists($constPath)) {
     require_once $constPath;
 }
-
 /* =========================================================
    SEGURIDAD BÁSICA DEL HEALTH
 ========================================================= */
 
+function health_user_is_admin(): bool
+{
+    $possibleRoles = [
+        $_SESSION['role'] ?? null,
+        $_SESSION['user_role'] ?? null,
+        $_SESSION['user']['role'] ?? null,
+        $_SESSION['currentUser']['role'] ?? null,
+        $_SESSION['auth']['role'] ?? null,
+    ];
+
+    foreach ($possibleRoles as $role) {
+        if (is_string($role) && strtolower(trim($role)) === 'admin') {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 $healthToken = (string) env_read('HEALTH_TOKEN', '');
 $requestToken = (string) ($_GET['token'] ?? '');
 $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
+
+$isAdminLogged = health_user_is_admin();
 
 $isLocalOrPrivate =
     $remoteAddr === '127.0.0.1' ||
     $remoteAddr === '::1' ||
     starts_with_any($remoteAddr, ['10.', '172.', '192.168.']);
 
-if ($healthToken !== '') {
-    if (!hash_equals($healthToken, $requestToken)) {
+if (!$isAdminLogged) {
+    if ($healthToken !== '') {
+        if (!hash_equals($healthToken, $requestToken)) {
+            http_response_code(403);
+            echo 'HEALTH_TOKEN inválido. También podés entrar iniciando sesión como admin.';
+            exit;
+        }
+    } elseif (!$isLocalOrPrivate) {
         http_response_code(403);
-        echo 'HEALTH_TOKEN inválido.';
+        echo 'Health bloqueado. Iniciá sesión como admin o configurá HEALTH_TOKEN en .env.';
         exit;
     }
-} elseif (!$isLocalOrPrivate) {
-    http_response_code(403);
-    echo 'Health bloqueado. Configurá HEALTH_TOKEN en .env para usarlo fuera de localhost.';
-    exit;
 }
 
 /* =========================================================

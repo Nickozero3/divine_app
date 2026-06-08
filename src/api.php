@@ -5,6 +5,53 @@ require_once __DIR__ . '/config/app_logs.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+
+
+
+
+
+
+
+function current_role(): string
+{
+    $role =
+        $_SESSION['user']['role'] ??
+        $_SESSION['role'] ??
+        $_SESSION['currentUser']['role'] ??
+        $_SESSION['auth']['role'] ??
+        '';
+
+    return strtolower(trim((string) $role));
+}
+
+function require_role(array $allowedRoles): void
+{
+    $role = current_role();
+
+    if ($role === '') {
+        http_response_code(401);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'Tenés que iniciar sesión para usar el escáner.'
+        ]);
+        exit;
+    }
+
+    if (!in_array($role, $allowedRoles, true)) {
+        http_response_code(403);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'No tenés permiso para activar este QR.'
+        ]);
+        exit;
+    }
+}
+
+
+
+
+
+
 /* =========================================================
    RESPUESTAS JSON Y VALIDACIONES BASE
 ========================================================= */
@@ -86,8 +133,10 @@ function is_door_manager(array $user): bool
 
 function require_door_manager(array $user): void
 {
-    if (!is_door_manager($user)) {
-        fail('No tenés permiso para controlar puerta.', 403);
+    $role = strtolower(trim((string) ($user['role'] ?? '')));
+
+    if (!in_array($role, ['admin', 'puerta'], true)) {
+        fail('No tenés permiso para usar el escáner QR.', 403);
     }
 }
 
@@ -1282,7 +1331,11 @@ try {
         }
         case 'qr_check': {
             require_door_manager($user);
-        
+
+            if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+                fail('Método no permitido. El QR solo puede verificarse desde el escáner interno.', 405);
+            }
+
             $token = trim((string) ($input['token'] ?? ''));
 
             if ($token === '') {
@@ -1308,7 +1361,7 @@ try {
                 ':token' => $token
             ]);
 
-            $person = $stmt->fetch();
+            $person = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$person) {
                 fail('QR no encontrado.');
@@ -1330,62 +1383,83 @@ try {
         case 'qr_confirm': {
             require_door_manager($user);
 
+            if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+                fail('Método no permitido. El QR solo puede confirmarse desde el escáner interno.', 405);
+            }
+
             $token = trim((string) ($input['token'] ?? ''));
 
             if ($token === '') {
                 fail('Token vacío.');
             }
 
-            $stmt = $pdo->prepare("
-                SELECT 
-                    dp.id,
-                    dp.name,
-                    dp.note,
-                    dp.status,
-                    dp.qr_enabled,
-                    dp.qr_used_at,
-                    dl.name AS list_name
-                FROM door_people dp
-                INNER JOIN door_lists dl ON dl.id = dp.list_id
-                WHERE dp.qr_token = :token
-                LIMIT 1
-            ");
+            $pdo->beginTransaction();
 
-            $stmt->execute([
-                ':token' => $token
-            ]);
+            try {
+                $stmt = $pdo->prepare("
+                    SELECT 
+                        dp.id,
+                        dp.name,
+                        dp.note,
+                        dp.status,
+                        dp.qr_enabled,
+                        dp.qr_used_at,
+                        dl.name AS list_name
+                    FROM door_people dp
+                    INNER JOIN door_lists dl ON dl.id = dp.list_id
+                    WHERE dp.qr_token = :token
+                    LIMIT 1
+                    FOR UPDATE
+                ");
 
-            $person = $stmt->fetch();
+                $stmt->execute([
+                    ':token' => $token
+                ]);
 
-            if (!$person) {
-                fail('QR no encontrado.');
+                $person = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$person) {
+                    $pdo->rollBack();
+                    fail('QR no encontrado.');
+                }
+
+                if ((int) $person['qr_enabled'] !== 1) {
+                    $pdo->rollBack();
+                    fail('QR desactivado.');
+                }
+
+                if (!empty($person['qr_used_at'])) {
+                    $pdo->rollBack();
+                    fail('QR ya utilizado.');
+                }
+
+                $stmt = $pdo->prepare("
+                    UPDATE door_people
+                    SET status = 'entro',
+                        qr_used_at = NOW()
+                    WHERE id = :id
+                    LIMIT 1
+                ");
+
+                $stmt->execute([
+                    ':id' => (int) $person['id']
+                ]);
+
+                $pdo->commit();
+
+                $person['status'] = 'entro';
+                $person['qr_used_at'] = date('Y-m-d H:i:s');
+
+                ok([
+                    'person' => $person
+                ]);
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+
+                fail($e->getMessage(), 500);
             }
-
-            if ((int) $person['qr_enabled'] !== 1) {
-                fail('QR desactivado.');
-            }
-
-            if (!empty($person['qr_used_at'])) {
-                fail('QR ya utilizado.');
-            }
-
-            $stmt = $pdo->prepare("
-                UPDATE door_people
-                SET status = 'entro',
-                    qr_used_at = NOW()
-                WHERE id = :id
-            ");
-
-            $stmt->execute([
-                ':id' => (int) $person['id']
-            ]);
-
-            $person['status'] = 'entro';
-            $person['qr_used_at'] = date('Y-m-d H:i:s');
-
-            ok([
-                'person' => $person
-            ]);
         }
 
         // Endpoint default en caso de no entrar en ningún case
