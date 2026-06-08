@@ -188,20 +188,6 @@ body {
   margin: 2px 0 18px;
 }
 
-.menu-logo {
-  width: 58px;
-  height: 58px;
-  margin: 0 auto 8px;
-  border-radius: 18px;
-  background: var(--gold);
-  display: grid;
-  place-items: center;
-  font-size: 28px;
-  font-weight: 900;
-  color: #160d20;
-  box-shadow: 0 16px 40px rgba(0,0,0,.36);
-}
-
 .menu-title {
   margin: 0;
   font-size: clamp(26px, 7vw, 44px);
@@ -247,9 +233,12 @@ body {
 .section-head h2 {
   margin: 0;
   font-size: 18px;
-  color: var(--gold);
+  color: #000;
   line-height: 1.1;
-}
+  background-color:#fff;
+  padding: 4px 10px;
+  border-radius: 5px;}
+
 
 .section-head span {
   display: block;
@@ -422,8 +411,7 @@ body {
 <div class="menu-wrap">
 
   <header class="menu-header">
-    <div class="menu-logo">★</div>
-    <h1 class="menu-title"><?= e($appName) ?></h1>
+    <h1 class="menu-title"0>Carta Virtual de <?= e($appName) ?></h1>
     <p class="menu-subtitle">Menú de productos</p>
   </header>
 
@@ -461,7 +449,17 @@ body {
     Precios actualizados automáticamente desde el sistema · <?= e($updatedAt) ?>
   </div>
 
-</div>
+  <footer>
+    <div style="text-align:center; font-size:11px; color:var(--text2); margin-top:12px;">
+      &copy; <?= date('Y') ?> <?= e($appName) ?>. Todos los derechos reservados.
+    </div>
+    <a style="display:block; text-align:center; font-size:10px; color:var(--text2); margin-top:4px;"
+       href="https://instagram.com/Nickozero3"
+    >
+      Hecho con ❤️ por <?= e(defined('APP_AUTHOR') ? APP_AUTHOR : '@Nickozero3') ?>.
+    </a>
+  </footer>
 
+</div>
 </body>
 </html>

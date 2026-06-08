@@ -10,6 +10,18 @@ function esc(str) {
     .replace(/'/g, '&#039;');
 }
 
+// Read environment-like variables exposed to the frontend.
+// It supports window.__ENV__ or window.ENV as injection points.
+function getenv(key, defaultValue = '') {
+  try {
+    const env = window.__ENV__ || window.ENV || {};
+    const val = env && Object.prototype.hasOwnProperty.call(env, key) ? env[key] : undefined;
+    return val != null ? String(val) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
 function fmt(n) {
   if (!n && n !== 0) return '$0';
   return '$' + Number(n).toLocaleString('es-AR');
@@ -295,29 +307,117 @@ function goTo(page) {
     startLiveApp();
     window.scrollTo(0, 0);
   });
-}
+}/* ============================================================
+   🛒 KIOSKITO — PRODUCTOS, CARRITO, PAGOS Y VENTAS
+   ============================================================ */
 
-/* =========================
-   KIOSKITO STATE FROM MYSQL
-========================= *//* =========================
-   KIOSKITO — POS CON CARRITO
-========================= */
+/*
+  Reglas importantes:
+  - El precio original del producto NO se modifica en la base de datos.
+  - Si el método de pago es "tarjeta", se aplica 10% de recargo.
+  - El recargo se aplica solo a la venta actual.
+  - El total mostrado, confirmado, impreso y enviado a la API usa el precio final.
+*/
+
+const CARD_SURCHARGE_PERCENT = 10;
+
 let products = [];
 let cart = {};
 let editingProductId = null;
-let   editProductsMode = false;
+let editProductsMode = false;
+let collapsedProductCats = {};
+
+let selectedPaymentMethod = 'efectivo';
+let saleIsProcessing = false;
+
+/* ------------------------------------------------------------
+   💰 Helpers de pago y precios
+   ------------------------------------------------------------ */
+
+function paymentLabel(method) {
+  if (method === 'transferencia') return 'Transferencia';
+  if (method === 'tarjeta') return 'Tarjeta';
+  if (method === 'regalo') return 'Regalo';
+  return 'Efectivo';
+}
+
+function hasCardSurcharge() {
+  return selectedPaymentMethod === 'tarjeta';
+}
+
+function getFinalUnitPrice(basePrice) {
+  const price = Number(basePrice || 0);
+
+  if (hasCardSurcharge()) {
+    return Math.round(price * (1 + CARD_SURCHARGE_PERCENT / 100));
+  }
+
+  return price;
+}
+
+function getLinePrices(basePrice, qty) {
+  const quantity = Number(qty || 0);
+  const baseUnit = Number(basePrice || 0);
+  const finalUnit = getFinalUnitPrice(baseUnit);
+  const surchargeUnit = finalUnit - baseUnit;
+
+  return {
+    quantity,
+    baseUnit,
+    finalUnit,
+    surchargeUnit,
+    baseSubtotal: baseUnit * quantity,
+    surchargeSubtotal: surchargeUnit * quantity,
+    subtotal: finalUnit * quantity
+  };
+}
+
+function selectPaymentMethod(method) {
+  selectedPaymentMethod = method || 'efectivo';
+
+  document.querySelectorAll('.payment-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.payment === selectedPaymentMethod);
+  });
+
+  renderCart();
+}
+
+/* ------------------------------------------------------------
+   🧾 Estado visual del botón Confirmar venta
+   ------------------------------------------------------------ */
+
+function makeClientSaleId() {
+  const random = Math.random().toString(16).slice(2);
+  return `sale_${Date.now()}_${random}`;
+}
+
+function setSaleProcessing(isProcessing) {
+  saleIsProcessing = isProcessing;
+
+  const btn = document.getElementById('confirm-sale-btn');
+  if (!btn) return;
+
+  btn.disabled = isProcessing;
+  btn.textContent = isProcessing ? 'Confirmando...' : '✓ Confirmar venta';
+}
+
+/* ------------------------------------------------------------
+   ✏️ Modo edición de productos
+   ------------------------------------------------------------ */
 
 function toggleEditProducts() {
   editProductsMode = !editProductsMode;
   renderKioskito();
 }
 
-let collapsedProductCats = {};
-
 function toggleProductCat(cat) {
   collapsedProductCats[cat] = !collapsedProductCats[cat];
   renderKioskito();
 }
+
+/* ------------------------------------------------------------
+   📦 Render de productos
+   ------------------------------------------------------------ */
 
 async function renderKioskito() {
   const wrap = document.getElementById('k-categories');
@@ -329,14 +429,14 @@ async function renderKioskito() {
 
     const grouped = {};
 
-    products.forEach(p => {
-      const cat = p.cat || 'Otros';
+    products.forEach(product => {
+      const cat = product.cat || 'Otros';
 
       if (!grouped[cat]) {
         grouped[cat] = [];
       }
 
-      grouped[cat].push(p);
+      grouped[cat].push(product);
     });
 
     if (!Object.keys(grouped).length) {
@@ -353,7 +453,6 @@ async function renderKioskito() {
     }
 
     wrap.innerHTML = Object.keys(grouped).map(cat => {
-
       const collapsed = !!collapsedProductCats[cat];
 
       return `
@@ -364,39 +463,36 @@ async function renderKioskito() {
             onclick="toggleProductCat('${esc(cat)}')"
           >
             <span>${esc(cat)}</span>
-
-            <span class="section-toggle">
-              ${collapsed ? '▸' : '▾'}
-            </span>
+            <span class="section-toggle">${collapsed ? '▸' : '▾'}</span>
           </div>
 
           <div class="product-grid">
 
-            ${grouped[cat].map(p => `
+            ${grouped[cat].map(product => `
               <div
                 class="pos-product-card"
-                onclick="addToCart(${Number(p.id)}, event)"
+                onclick="addToCart(${Number(product.id)}, event)"
               >
 
                 ${editProductsMode ? `
                   <button
                     class="btn-edit-product"
-                    onclick="event.stopPropagation(); openEditProduct(${Number(p.id)})"
+                    onclick="event.stopPropagation(); openEditProduct(${Number(product.id)})"
                   >
                     ✎
                   </button>
                 ` : ''}
 
                 <div class="pos-product-name">
-                  ${esc(p.name)}
+                  ${esc(product.name)}
                 </div>
 
                 <div class="pos-product-price">
-                  ${fmt(p.price)}
+                  ${fmt(product.price)}
                 </div>
 
-                ${p.sub
-                  ? `<div class="product-sub">${esc(p.sub)}</div>`
+                ${product.sub
+                  ? `<div class="product-sub">${esc(product.sub)}</div>`
                   : ''
                 }
 
@@ -416,6 +512,10 @@ async function renderKioskito() {
   }
 }
 
+/* ------------------------------------------------------------
+   🛒 Carrito
+   ------------------------------------------------------------ */
+
 function addToCart(id, ev = null) {
   cart[id] = (cart[id] || 0) + 1;
 
@@ -429,10 +529,16 @@ function addToCart(id, ev = null) {
 
   renderCart();
 }
+
 function removeFromCart(id) {
   if (!cart[id]) return;
+
   cart[id]--;
-  if (cart[id] <= 0) delete cart[id];
+
+  if (cart[id] <= 0) {
+    delete cart[id];
+  }
+
   renderCart();
 }
 
@@ -442,8 +548,18 @@ function renderCart() {
   const ids = Object.keys(cart);
 
   if (!ids.length) {
-    if (saleDetail) saleDetail.innerHTML = `<div style="padding:14px 16px;font-size:14px;color:var(--text2);">Sin productos agregados.</div>`;
-    if (totalEl) totalEl.textContent = '$0';
+    if (saleDetail) {
+      saleDetail.innerHTML = `
+        <div style="padding:14px 16px;font-size:14px;color:var(--text2);">
+          Sin productos agregados.
+        </div>
+      `;
+    }
+
+    if (totalEl) {
+      totalEl.textContent = '$0';
+    }
+
     return;
   }
 
@@ -453,24 +569,58 @@ function renderCart() {
     const product = products.find(p => Number(p.id) === Number(id));
     if (!product) return '';
 
-    const qty = cart[id];
-    const subtotal = qty * Number(product.price);
-    total += subtotal;
+    const qty = Number(cart[id] || 0);
+    const prices = getLinePrices(product.price, qty);
+
+    total += prices.subtotal;
+
+    const cardSurchargeText = hasCardSurcharge()
+      ? `
+        <div class="cart-item-detail" style="color:var(--gold-2);">
+          Tarjeta +${CARD_SURCHARGE_PERCENT}%:
+          ${fmt(prices.baseUnit)} → ${fmt(prices.finalUnit)} c/u
+        </div>
+      `
+      : '';
 
     return `
       <div class="cart-item">
         <div class="cart-item-info">
-          <div class="cart-item-name">${esc(product.name)} - ${fmt(product.price)} (x${qty})</div>
-          <div class="cart-item-detail">Subtotal: ${fmt(subtotal)}</div>
+
+          <div class="cart-item-name">
+            ${esc(product.name)} - ${fmt(prices.finalUnit)} x${qty}
+          </div>
+
+          ${cardSurchargeText}
+
+          <div class="cart-item-detail">
+            Subtotal: ${fmt(prices.subtotal)}
+          </div>
+
         </div>
-        <button class="cart-minus" onclick="removeFromCart(${Number(product.id)})">−</button>
+
+        <button
+          class="cart-minus"
+          onclick="removeFromCart(${Number(product.id)})"
+        >
+          −
+        </button>
       </div>
     `;
   }).join('');
 
-  if (saleDetail) saleDetail.innerHTML = rows;
-  if (totalEl) totalEl.textContent = fmt(total);
+  if (saleDetail) {
+    saleDetail.innerHTML = rows;
+  }
+
+  if (totalEl) {
+    totalEl.textContent = fmt(total);
+  }
 }
+
+/* ------------------------------------------------------------
+   ✅ Confirmar venta
+   ------------------------------------------------------------ */
 
 async function confirmCurrentSale() {
   if (saleIsProcessing) {
@@ -491,22 +641,58 @@ async function confirmCurrentSale() {
     const product = products.find(p => Number(p.id) === Number(id));
     if (!product) return;
 
-    const qty = cart[id];
-    const subtotal = qty * Number(product.price);
-    total += subtotal;
+    const qty = Number(cart[id] || 0);
+    const prices = getLinePrices(product.price, qty);
+
+    total += prices.subtotal;
 
     lines.push({
       id: Number(product.id),
       name: product.name,
       qty,
-      price: Number(product.price),
-      subtotal
+
+      // Precio original del producto.
+      base_price: prices.baseUnit,
+
+      // Precio final usado en esta venta.
+      price: prices.finalUnit,
+
+      // Datos del recargo.
+      surcharge_percent: hasCardSurcharge() ? CARD_SURCHARGE_PERCENT : 0,
+      surcharge_unit: prices.surchargeUnit,
+      surcharge_total: prices.surchargeSubtotal,
+
+      subtotal: prices.subtotal
     });
   });
 
+  if (!lines.length || total <= 0) {
+    alert('No se pudo calcular la venta. Revisá los productos cargados.');
+    return;
+  }
+
   const paymentText = paymentLabel(selectedPaymentMethod);
 
-  if (!confirm(`Confirmar venta por ${fmt(total)}?\nMétodo de pago: ${paymentText}`)) {
+  const surchargeText = hasCardSurcharge()
+    ? `\nRecargo tarjeta: +${CARD_SURCHARGE_PERCENT}%`
+    : '';
+
+  const detailText = lines.map(line => {
+    const recargo = line.surcharge_percent
+      ? ` (${fmt(line.base_price)} + ${CARD_SURCHARGE_PERCENT}%)`
+      : '';
+
+    return `• ${line.name} x${line.qty} = ${fmt(line.subtotal)}${recargo}`;
+  }).join('\n');
+
+  const ok = confirm(
+    `Confirmar venta por ${fmt(total)}?\n` +
+    `${surchargeText}\n\n` +
+    `Productos:\n${detailText}\n\n` +
+    `Método de pago: ${paymentText}`
+  );
+
+  if (!ok) {
     return;
   }
 
@@ -518,8 +704,13 @@ async function confirmCurrentSale() {
     const data = await api('sale_register', {
       items: lines,
       total,
+
+      // Mando ambos nombres para compatibilidad con tu backend.
       paymentMethod: selectedPaymentMethod,
-      clientSaleId
+      payment_method: selectedPaymentMethod,
+
+      clientSaleId,
+      client_sale_id: clientSaleId
     });
 
     if (data.duplicate) {
@@ -543,22 +734,231 @@ async function confirmCurrentSale() {
   }
 }
 
-function printTicket(lines, total, paymentMethod = '') {
-  let html = '<h2>Kioskito</h2><hr>';
+/* ------------------------------------------------------------
+   🖨️ Ticket
+   ------------------------------------------------------------ */
 
-  lines.forEach(item => {
-    html += `<div>${esc(item.name)} x${item.qty} — ${fmt(item.subtotal)}</div>`;
+function printTicket(lines, total, paymentMethod = '') {
+  const now = new Date();
+
+  const fecha = now.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit'
   });
 
-  html += `<hr>`;
-  html += `<div>Método de pago: <b>${esc(paymentMethod)}</b></div>`;
-  html += `<h3>Total: ${fmt(total)}</h3>`;
+  const hora = now.toLocaleTimeString('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 
-  const win = window.open('', '', 'width=300,height=600');
+  const ticketNumber = Math.floor(Date.now() / 1000).toString().slice(-6);
+
+  const shortLine = '--------------------------------';
+
+  const itemsHtml = lines.map(item => {
+    const name = String(item.name || 'Producto');
+    const qty = Number(item.qty || 0);
+    const unitPrice = Number(item.price || 0);
+    const subtotal = Number(item.subtotal || 0);
+
+    const surchargeText = Number(item.surcharge_percent || 0) > 0
+      ? `<div class="muted">Tarjeta +${Number(item.surcharge_percent)}%</div>`
+      : '';
+
+    return `
+      <div class="item">
+        <div class="item-name">${esc(name)}</div>
+
+        <div class="row">
+          <span>${qty} x ${fmt(unitPrice)}</span>
+          <strong>${fmt(subtotal)}</strong>
+        </div>
+
+        ${surchargeText}
+      </div>
+    `;
+  }).join('');
+
+  const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+
+  <title>Ticket Del Kiosko</title>
+
+  <style>
+    @page {
+      size: 80mm auto;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      color: #000;
+      font-family: Arial, "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    body {
+      width: 80mm;
+    }
+
+    .ticket {
+      width: 72mm;
+      max-width: 72mm;
+      margin: 0 auto;
+      padding: 4mm 3mm 3mm;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .title {
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+    }
+
+    .sub {
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+
+    .line {
+      font-family: "Courier New", monospace;
+      font-size: 11px;
+      white-space: pre;
+      margin: 5px 0;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      align-items: flex-start;
+    }
+
+    .item {
+      margin: 5px 0 6px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .item-name {
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 2px;
+      word-break: break-word;
+    }
+
+    .muted {
+      font-size: 10px;
+      opacity: 0.85;
+      margin-top: 1px;
+    }
+
+    .total {
+      font-size: 17px;
+      font-weight: 900;
+      margin-top: 4px;
+    }
+
+    .thanks {
+      margin-top: 8px;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    @media print {
+      html,
+      body {
+        width: 80mm;
+      }
+
+      .ticket {
+        width: 72mm;
+        max-width: 72mm;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="ticket">
+
+    <div class="center">
+      <div class="title">KIOSCO</div>
+      <div class="sub">${fecha} ${hora}</div>
+      <div class="sub">Ticket #${ticketNumber}</div>
+    </div>
+
+    <div class="line">${shortLine}</div>
+
+    ${itemsHtml}
+
+    <div class="line">${shortLine}</div>
+
+    <div class="row">
+      <span>Método</span>
+      <strong>${esc(paymentMethod)}</strong>
+    </div>
+
+    <div class="row total">
+      <span>Total</span>
+      <strong>${fmt(total)}</strong>
+    </div>
+
+    <div class="line">${shortLine}</div>
+
+    <div class="thanks">
+      Gracias por tu compra
+    </div>
+
+  </div>
+
+  <script>
+    window.onload = function () {
+      setTimeout(function () {
+        window.print();
+        setTimeout(function () {
+          window.close();
+        }, 500);
+      }, 250);
+    };
+  </script>
+</body>
+</html>
+  `;
+
+  const win = window.open('', 'ticket_print', 'width=360,height=700');
+
+  if (!win) {
+    alert('El navegador bloqueó la ventana de impresión.');
+    return;
+  }
+
+  win.document.open();
   win.document.write(html);
   win.document.close();
-  win.print();
 }
+
+
+/* ------------------------------------------------------------
+   📜 Historial de ventas
+   ------------------------------------------------------------ */
 
 async function renderSalesHistory() {
   const wrap = document.getElementById('sales-history');
@@ -572,23 +972,28 @@ async function renderSalesHistory() {
       wrap.innerHTML = `
         <div class="section">
           <div class="section-title">Historial de ventas</div>
-          <div style="padding:14px 16px;color:var(--text2);font-size:14px;">Sin ventas registradas.</div>
+          <div style="padding:14px 16px;color:var(--text2);font-size:14px;">
+            Sin ventas registradas.
+          </div>
         </div>
       `;
       return;
     }
 
-    const totalGlobal = sales.reduce((acc, sale) => acc + Number(sale.total), 0);
+    const totalGlobal = sales.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
 
     wrap.innerHTML = `
       <div class="section">
         <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
           <span>Historial de ventas</span>
-          <span style="font-size:13px;color:var(--text2);">Total: ${fmt(totalGlobal)}</span>
+          <span style="font-size:13px;color:var(--text2);">
+            Total: ${fmt(totalGlobal)}
+          </span>
         </div>
 
         ${sales.map(sale => {
           const items = Array.isArray(sale.items) ? sale.items : [];
+
           const hora = new Date(sale.created_at).toLocaleTimeString('es-AR', {
             hour: '2-digit',
             minute: '2-digit'
@@ -597,11 +1002,14 @@ async function renderSalesHistory() {
           return `
             <div class="list-card" style="margin:0 0 8px;">
               <div class="list-header">
+
                 <div class="list-name-txt">
-                  <span style="font-size:13px;font-weight:500;">${hora}</span>
+                  <span style="font-size:13px;font-weight:500;">
+                    ${hora}
+                  </span>
 
                   <span style="font-size:12px;color:var(--text2);display:block;margin-top:2px;">
-                    ${items.map(i => `${esc(i.name)} ×${Number(i.qty)}`).join(' · ')}
+                    ${items.map(item => `${esc(item.name)} ×${Number(item.qty)}`).join(' · ')}
                   </span>
 
                   <span style="font-size:11px;color:var(--gold-2);display:block;margin-top:4px;">
@@ -609,7 +1017,10 @@ async function renderSalesHistory() {
                   </span>
                 </div>
 
-                <div class="list-badge badge-green">${fmt(sale.total)}</div>
+                <div class="list-badge badge-green">
+                  ${fmt(sale.total)}
+                </div>
+
               </div>
             </div>
           `;
@@ -621,6 +1032,10 @@ async function renderSalesHistory() {
   }
 }
 
+/* ------------------------------------------------------------
+   📊 Resumen / cierre de caja
+   ------------------------------------------------------------ */
+
 async function renderKioskoSummary() {
   const wrap = document.getElementById('kiosko-summary');
   if (!wrap) return;
@@ -630,7 +1045,7 @@ async function renderKioskoSummary() {
     const summary = data.summary || {};
 
     const byPayment = summary.by_payment || {};
-    const products = Array.isArray(summary.products) ? summary.products : [];
+    const productsSummary = Array.isArray(summary.products) ? summary.products : [];
 
     wrap.innerHTML = `
       <div class="section">
@@ -638,6 +1053,7 @@ async function renderKioskoSummary() {
 
         <div class="list-card">
           <div style="padding:14px 16px;">
+
             <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:10px;">
               <span style="color:var(--text2);">Ventas realizadas</span>
               <strong>${Number(summary.sales_count || 0)}</strong>
@@ -645,10 +1061,13 @@ async function renderKioskoSummary() {
 
             <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:10px;">
               <span style="color:var(--text2);">Total vendido</span>
-              <strong style="color:var(--gold-2);">${fmt(summary.total_amount || 0)}</strong>
+              <strong style="color:var(--gold-2);">
+                ${fmt(summary.total_amount || 0)}
+              </strong>
             </div>
 
             <div style="border-top:1px solid rgba(240,212,141,.08);padding-top:10px;margin-top:10px;">
+
               <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
                 <span>💵 Efectivo</span>
                 <strong>${fmt(byPayment.efectivo || 0)}</strong>
@@ -668,13 +1087,16 @@ async function renderKioskoSummary() {
                 <span>🎁 Regalo</span>
                 <strong>${fmt(byPayment.regalo || 0)}</strong>
               </div>
+
             </div>
 
-            ${products.length ? `
+            ${productsSummary.length ? `
               <div style="border-top:1px solid rgba(240,212,141,.08);padding-top:10px;margin-top:10px;">
-                <div style="color:var(--text2);font-size:12px;margin-bottom:8px;">Productos más vendidos</div>
+                <div style="color:var(--text2);font-size:12px;margin-bottom:8px;">
+                  Productos más vendidos
+                </div>
 
-                ${products.slice(0, 5).map(item => `
+                ${productsSummary.slice(0, 5).map(item => `
                   <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:5px;font-size:13px;">
                     <span>${esc(item.name)} ×${Number(item.qty)}</span>
                     <strong>${fmt(item.subtotal)}</strong>
@@ -686,9 +1108,11 @@ async function renderKioskoSummary() {
             <button
               class="btn-action btn-reset"
               style="width:100%;margin-top:14px;"
-              onclick="closeKioskoCash()">
+              onclick="closeKioskoCash()"
+            >
               🔒 Cerrar caja
             </button>
+
           </div>
         </div>
       </div>
@@ -715,6 +1139,10 @@ async function closeKioskoCash() {
   }
 }
 
+/* ------------------------------------------------------------
+   ➕ Agregar / editar / eliminar productos
+   ------------------------------------------------------------ */
+
 function openAddProduct() {
   editingProductId = null;
 
@@ -737,11 +1165,14 @@ function openEditProduct(id) {
 
   editingProductId = Number(id);
 
-  document.getElementById('ap-name').value = product.name;
-  document.getElementById('ap-price').value = product.price;
-  document.getElementById('ap-cat').value = product.cat || 'Otros';
-
+  const name = document.getElementById('ap-name');
+  const price = document.getElementById('ap-price');
+  const cat = document.getElementById('ap-cat');
   const btn = document.getElementById('ap-submit-btn');
+
+  if (name) name.value = product.name;
+  if (price) price.value = product.price;
+  if (cat) cat.value = product.cat || 'Otros';
   if (btn) btn.textContent = 'Guardar';
 
   openModal('modal-add-product');
@@ -759,13 +1190,23 @@ async function saveProduct() {
 
   try {
     if (editingProductId) {
-      await api('product_edit', { id: editingProductId, name, price, cat });
+      await api('product_edit', {
+        id: editingProductId,
+        name,
+        price,
+        cat
+      });
     } else {
-      await api('product_add', { name, price, cat });
+      await api('product_add', {
+        name,
+        price,
+        cat
+      });
     }
 
     closeModal('modal-add-product');
     await renderKioskito();
+
   } catch (error) {
     showError(error);
   }
@@ -1550,7 +1991,6 @@ function startLiveApp() {
 /* =========================
    GUARDARROPAS
 ========================= */
-const GUARDARROPAS_PRECIO = 2000;
 
 function instalarGuardarropas() {
   const kioskitoPage = document.getElementById("page-kioskito");
@@ -1558,28 +1998,32 @@ function instalarGuardarropas() {
 
   if (document.getElementById("guardarropas-box")) return;
 
-  const salesHistory = document.getElementById("sales-history");
-  if (!salesHistory) return;
+  const sidePanel = document.getElementById("kioskito-side-panel");
+  const wrap = document.querySelector(".page-kioskito-wrap");
+
+  if (!sidePanel && !wrap) return;
 
   const box = document.createElement("div");
   box.id = "guardarropas-box";
+
   box.innerHTML = `
-    <div class="section">
+    <div class="section guardarropas-section">
       <div class="section-title">Guardarropas</div>
 
-      <div class="action-row">
+      <div class="action-row guardarropas-actions">
         <button class="btn-action btn-add" type="button" onclick="abrirGuardarropas()">
           🧥 + Guardarropas
         </button>
       </div>
 
-      <div class="total-bar">
+      <div class="total-bar guardarropas-total">
         <div>
           <div class="total-label">Guardarropas</div>
           <div style="color:var(--text2);font-size:12px;">
             Activos: <span id="gr-activos">0</span> · Retirados: <span id="gr-retirados">0</span>
           </div>
         </div>
+
         <div class="total-amount" id="gr-total">$0</div>
       </div>
 
@@ -1588,17 +2032,25 @@ function instalarGuardarropas() {
         type="text"
         placeholder="Buscar por número, nombre, DNI o teléfono..."
         oninput="renderGuardarropas()"
-        style="width:calc(100% - 28px);margin:0 14px 12px;padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--text);outline:none;font-size:14px;"
+        class="guardarropas-search"
       >
 
       <div id="gr-list"></div>
     </div>
   `;
 
-  const wrap = document.querySelector(".page-kioskito-wrap");
-  if (!wrap) return;
+  if (sidePanel) {
+    const salesHistory = document.getElementById("sales-history");
 
-  wrap.insertAdjacentElement("afterbegin", box);
+    if (salesHistory && salesHistory.parentNode === sidePanel) {
+      sidePanel.insertBefore(box, salesHistory);
+    } else {
+      sidePanel.appendChild(box);
+    }
+  } else {
+    wrap.insertAdjacentElement("afterbegin", box);
+  }
+
   renderGuardarropas();
 }
 
@@ -1904,41 +2356,10 @@ async function generarImagenQR({ token, personName, personNote, listName, expire
     }
   }, 'image/png');
 }
-let selectedPaymentMethod = 'efectivo';
-let saleIsProcessing = false;
 
-function paymentLabel(method) {
-  if (method === 'transferencia') return 'Transferencia';
-  if (method === 'tarjeta') return 'Tarjeta';
-  if (method === 'regalo') return 'Regalo';
-  return 'Efectivo';
-}
 
-function selectPaymentMethod(method) {
-  selectedPaymentMethod = method || 'efectivo';
-
-  document.querySelectorAll('.payment-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.payment === selectedPaymentMethod);
-  });
-}
-
-function makeClientSaleId() {
-  const random = Math.random().toString(16).slice(2);
-  return `sale_${Date.now()}_${random}`;
-}
-
-function setSaleProcessing(isProcessing) {
-  saleIsProcessing = isProcessing;
-
-  const btn = document.getElementById('confirm-sale-btn');
-
-  if (!btn) return;
-
-  btn.disabled = isProcessing;
-  btn.textContent = isProcessing ? 'Confirmando...' : '✓ Confirmar venta';
-}
 /* =========================
-   INIT
+   INIT DE LA APP
 ========================= */
 window.addEventListener("load", () => {
   safeRun('No se pudo iniciar la app', () => {

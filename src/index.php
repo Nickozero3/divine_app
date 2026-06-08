@@ -27,7 +27,8 @@ $canManageDoor  = $isAdmin || $isPuerta;
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#f8f4ea">
 <title><?= APP_NAME ?></title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=<?= time() ?>">
+<link rel="icon" type="image/x-icon" href="./favicon.ico">
 </head>
 <body>
 
@@ -101,59 +102,76 @@ $canManageDoor  = $isAdmin || $isPuerta;
 <div id="page-kioskito" class="page">
 
   <div class="topbar">
-      <div class="topbar-title" onclick="goTo('menu')">
-    <?= APP_NAME ?> Kioskito 🛒
-    <span class="live-dot">● live</span>
-  </div>
+    <div class="topbar-title" onclick="goTo('menu')">
+      <?= APP_NAME ?> Kioskito 🛒
+      <span class="live-dot">● live</span>
+    </div>
     <button class="topbar-back" onclick="goTo('menu')">← Menú</button>
   </div>
 
   <div class="page-kioskito-wrap" style="padding-top:12px">
 
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:12px;">
+    <!-- COLUMNA DERECHA -->
+    <div id="kioskito-side-panel" class="kioskito-side-panel">
 
-      <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <span style="font-size:13px;color:var(--text2);font-weight:500;">🛒 Venta actual</span>
-        <span style="font-size:20px;font-weight:500;color:var(--text);" id="k-total">$0</span>
+      <!-- VENTA ACTUAL -->
+      <div class="kioskito-sale-card">
+
+        <div class="kioskito-sale-header">
+          <span>🛒 Venta actual</span>
+          <span id="k-total">$0</span>
+        </div>
+
+        <div id="sale-detail" class="kioskito-sale-detail">
+          <div class="kioskito-empty-cart">
+            Sin productos agregados.
+          </div>
+        </div>
+
+        <div class="kioskito-sale-sticky">
+
+          <div class="payment-methods">
+            <button class="payment-btn active" data-payment="efectivo" onclick="selectPaymentMethod('efectivo')">
+              💵 Efectivo
+            </button>
+
+            <button class="payment-btn" data-payment="transferencia" onclick="selectPaymentMethod('transferencia')">
+              📲 Transferencia
+            </button>
+
+            <button class="payment-btn" data-payment="tarjeta" onclick="selectPaymentMethod('tarjeta')">
+              💳 Tarjeta
+            </button>
+
+            <button class="payment-btn" data-payment="regalo" onclick="selectPaymentMethod('regalo')">
+              🎁 Regalo
+            </button>
+          </div>
+
+          <button id="confirm-sale-btn" onclick="confirmCurrentSale()" class="btn-action btn-add">
+            ✓ Confirmar venta
+          </button>
+
+        </div>
+
       </div>
 
-      <div id="sale-detail" style="min-height:48px;padding:6px 0;">
-        <div style="padding:14px 16px;font-size:14px;color:var(--text2);">Sin productos agregados.</div>
-      </div>
+      <!-- GUARDARROPAS SE INSERTA ACA POR JS -->
 
-      <div class="payment-methods">
-        <button class="payment-btn active" data-payment="efectivo" onclick="selectPaymentMethod('efectivo')">
-          💵 Efectivo
-        </button>
-
-        <button class="payment-btn" data-payment="transferencia" onclick="selectPaymentMethod('transferencia')">
-          📲 Transferencia
-        </button>
-
-        <button class="payment-btn" data-payment="tarjeta" onclick="selectPaymentMethod('tarjeta')">
-          💳 Tarjeta
-        </button>
-
-        <button class="payment-btn" data-payment="regalo" onclick="selectPaymentMethod('regalo')">
-          🎁 Regalo
-        </button>
-      </div>
-
-      <div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;">
-        <button id="confirm-sale-btn" onclick="confirmCurrentSale()" class="btn-action btn-add" style="flex:1;">
-          ✓ Confirmar venta
-        </button>
-      </div>
+      <!-- HISTORIAL DE VENTAS -->
+      <div id="sales-history"></div>
 
     </div>
-    
-    <div id="sales-history"></div>
 
+    <!-- PRODUCTOS -->
     <div id="k-categories"></div>
 
+    <!-- RESUMEN -->
     <div class="kioskito-bottom">
       <div id="kiosko-summary"></div>
-      <!-- <div class="action-row">
+
+      <!--
+      <div class="action-row">
         <button class="btn-action btn-add" onclick="openAddProduct()">
           ＋ Añadir
         </button>
@@ -165,12 +183,17 @@ $canManageDoor  = $isAdmin || $isPuerta;
         <button class="btn-action btn-reset" onclick="openPin()">
           🔒 Reiniciar
         </button>
-      </div> -->
+      </div>
+      -->
+      <button class="btn-action btn-close-cash" onclick="cerrarCaja()">
+          🧾 Cerrar caja
+      </button>
     </div>
 
   </div>
 </div>
 <?php endif; ?>
+
 <!-- PUERTA -->
 <div id="page-puerta" class="page">
   <div class="topbar">
@@ -333,6 +356,6 @@ window.DIVINE_USER = <?= json_encode([
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 </script>
 <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
-<script src="script.js"></script>
+<script src="script.js?v=<?= time() ?>"></script>
 </body>
 </html>

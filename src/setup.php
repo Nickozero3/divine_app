@@ -36,7 +36,7 @@ session_start();
 |--------------------------------------------------------------------------
 */
 
-$expectedSetupKey = getenv('SETUP_KEY') ?: 'divine-setup-123';
+$expectedSetupKey = getenv('SETUP_KEY') ?: 'divine';
 $setupError = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

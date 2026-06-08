@@ -1890,43 +1890,915 @@ body {
     min-height: 31px !important;
     font-size: 13px !important;
   }
+}/* ============================================================
+   KIOSKITO — LAYOUT FINAL LIMPIO
+   PC:
+   - Izquierda: productos + resumen
+   - Derecha sticky: venta actual + guardarropas + historial
+
+   Móvil:
+   - Guardarropas
+   - Venta actual
+   - Historial
+   - Productos
+   - Resumen
+============================================================ */
+
+/* ==============================
+   BASE KIOSKITO
+============================== */
+
+#page-kioskito .page-kioskito-wrap {
+  min-height: calc(100vh - 70px);
+  width: 100%;
 }
 
-/* =========================================================
-   KIOSKITO - MÉTODOS DE PAGO Y CIERRE
-========================================================= */
+/* ==============================
+   PANEL DERECHO
+============================== */
 
-.payment-methods {
-  padding: 10px 12px;
-  border-top: 1px solid var(--border);
+#page-kioskito .kioskito-side-panel {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
 }
 
-.payment-btn {
+#page-kioskito .kioskito-side-panel > * {
+  width: 100%;
+  min-width: 0;
+}
+
+/* ==============================
+   TARJETA BASE PANEL
+============================== */
+
+#page-kioskito .kioskito-sale-card,
+#page-kioskito .guardarropas-section,
+#page-kioskito #sales-history .section {
+  background: linear-gradient(
+    135deg,
+    rgba(24, 19, 34, 0.98),
+    rgba(18, 14, 26, 0.98)
+  );
   border: 1px solid rgba(176, 124, 255, 0.18);
-  background: var(--bg3);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  margin: 0;
+}
+
+/* ==============================
+   VENTA ACTUAL
+============================== */
+
+#page-kioskito .kioskito-sale-header {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgba(240, 212, 141, 0.09);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#page-kioskito .kioskito-sale-header span:first-child {
+  font-size: 13px;
   color: var(--text2);
-  border-radius: 999px;
-  padding: 9px 12px;
+  font-weight: 700;
+}
+
+#page-kioskito .kioskito-sale-header #k-total {
+  font-family: "Cinzel", serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--gold-2);
+}
+
+#page-kioskito .kioskito-sale-detail {
+  min-height: 48px;
+  padding: 6px 0;
+}
+
+#page-kioskito .kioskito-empty-cart {
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--text2);
+}
+
+/* ==============================
+   MÉTODOS DE PAGO
+============================== */
+
+#page-kioskito .kioskito-sale-sticky {
+  position: static;
+  padding: 12px;
+  border-top: 1px solid rgba(240, 212, 141, 0.09);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#page-kioskito .payment-methods {
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+#page-kioskito .payment-btn {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(176, 124, 255, 0.24);
+  background: rgba(28, 22, 38, 0.95);
+  color: var(--text2);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 900;
   cursor: pointer;
 }
 
-.payment-btn.active {
+#page-kioskito .payment-btn.active {
   background: linear-gradient(135deg, var(--gold), var(--purple));
   color: #fff;
-  border-color: rgba(240, 212, 141, 0.25);
+  border-color: rgba(240, 212, 141, 0.35);
 }
 
-.payment-btn:active {
-  transform: scale(0.96);
+#page-kioskito #confirm-sale-btn {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 15px;
+  font-size: 14px;
+  font-weight: 900;
 }
 
-#confirm-sale-btn:disabled {
+#page-kioskito #confirm-sale-btn:disabled {
   opacity: 0.65;
   pointer-events: none;
-  filter: grayscale(0.2);
+}
+
+/* ==============================
+   GUARDARROPAS
+============================== */
+
+#page-kioskito #guardarropas-box {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+#page-kioskito .guardarropas-section {
+  padding: 0;
+}
+
+#page-kioskito .guardarropas-section .section-title {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(240, 212, 141, 0.08);
+}
+
+#page-kioskito .guardarropas-actions {
+  margin: 12px;
+  display: flex;
+}
+
+#page-kioskito .guardarropas-actions .btn-action {
+  width: 100%;
+  min-height: 46px;
+}
+
+#page-kioskito .guardarropas-total {
+  margin: 0 12px 12px;
+  padding: 14px;
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+#page-kioskito .guardarropas-total .total-amount {
+  font-size: 24px;
+}
+
+#page-kioskito .guardarropas-search {
+  width: calc(100% - 24px);
+  margin: 0 12px 12px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text);
+  outline: none;
+  font-size: 13px;
+}
+
+#page-kioskito #guardarropas-box .list-card {
+  margin: 0 12px 12px;
+  border-radius: 15px;
+  box-shadow: none;
+}
+
+/* ==============================
+   HISTORIAL
+============================== */
+
+#page-kioskito #sales-history {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+#page-kioskito #sales-history .section {
+  padding: 0;
+}
+
+#page-kioskito #sales-history .section-title {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(240, 212, 141, 0.08);
+}
+
+#page-kioskito #sales-history .list-card {
+  margin: 12px;
+  border-radius: 15px;
+  box-shadow: none;
+}
+
+/* ==============================
+   PRODUCTOS
+============================== */
+
+#page-kioskito #k-categories {
+  min-width: 0;
+}
+
+#page-kioskito #k-categories .section:first-child {
+  padding-top: 0;
+}
+
+#page-kioskito .product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#page-kioskito .pos-product-card {
+  min-height: 96px;
+}
+
+/* ==============================
+   RESUMEN
+============================== */
+
+#page-kioskito .kioskito-bottom {
+  margin-top: 0;
+  padding-bottom: 20px;
+}
+
+/* ============================================================
+   PC
+============================================================ */
+
+@media (min-width: 769px) {
+
+  #page-kioskito .page-kioskito-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 370px;
+    grid-template-areas:
+      "productos panel"
+      "resumen   panel";
+    gap: 16px;
+    align-items: start;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 12px 14px 20px !important;
+  }
+
+  #page-kioskito #k-categories {
+    grid-area: productos;
+  }
+
+  #page-kioskito .kioskito-bottom {
+    grid-area: resumen;
+  }
+
+  #page-kioskito .kioskito-side-panel {
+    grid-area: panel;
+    position: sticky;
+    top: 72px;
+    z-index: 40;
+    max-height: calc(100dvh - 84px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+  }
+
+  /* Orden PC */
+  #page-kioskito .kioskito-sale-card {
+    order: 1;
+  }
+
+  #page-kioskito #guardarropas-box {
+    order: 2;
+  }
+
+  #page-kioskito #sales-history {
+    order: 3;
+  }
+}
+
+/* ============================================================
+   MÓVIL
+   Orden:
+   1 Guardarropas
+   2 Venta actual
+   3 Historial
+   4 Productos
+   5 Resumen
+============================================================ */
+
+@media (max-width: 768px) {
+
+  #page-kioskito .page-kioskito-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 10px 190px !important;
+  }
+
+  #page-kioskito .kioskito-side-panel {
+    order: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  #page-kioskito #k-categories {
+    order: 2;
+  }
+
+  #page-kioskito .kioskito-bottom {
+    order: 3;
+  }
+
+  /* Orden dentro del panel en móvil */
+  #page-kioskito #guardarropas-box {
+    order: 1;
+  }
+
+  #page-kioskito .kioskito-sale-card {
+    order: 2;
+  }
+
+  #page-kioskito #sales-history {
+    order: 3;
+  }
+
+  /* Barra flotante de pago */
+  #page-kioskito:not(.active) .kioskito-sale-sticky {
+    display: none;
+  }
+
+  #page-kioskito.active .kioskito-sale-sticky {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 9999;
+
+    padding: 10px;
+
+    background: rgba(18, 14, 26, 0.96);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+
+    backdrop-filter: blur(12px);
+  }
+
+  #page-kioskito.active .kioskito-sale-sticky .payment-methods {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+  }
+
+  #page-kioskito.active .kioskito-sale-sticky .payment-btn {
+    width: 100%;
+    min-height: 42px;
+    font-size: 13px;
+    border-radius: 14px;
+  }
+
+  #page-kioskito.active .kioskito-sale-sticky #confirm-sale-btn {
+    width: 100%;
+    min-height: 48px;
+    font-size: 15px;
+    border-radius: 15px;
+  }
+}
+
+/* ============================================================
+   CELULAR MUY CHICO
+============================================================ */
+
+@media (max-width: 420px) {
+  #page-kioskito .payment-btn {
+    font-size: 11px;
+  }
+
+  #page-kioskito .product-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  #page-kioskito .pos-product-card {
+    min-height: 58px;
+    border-radius: 14px;
+    padding: 10px 12px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  #page-kioskito .pos-product-price {
+    white-space: nowrap;
+  }
+}
+/* ============================================================
+   KIOSKITO — FIX DE PANEL DERECHO
+   - Cada box ocupa su alto natural
+   - Si la columna supera el viewport: scrollea la columna
+   - No scrollean los boxes internos
+   - En móvil: Guardarropas > Venta actual > Historial
+============================================================ */
+
+/* ==============================
+   BASE
+============================== */
+
+#page-kioskito .page-kioskito-wrap {
+  min-height: calc(100vh - 70px);
+  width: 100%;
+}
+
+#page-kioskito .kioskito-side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  align-self: start;
+}
+
+#page-kioskito .kioskito-side-panel > * {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+  height: auto;
+  max-height: none;
+}
+
+/* ==============================
+   TARJETAS DEL PANEL
+============================== */
+
+#page-kioskito .kioskito-sale-card,
+#page-kioskito .guardarropas-section,
+#page-kioskito #sales-history .section {
+  background: linear-gradient(
+    135deg,
+    rgba(24, 19, 34, 0.98),
+    rgba(18, 14, 26, 0.98)
+  );
+  border: 1px solid rgba(176, 124, 255, 0.18);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  margin: 0;
+}
+
+/* La de venta actual sí como columna */
+#page-kioskito .kioskito-sale-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Las otras pueden recortar solo el borde/redondeo */
+#page-kioskito .guardarropas-section,
+#page-kioskito #sales-history .section {
+  overflow: hidden;
+}
+
+/* ==============================
+   VENTA ACTUAL
+============================== */
+
+#page-kioskito .kioskito-sale-header {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgba(240, 212, 141, 0.09);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#page-kioskito .kioskito-sale-header span:first-child {
+  font-size: 13px;
+  color: var(--text2);
+  font-weight: 700;
+}
+
+#page-kioskito .kioskito-sale-header #k-total {
+  font-family: "Cinzel", serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--gold-2);
+}
+
+#page-kioskito .kioskito-sale-detail {
+  min-height: 48px;
+  padding: 6px 0;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+#page-kioskito .kioskito-empty-cart {
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--text2);
+}
+
+#page-kioskito .kioskito-sale-sticky {
+  position: static;
+  display: flex !important;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid rgba(240, 212, 141, 0.09);
+  flex: 0 0 auto;
+  visibility: visible;
+  opacity: 1;
+}
+
+#page-kioskito .payment-methods {
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+#page-kioskito .payment-btn {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(176, 124, 255, 0.24);
+  background: rgba(28, 22, 38, 0.95);
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+#page-kioskito .payment-btn.active {
+  background: linear-gradient(135deg, var(--gold), var(--purple));
+  color: #fff;
+  border-color: rgba(240, 212, 141, 0.35);
+}
+
+#page-kioskito #confirm-sale-btn {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 15px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+/* ==============================
+   GUARDARROPAS
+============================== */
+
+#page-kioskito #guardarropas-box {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+#page-kioskito .guardarropas-section {
+  padding: 0;
+}
+
+#page-kioskito .guardarropas-section .section-title {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(240, 212, 141, 0.08);
+}
+
+#page-kioskito .guardarropas-actions {
+  margin: 12px;
+  display: flex;
+}
+
+#page-kioskito .guardarropas-actions .btn-action {
+  width: 100%;
+  min-height: 46px;
+}
+
+#page-kioskito .guardarropas-total {
+  margin: 0 12px 12px;
+  padding: 14px;
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+#page-kioskito .guardarropas-total .total-amount {
+  font-size: 24px;
+}
+
+#page-kioskito .guardarropas-search {
+  width: calc(100% - 24px);
+  margin: 0 12px 12px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text);
+  outline: none;
+  font-size: 13px;
+}
+
+#page-kioskito #guardarropas-box .list-card {
+  margin: 0 12px 12px;
+  border-radius: 15px;
+  box-shadow: none;
+}
+
+/* ==============================
+   HISTORIAL
+============================== */
+
+#page-kioskito #sales-history {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+#page-kioskito #sales-history .section {
+  padding: 0;
+}
+
+#page-kioskito #sales-history .section-title {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(240, 212, 141, 0.08);
+}
+
+#page-kioskito #sales-history .list-card {
+  margin: 12px;
+  border-radius: 15px;
+  box-shadow: none;
+}
+
+/* ==============================
+   PRODUCTOS
+============================== */
+
+#page-kioskito #k-categories {
+  min-width: 0;
+}
+
+#page-kioskito .product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#page-kioskito .pos-product-card {
+  min-height: 96px;
+}
+
+/* ==============================
+   RESUMEN
+============================== */
+
+#page-kioskito .kioskito-bottom {
+  margin-top: 0;
+  padding-bottom: 20px;
+}
+
+/* ============================================================
+   PC
+============================================================ */
+
+@media (min-width: 769px) {
+
+  #page-kioskito .page-kioskito-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 370px;
+    grid-template-areas:
+      "productos panel"
+      "resumen   panel";
+    gap: 16px;
+    align-items: start;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 12px 14px 20px !important;
+  }
+
+  #page-kioskito #k-categories {
+    grid-area: productos;
+  }
+
+  #page-kioskito .kioskito-bottom {
+    grid-area: resumen;
+  }
+
+  #page-kioskito .kioskito-side-panel {
+    grid-area: panel;
+    position: sticky;
+    top: 72px;
+    height: calc(100dvh - 84px);
+    max-height: calc(100dvh - 84px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 6px;
+    scrollbar-gutter: stable;
+    z-index: 40;
+  }
+
+  /* Orden PC */
+  #page-kioskito .kioskito-sale-card {
+    order: 1;
+  }
+
+  #page-kioskito #guardarropas-box {
+    order: 2;
+  }
+
+  #page-kioskito #sales-history {
+    order: 3;
+  }
+}
+
+/* ============================================================
+   MÓVIL
+============================================================ */
+
+@media (max-width: 768px) {
+
+  #page-kioskito .page-kioskito-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 10px 190px !important;
+  }
+
+  #page-kioskito .kioskito-side-panel {
+    order: 1;
+    position: static;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  #page-kioskito #k-categories {
+    order: 2;
+  }
+
+  #page-kioskito .kioskito-bottom {
+    order: 3;
+  }
+
+  /* Orden móvil */
+  #page-kioskito #guardarropas-box {
+    order: 1;
+  }
+
+  #page-kioskito .kioskito-sale-card {
+    order: 2;
+  }
+
+  #page-kioskito #sales-history {
+    order: 3;
+  }
+
+  /* Pago flotante abajo solo en móvil */
+  #page-kioskito.active .kioskito-sale-sticky {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 9999;
+    padding: 10px;
+    background: rgba(18, 14, 26, 0.96);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(12px);
+  }
+
+  #page-kioskito.active .kioskito-sale-sticky .payment-methods {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+}
+
+/* ============================================================
+   CELULAR CHICO
+============================================================ */
+
+@media (max-width: 420px) {
+  #page-kioskito .product-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  #page-kioskito .pos-product-card {
+    min-height: 58px;
+    border-radius: 14px;
+    padding: 10px 12px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  #page-kioskito .payment-btn {
+    font-size: 11px;
+  }
+}
+/* ============================================================
+   KIOSKITO — ORDEN FINAL PANEL DERECHO
+   PC:
+   1 Venta actual
+   2 Historial de ventas
+   3 Guardarropas
+
+   Móvil:
+   1 Guardarropas
+   2 Venta actual
+   3 Historial
+============================================================ */
+
+/* La columna derecha scrollea completa si supera el viewport */
+@media (min-width: 769px) {
+
+  #page-kioskito .kioskito-side-panel {
+    grid-area: panel !important;
+
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+
+    position: sticky !important;
+    top: 72px !important;
+
+    height: calc(100dvh - 84px) !important;
+    max-height: calc(100dvh - 84px) !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+
+    padding-right: 6px !important;
+    z-index: 40 !important;
+  }
+
+  /* Cada caja ocupa su altura real */
+  #page-kioskito .kioskito-side-panel > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    flex: 0 0 auto !important;
+  }
+
+  /* ORDEN PC */
+  #page-kioskito .kioskito-sale-card {
+    order: 1 !important;
+  }
+
+  #page-kioskito #sales-history {
+    order: 2 !important;
+  }
+
+  #page-kioskito #guardarropas-box {
+    order: 3 !important;
+  }
+}
+
+/* Móvil conserva el orden cómodo */
+@media (max-width: 768px) {
+
+  #page-kioskito #guardarropas-box {
+    order: 1 !important;
+  }
+
+  #page-kioskito .kioskito-sale-card {
+    order: 2 !important;
+  }
+
+  #page-kioskito #sales-history {
+    order: 3 !important;
+  }
 }

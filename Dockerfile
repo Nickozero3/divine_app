@@ -31,6 +31,7 @@ COPY src/ /var/www/html/
 RUN echo "DirectoryIndex index.php index.html" > /etc/apache2/mods-enabled/dir.conf
 
 RUN chown -R www-data:www-data /var/www/html
+RUN chown www-data:www-data /var/www/.env || true
 
 EXPOSE 80
 

@@ -174,7 +174,9 @@ CREATE TABLE IF NOT EXISTS kiosko_sales (
 
     items LONGTEXT NOT NULL,
     total INT NOT NULL DEFAULT 0,
-    payment_method ENUM('efectivo', 'transferencia', 'tarjeta', 'regalo') NOT NULL DEFAULT 'efectivo',
+
+    payment_method ENUM('efectivo', 'transferencia', 'tarjeta', 'regalo') 
+        NOT NULL DEFAULT 'efectivo',
 
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
@@ -188,7 +190,38 @@ CREATE TABLE IF NOT EXISTS kiosko_sales (
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS kiosko_closings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
 
+    user_id INT NULL,
+
+    from_sale_id INT NULL,
+    to_sale_id INT NULL,
+
+    total INT NOT NULL DEFAULT 0,
+    efectivo_total INT NOT NULL DEFAULT 0,
+    transferencia_total INT NOT NULL DEFAULT 0,
+    tarjeta_total INT NOT NULL DEFAULT 0,
+    regalo_total INT NOT NULL DEFAULT 0,
+
+    sales_count INT NOT NULL DEFAULT 0,
+
+    items LONGTEXT NULL,
+    note VARCHAR(255) NULL,
+
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    closed_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_kiosko_closings_user_id (user_id),
+    INDEX idx_kiosko_closings_sale_range (from_sale_id, to_sale_id),
+    INDEX idx_kiosko_closings_created_at (created_at),
+
+    CONSTRAINT fk_kiosko_closings_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ 
 /* =========================================================
    TABLA: guardarropas
    ---------------------------------------------------------
@@ -202,6 +235,8 @@ CREATE TABLE IF NOT EXISTS guardarropas (
     id INT AUTO_INCREMENT PRIMARY KEY,
 
     numero INT NOT NULL,
+    codigo VARCHAR(30) DEFAULT NULL,
+
     nombre VARCHAR(120) NOT NULL,
     dni VARCHAR(30) DEFAULT NULL,
     telefono VARCHAR(40) DEFAULT NULL,
@@ -212,16 +247,21 @@ CREATE TABLE IF NOT EXISTS guardarropas (
     estado ENUM('pendiente', 'retirado') NOT NULL DEFAULT 'pendiente',
 
     user_id INT DEFAULT NULL,
+    created_by INT DEFAULT NULL,
 
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    hora_ingreso DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    hora_retirado DATETIME DEFAULT NULL,
     retirado_at DATETIME DEFAULT NULL,
 
     UNIQUE KEY uq_guardarropas_numero (numero),
+    UNIQUE KEY uq_guardarropas_codigo (codigo),
+
     INDEX idx_guardarropas_estado (estado),
     INDEX idx_guardarropas_created_at (created_at),
-    INDEX idx_guardarropas_user_id (user_id)
+    INDEX idx_guardarropas_user_id (user_id),
+    INDEX idx_guardarropas_created_by (created_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 
 /* =========================================================
    TABLA: app_logs
@@ -295,7 +335,7 @@ VALUES
 ('p20', 'Otro loco Tinto',          15000, 'Botellas',   '',                                      0, 1),
 ('p21', 'Vodka barato',              12500, 'Vasos',     '',                                      0, 1),
 ('p22', 'Fernet',                    14000, 'Vasos',     '',                                      0, 1),
-('p23', 'Vodka Absolut',             22000, 'Vasos',     ' Mandarina, WildBerry, Raspberry, orignal',                                      0, 1),
+('p23', 'Vodka Absolut',             22000, 'Vasos',     'Mandarina, WildBerry, Raspberry, original',                                      0, 1),
 ('p24', 'Beefeater',                 22000, 'Vasos',     '',                                      0, 1),
 ('p25', 'Malibu',                    14500, 'Vasos',     '',                                      0, 1),
 ('p26', 'Jaggermeister',             22000, 'Vasos',     '',                                      0, 1),
