@@ -107,13 +107,6 @@ function appErrorBox(title, error = null, targetId = null) {
   }
 }
 
-window.addEventListener('error', (event) => {
-  appErrorBox('Error general de JavaScript', event.error || event.message);
-});
-
-window.addEventListener('unhandledrejection', (event) => {
-  appErrorBox('Error async/API no controlado', event.reason);
-});
 
 let APP_BROKEN = false;
 
@@ -271,6 +264,59 @@ async function api(action, data = null) {
 
 function showError(error, targetId = null) {
   showAppBroken('Error de la app', error, targetId);
+}
+
+/* =========================
+   ANTI DOBLE ENVÍO
+========================= */
+
+const ACTION_LOCKS = new Map();
+
+function makeActionKey(action, payload = {}) {
+  try {
+    return `${action}:${JSON.stringify(payload)}`;
+  } catch {
+    return `${action}:${Date.now()}`;
+  }
+}
+
+function isActionLocked(key) {
+  return ACTION_LOCKS.has(key);
+}
+
+function lockAction(key, ms = 1200) {
+  ACTION_LOCKS.set(key, true);
+
+  setTimeout(() => {
+    ACTION_LOCKS.delete(key);
+  }, ms);
+}
+
+async function apiLocked(action, payload = {}, customKey = '') {
+  const key = customKey || makeActionKey(action, payload);
+
+  if (isActionLocked(key)) {
+    console.warn('[DIVINE APP] Doble envío bloqueado:', key);
+    return null;
+  }
+
+  lockAction(key);
+
+  return await api(action, payload);
+}
+
+function setButtonLoading(btn, loading, textLoading = 'Procesando...', textNormal = null) {
+  if (!btn) return;
+
+  if (loading) {
+    btn.dataset.originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = textLoading;
+    return;
+  }
+
+  btn.disabled = false;
+  btn.textContent = textNormal || btn.dataset.originalText || btn.textContent;
 }
 
 /* =========================
@@ -1543,7 +1589,7 @@ function drawPuerta() {
           ${canEditThisList ? `
             <button
               class="list-delete"
-              onclick="event.stopPropagation(); deleteList(${Number(list.id)})">
+              onclick="event.stopPropagation(); deleteList(${Number(list.id)}, this)">
               ✕
             </button>
           ` : ''}
@@ -1604,7 +1650,7 @@ function drawPuerta() {
                   ${canEditThisList ? `
                     <button
                       class="btn-del-person"
-                      onclick="event.stopPropagation(); deletePerson(${Number(list.id)}, ${Number(person.id)})">
+                      onclick="event.stopPropagation(); deletePerson(${Number(list.id)}, ${Number(person.id)}, this)">
                       ✕
                     </button>
                   ` : ''}
@@ -1650,7 +1696,7 @@ function drawPuerta() {
 
               <button
                 class="btn-add-person"
-                onclick="addPerson(${Number(list.id)})">
+                onclick="addPerson(${Number(list.id)}, this)">
                 OK
               </button>
             </div>
@@ -1665,7 +1711,7 @@ function drawPuerta() {
               <button
                 class="btn-action btn-add"
                 style="margin-top:8px;width:100%;"
-                onclick="procesarListaPorLista(${Number(list.id)})">
+                onclick="procesarListaPorLista(${Number(list.id)}, this)">
                 Procesar lista
               </button>
             </div>
@@ -1708,36 +1754,7 @@ function parseBulkText(rawText) {
   return { people, ignored };
 }
 
-async function procesarListaPorLista(listId) {
-  const textarea = document.querySelector(`.bulk-input[data-list-id="${listId}"]`);
-  if (!textarea) return;
 
-  const rawText = (textarea.value || '').trim();
-  if (!rawText) return;
-
-  const parsed = parseBulkText(rawText);
-  if (!parsed.people.length) {
-    alert('No se agregó nadie. Revisá que cada línea tenga nombre y dato/número al final.');
-    return;
-  }
-
-  try {
-    const data = await api('people_bulk', { listId, people: parsed.people });
-
-    textarea.value = '';
-
-    openQuickAddListId = null;
-    await renderPuerta();
-
-    const ignoredTotal = Number(parsed.ignored || 0) + Number(data.ignored || 0);
-
-    if (ignoredTotal > 0 || Number(data.repeated || 0) > 0) {
-      alert(`Agregados: ${data.added || 0}\nRepetidos: ${data.repeated || 0}\nIgnorados por formato inválido: ${ignoredTotal}`);
-    }
-  } catch (error) {
-    showError(error);
-  }
-}
 
 function toggleCollapseList(listId) {
   collapsedDoorLists[listId] = !collapsedDoorLists[listId];
@@ -1784,46 +1801,91 @@ function openAddList() {
   if (birthdayCheck) birthdayCheck.checked = false;
   openModal('modal-add-list');
 }
-
-async function addList() {
+async function addList(btn = null) {
   const birthdayCheck = document.getElementById('al-birthday');
   const isBirthday = !!(birthdayCheck && birthdayCheck.checked);
+
+  const key = `list_add:${isBirthday ? 'birthday' : 'normal'}`;
+
+  if (isActionLocked(key)) {
+    console.warn('[DIVINE APP] Lista duplicada bloqueada:', key);
+    return;
+  }
+
+  lockAction(key, 1500);
+  setButtonLoading(btn, true, 'Creando...');
 
   try {
     const data = await api('list_add', { isBirthday });
 
     closeModal('modal-add-list');
 
-    await renderPuerta();
+    await renderPuerta(true);
 
     if (data.existing && data.message) {
       alert(data.message);
     }
   } catch (error) {
     showError(error);
+  } finally {
+    setButtonLoading(btn, false);
   }
 }
 
-async function deleteList(id) {
-  const list = doorLists.find(list => Number(list.id) === Number(id));
-  if (!list) return;
+async function deleteList(id, btn = null) {
+  id = Number(id);
+
+  if (!id) {
+    return;
+  }
+
+  const key = `list_delete:${id}`;
+
+  if (isActionLocked(key)) {
+    console.warn('[DIVINE APP] Eliminación de lista duplicada bloqueada:', key);
+    return;
+  }
+
+  const list = doorLists.find(list => Number(list.id) === id);
+
+  if (!list) {
+    console.warn('[DIVINE APP] La lista ya no está en memoria:', id);
+    return;
+  }
 
   const ok = confirm(`¿Eliminar la lista "${list.name}" completa?`);
-  if (!ok) return;
+
+  if (!ok) {
+    return;
+  }
+
+  lockAction(key, 2000);
+  setButtonLoading(btn, true, '...');
 
   try {
     await api('list_delete', { id });
-    await renderPuerta();
+
+    doorLists = doorLists.filter(list => Number(list.id) !== id);
+
+    drawPuerta();
+
+    await renderPuerta(true);
   } catch (error) {
     showError(error);
+  } finally {
+    setButtonLoading(btn, false);
   }
 }
 
-async function addPerson(listId) {
+async function addPerson(listId, btn = null) {
+  listId = Number(listId);
+
   const nameInput = document.getElementById('person-name-' + listId);
   const noteInput = document.getElementById('person-note-' + listId);
 
-  if (!nameInput || !noteInput) return;
+  if (!nameInput || !noteInput) {
+    return;
+  }
 
   const name = nameInput.value.trim();
   const note = noteInput.value.trim();
@@ -1833,6 +1895,16 @@ async function addPerson(listId) {
     return;
   }
 
+  const key = `person_add:${listId}:${normalizeText(name)}:${normalizeText(note)}`;
+
+  if (isActionLocked(key)) {
+    console.warn('[DIVINE APP] Persona duplicada bloqueada:', key);
+    return;
+  }
+
+  lockAction(key, 1800);
+  setButtonLoading(btn, true, '...');
+
   try {
     const data = await api('person_add', { listId, name, note });
 
@@ -1840,7 +1912,11 @@ async function addPerson(listId) {
 
     if (personId) {
       try {
-        await api('qr_generate', { personId: Number(personId) });
+        await apiLocked(
+          'qr_generate',
+          { personId: Number(personId) },
+          `qr_generate:${Number(personId)}`
+        );
       } catch (qrError) {
         console.warn('La persona se agregó, pero no se pudo generar el QR automáticamente:', qrError);
       }
@@ -1851,13 +1927,129 @@ async function addPerson(listId) {
     nameInput.value = '';
     noteInput.value = '';
 
-    await renderPuerta();
+    await renderPuerta(true);
   } catch (error) {
     showError(error);
+  } finally {
+    setButtonLoading(btn, false);
+  }
+}
+
+async function deletePerson(listId, personId, btn = null) {
+  listId = Number(listId);
+  personId = Number(personId);
+
+  if (!listId || !personId) {
+    return;
+  }
+
+  const key = `person_delete:${listId}:${personId}`;
+
+  if (isActionLocked(key)) {
+    console.warn('[DIVINE APP] Eliminación de persona duplicada bloqueada:', key);
+    return;
+  }
+
+  const ok = confirm('¿Eliminar esta persona?');
+
+  if (!ok) {
+    return;
+  }
+
+  lockAction(key, 1800);
+  setButtonLoading(btn, true, '...');
+
+  try {
+    await api('person_delete', { listId, personId });
+
+    doorLists = doorLists.map(list => {
+      if (Number(list.id) !== listId) {
+        return list;
+      }
+
+      return {
+        ...list,
+        people: (list.people || []).filter(person => Number(person.id) !== personId)
+      };
+    });
+
+    drawPuerta();
+
+    await renderPuerta(true);
+  } catch (error) {
+    showError(error);
+  } finally {
+    setButtonLoading(btn, false);
+  }
+}
+
+async function procesarListaPorLista(listId, btn = null) {
+  listId = Number(listId);
+
+  const textarea = document.querySelector(`.bulk-input[data-list-id="${listId}"]`);
+  if (!textarea) return;
+
+  const rawText = (textarea.value || '').trim();
+  if (!rawText) return;
+
+  const parsed = parseBulkText(rawText);
+
+  if (!parsed.people.length) {
+    alert('No se agregó nadie. Revisá que cada línea tenga nombre y dato/número al final.');
+    return;
+  }
+
+  const key = `people_bulk:${listId}:${normalizeText(rawText)}`;
+
+  if (isActionLocked(key)) {
+    console.warn('[DIVINE APP] Pegado de lista duplicado bloqueado:', key);
+    return;
+  }
+
+  lockAction(key, 2500);
+  setButtonLoading(btn, true, 'Procesando...');
+
+  try {
+    const data = await api('people_bulk', {
+      listId,
+      people: parsed.people
+    });
+
+    textarea.value = '';
+
+    openQuickAddListId = null;
+
+    await renderPuerta(true);
+
+    const ignoredTotal = Number(parsed.ignored || 0) + Number(data.ignored || 0);
+
+    if (ignoredTotal > 0 || Number(data.repeated || 0) > 0) {
+      alert(
+        `Agregados: ${data.added || 0}\n` +
+        `Repetidos: ${data.repeated || 0}\n` +
+        `Ignorados por formato inválido: ${ignoredTotal}`
+      );
+    }
+  } catch (error) {
+    showError(error);
+  } finally {
+    setButtonLoading(btn, false);
   }
 }
 
 async function togglePersonStatus(listId, personId) {
+  listId = Number(listId);
+  personId = Number(personId);
+
+  const key = `person_toggle_status:${listId}:${personId}`;
+
+  if (isActionLocked(key)) {
+    console.warn('[DIVINE APP] Cambio de estado duplicado bloqueado:', key);
+    return;
+  }
+
+  lockAction(key, 900);
+
   try {
     if (statusAnimationTimer) {
       clearTimeout(statusAnimationTimer);
@@ -1867,17 +2059,17 @@ async function togglePersonStatus(listId, personId) {
     lastChangedPersonId = null;
 
     await api('person_toggle_status', {
-      listId: Number(listId),
-      personId: Number(personId)
+      listId,
+      personId
     });
 
-    lastChangedPersonId = Number(personId);
+    lastChangedPersonId = personId;
     statusAnimationUntil = Date.now() + 1100;
 
     await renderPuerta(true);
 
     statusAnimationTimer = setTimeout(() => {
-      if (lastChangedPersonId === Number(personId)) {
+      if (lastChangedPersonId === personId) {
         lastChangedPersonId = null;
         statusAnimationTimer = null;
         drawPuerta();
@@ -1888,18 +2080,6 @@ async function togglePersonStatus(listId, personId) {
     lastChangedPersonId = null;
     statusAnimationTimer = null;
     statusAnimationUntil = 0;
-    showError(error);
-  }
-}
-
-async function deletePerson(listId, personId) {
-  const ok = confirm('¿Eliminar esta persona?');
-  if (!ok) return;
-
-  try {
-    await api('person_delete', { listId, personId });
-    await renderPuerta();
-  } catch (error) {
     showError(error);
   }
 }
@@ -1920,7 +2100,7 @@ function closeModal(id) {
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
-      overlay.classList.remove('open');
+      overlay.classList.remo
     }
   });
 });

@@ -338,8 +338,8 @@ $canManageDoor  = $isAdmin || $isPuerta;
     </div>
 
     <div class="modal-btns">
-      <button class="btn-modal btn-cancel" onclick="closeModal('modal-add-list')">Cancelar</button>
-      <button class="btn-modal btn-confirm" onclick="addList()">Crear</button>
+      <button type="button" class="btn-modal btn-cancel" onclick="closeModal('modal-add-list')">Cancelar</button>
+      <button type="button" class="btn-modal btn-confirm" onclick="addList(this)">Crear</button>
     </div>
   </div>
 </div>
