@@ -51,6 +51,63 @@ function normalizeCategory(string $cat): string
     };
 }
 
+function categorySlug(string $category): string
+{
+    $slug = mb_strtolower(trim($category), 'UTF-8');
+
+    $slug = str_replace(
+        ['á', 'é', 'í', 'ó', 'ú', 'ñ'],
+        ['a', 'e', 'i', 'o', 'u', 'n'],
+        $slug
+    );
+
+    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
+
+    return trim($slug, '-');
+}
+
+function renderCategory(string $category, array $grouped): void
+{
+    if (empty($grouped[$category])) {
+        return;
+    }
+
+    $items = $grouped[$category];
+    $slug = categorySlug($category);
+    ?>
+    <section 
+        class="menu-section" 
+        id="cat-<?= e($slug) ?>" 
+        data-category="<?= e($slug) ?>"
+    >
+        <div class="section-head">
+            <div>
+                <h2><?= e($category) ?></h2>
+                <span><?= count($items) ?> producto<?= count($items) === 1 ? '' : 's' ?></span>
+            </div>
+        </div>
+
+        <div class="products-list">
+            <?php foreach ($items as $item): ?>
+                <article class="product-card">
+                    <div class="product-info">
+                        <div class="product-name"><?= e((string)$item['name']) ?></div>
+
+                        <?php if (!empty($item['sub'])): ?>
+                            <div class="product-sub"><?= e((string)$item['sub']) ?></div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="product-price">
+                        <?= money($item['price']) ?>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php
+}
+
 $hasSub = columnExists($pdo, 'products', 'sub');
 $subSelect = $hasSub ? ', sub' : ", '' AS sub";
 
@@ -91,319 +148,24 @@ $leftCategories = ['Vasos', 'Botellas'];
 $rightCategories = ['Combos', 'Bebidas'];
 
 $usedCategories = array_merge($leftCategories, $rightCategories);
+
 $extraCategories = array_values(array_filter(array_keys($grouped), function ($cat) use ($usedCategories) {
     return !in_array($cat, $usedCategories, true);
 }));
 
 $updatedAt = date('d/m/Y H:i');
 
-function renderCategory(string $category, array $grouped): void
-{
-    if (empty($grouped[$category])) {
-        return;
-    }
-
-    $items = $grouped[$category];
-    ?>
-    <section class="menu-section">
-        <div class="section-head">
-            <div>
-                <h2><?= e($category) ?></h2>
-                <span><?= count($items) ?> producto<?= count($items) === 1 ? '' : 's' ?></span>
-            </div>
-        </div>
-
-        <div class="products-list">
-            <?php foreach ($items as $item): ?>
-                <article class="product-card">
-                    <div class="product-info">
-                        <div class="product-name"><?= e((string)$item['name']) ?></div>
-
-                        <?php if (!empty($item['sub'])): ?>
-                            <div class="product-sub"><?= e((string)$item['sub']) ?></div>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="product-bottom">
-                        <div class="product-price">
-                            <?= money($item['price']) ?>
-                        </div>
-                    </div>
-                </article>
-            <?php endforeach; ?>
-        </div>
-    </section>
-    <?php
-}
+$floatingCategories = ['Vasos','Botellas','Combos', 'Bebidas'];
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title><?= e($appName) ?> · Menú</title>
 
-<style>
-:root {
-  --bg: #09060f;
-  --bg2: #130b1c;
-  --card: #1a1025;
-  --card2: #100817;
-
-  --gold: #f0d48d;
-  --purple: #8f4cff;
-
-  --text: #fff8ea;
-  --text2: #c9bdd7;
-
-  --border: rgba(240, 212, 141, .18);
-  --price-bg: #f0d48d;
-  --price-text: #130b1c;
-}
-
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  font-family: Arial, sans-serif;
-  background:
-    radial-gradient(circle at top, rgba(143, 76, 255, .18), transparent 34%),
-    radial-gradient(circle at 90% 15%, rgba(240, 212, 141, .10), transparent 25%),
-    linear-gradient(180deg, #120a1a 0%, #07040b 100%);
-  color: var(--text);
-  padding: 16px 10px 24px;
-}
-
-.menu-wrap {
-  width: min(1100px, 100%);
-  margin: 0 auto;
-}
-
-.menu-header {
-  text-align: center;
-  margin: 2px 0 18px;
-}
-
-.menu-title {
-  margin: 0;
-  font-size: clamp(26px, 7vw, 44px);
-  line-height: 1;
-  color: var(--gold);
-  letter-spacing: .4px;
-}
-
-.menu-subtitle {
-  margin: 7px 0 0;
-  color: var(--text2);
-  font-size: 13px;
-}
-
-.menu-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  align-items: start;
-}
-
-.menu-column {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.menu-section {
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  overflow: hidden;
-  background: rgba(19, 11, 28, .92);
-  box-shadow: 0 12px 28px rgba(0,0,0,.22);
-}
-
-.section-head {
-  background: #170d22;
-  padding: 12px 10px;
-  border-bottom: 1px solid rgba(240, 212, 141, .12);
-}
-
-.section-head h2 {
-  margin: 0;
-  font-size: 18px;
-  color: #000;
-  line-height: 1.1;
-  background-color:#fff;
-  padding: 4px 10px;
-  border-radius: 5px;}
-
-
-.section-head span {
-  display: block;
-  margin-top: 4px;
-  font-size: 11px;
-  color: var(--text2);
-  font-weight: 700;
-}
-
-.products-list {
-  padding: 7px;
-  background: rgba(8, 5, 13, .28);
-}
-
-.product-card {
-  background: #160d20;
-  border: 1px solid rgba(240, 212, 141, .13);
-  border-radius: 13px;
-  padding: 9px;
-  margin-bottom: 8px;
-}
-
-.product-card:last-child {
-  margin-bottom: 0;
-}
-
-.product-info {
-  min-width: 0;
-}
-
-.product-name {
-  font-size: 13px;
-  font-weight: 900;
-  color: var(--text);
-  line-height: 1.15;
-  word-break: break-word;
-}
-
-.product-sub {
-  margin-top: 4px;
-  font-size: 11px;
-  color: var(--text2);
-  line-height: 1.2;
-  word-break: break-word;
-}
-
-.product-bottom {
-  margin-top: 8px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.product-price {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 950;
-  color: var(--price-text);
-  background: var(--price-bg);
-  border: 2px solid rgba(255,255,255,.35);
-  padding: 7px 10px;
-  border-radius: 11px;
-  min-width: 74px;
-  text-align: center;
-  box-shadow: 0 8px 18px rgba(0,0,0,.22);
-  letter-spacing: .2px;
-}
-
-.extra-grid {
-  margin-top: 8px;
-}
-
-.empty {
-  background: rgba(255,255,255,.05);
-  border: 1px dashed var(--border);
-  color: var(--text2);
-  border-radius: 16px;
-  padding: 18px;
-  text-align: center;
-}
-
-.footer {
-  text-align: center;
-  color: var(--text2);
-  font-size: 11px;
-  margin: 18px 0 6px;
-  line-height: 1.4;
-}
-
-@media(min-width:701px) {
-  body {
-    padding: 18px 14px 28px;
-  }
-
-  .menu-grid {
-    gap: 14px;
-  }
-
-  .menu-column {
-    gap: 14px;
-  }
-
-  .menu-section {
-    border-radius: 22px;
-  }
-
-  .section-head {
-    padding: 15px 16px;
-  }
-
-  .section-head h2 {
-    font-size: 23px;
-  }
-
-  .section-head span {
-    font-size: 12px;
-  }
-
-  .products-list {
-    padding: 10px;
-  }
-
-  .product-card {
-    border-radius: 16px;
-    padding: 12px;
-    margin-bottom: 9px;
-  }
-
-  .product-name {
-    font-size: 16px;
-  }
-
-  .product-sub {
-    font-size: 12px;
-  }
-
-  .product-bottom {
-    margin-top: 10px;
-  }
-
-  .product-price {
-    font-size: 18px;
-    min-width: 92px;
-    padding: 8px 10px;
-    border-radius: 13px;
-  }
-
-  .menu-logo {
-    width: 62px;
-    height: 62px;
-    font-size: 30px;
-  }
-
-  .menu-header {
-    margin-bottom: 24px;
-  }
-
-  .footer {
-    font-size: 12px;
-    margin: 24px 0 8px;
-  }
-}
-</style>
+<link rel="stylesheet" href="styles/menu.css">
 </head>
 
 <body>
@@ -411,12 +173,14 @@ body {
 <div class="menu-wrap">
 
   <header class="menu-header">
-    <h1 class="menu-title"0>Carta Virtual de <?= e($appName) ?></h1>
+    <h1 class="menu-title">Carta Virtual de <?= e($appName) ?></h1>
     <p class="menu-subtitle">Menú de productos</p>
   </header>
 
   <?php if (empty($grouped)): ?>
+
     <div class="empty">No hay productos disponibles para mostrar.</div>
+
   <?php else: ?>
 
     <div class="menu-grid">
@@ -443,23 +207,148 @@ body {
       </div>
     <?php endif; ?>
 
+    <nav class="floating-category-nav" aria-label="Navegación rápida del menú">
+      <?php foreach ($floatingCategories as $category): ?>
+        <?php if (!empty($grouped[$category])): ?>
+          <?php $slug = categorySlug($category); ?>
+
+          <a
+            href="#cat-<?= e($slug) ?>"
+            class="floating-category-btn"
+            data-target="<?= e($slug) ?>"
+            aria-label="Ir a <?= e($category) ?>"
+          >
+            <?= e($category) ?>
+          </a>
+        <?php endif; ?>
+      <?php endforeach; ?>
+    </nav>
+
   <?php endif; ?>
 
   <div class="footer">
     Precios actualizados automáticamente desde el sistema · <?= e($updatedAt) ?>
   </div>
 
-  <footer>
-    <div style="text-align:center; font-size:11px; color:var(--text2); margin-top:12px;">
+  <footer class="site-footer">
+    <div>
       &copy; <?= date('Y') ?> <?= e($appName) ?>. Todos los derechos reservados.
     </div>
-    <a style="display:block; text-align:center; font-size:10px; color:var(--text2); margin-top:4px;"
-       href="https://instagram.com/Nickozero3"
-    >
+
+    <a href="https://instagram.com/Nickozero3">
       Hecho con ❤️ por <?= e(defined('APP_AUTHOR') ? APP_AUTHOR : '@Nickozero3') ?>.
     </a>
   </footer>
 
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const sections = document.querySelectorAll('.menu-section[data-category]');
+  const buttons = document.querySelectorAll('.floating-category-btn');
+
+  let manualScrolling = false;
+
+  function setActive(category) {
+    buttons.forEach((button) => {
+      const isActive = button.dataset.target === category;
+
+      button.classList.toggle('active', isActive);
+
+      if (isActive) {
+        button.setAttribute('aria-current', 'true');
+      } else {
+        button.removeAttribute('aria-current');
+      }
+    });
+  }
+
+  function highlightSection(section) {
+    section.classList.remove('section-highlight');
+
+    // Reinicia la animación aunque toques el mismo botón varias veces
+    void section.offsetWidth;
+
+    section.classList.add('section-highlight');
+
+    setTimeout(() => {
+      section.classList.remove('section-highlight');
+    }, 1800);
+  }
+
+  function smoothScrollTo(targetY, duration = 950, callback = null) {
+    const startY = window.scrollY;
+    const distance = targetY - startY;
+    const startTime = performance.now();
+
+    manualScrolling = true;
+
+    function easeInOutCubic(t) {
+      return t < 0.5
+        ? 4 * t * t * t
+        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function animation(currentTime) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeInOutCubic(progress);
+
+      window.scrollTo(0, startY + distance * eased);
+
+      if (progress < 1) {
+        requestAnimationFrame(animation);
+      } else {
+        manualScrolling = false;
+
+        if (typeof callback === 'function') {
+          callback();
+        }
+      }
+    }
+
+    requestAnimationFrame(animation);
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    if (manualScrolling) return;
+
+    const visible = entries
+      .filter((entry) => entry.isIntersecting)
+      .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+    if (visible.length > 0) {
+      setActive(visible[0].target.dataset.category);
+    }
+  }, {
+    root: null,
+    threshold: [0.20, 0.35, 0.50, 0.70],
+    rootMargin: '-20% 0px -45% 0px'
+  });
+
+  sections.forEach((section) => observer.observe(section));
+
+  buttons.forEach((button) => {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+
+      const targetSelector = button.getAttribute('href');
+      const target = document.querySelector(targetSelector);
+
+      if (!target) return;
+
+      setActive(button.dataset.target);
+
+      const extraOffset = 16;
+      const targetY = target.getBoundingClientRect().top + window.scrollY - extraOffset;
+
+      smoothScrollTo(targetY, 950, () => {
+        highlightSection(target);
+      });
+    });
+  });
+});
+</script>
+
 </body>
 </html>

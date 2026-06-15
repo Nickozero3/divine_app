@@ -309,6 +309,66 @@ function person_row(array $person): array
 /* =========================================================
    INICIO DE API
 ========================================================= */
+function try_remember_login(PDO $pdo): void
+{
+    if (isset($_SESSION['user']['id'])) {
+        return;
+    }
+
+    if (empty($_COOKIE['divine_remember'])) {
+        return;
+    }
+
+    $parts = explode(':', (string) $_COOKIE['divine_remember']);
+
+    if (count($parts) !== 2) {
+        setcookie('divine_remember', '', time() - 3600, '/');
+        return;
+    }
+
+    [$selector, $token] = $parts;
+
+    $stmt = $pdo->prepare("
+        SELECT 
+            rt.user_id,
+            rt.token_hash,
+            u.id,
+            u.username,
+            u.display_name,
+            u.role
+        FROM user_remember_tokens rt
+        INNER JOIN users u ON u.id = rt.user_id
+        WHERE rt.selector = :selector
+          AND rt.expires_at > NOW()
+        LIMIT 1
+    ");
+
+    $stmt->execute([
+        ':selector' => $selector,
+    ]);
+
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row || !password_verify($token, $row['token_hash'])) {
+        $stmtDelete = $pdo->prepare("
+            DELETE FROM user_remember_tokens
+            WHERE selector = :selector
+        ");
+        $stmtDelete->execute([':selector' => $selector]);
+
+        setcookie('divine_remember', '', time() - 3600, '/');
+        return;
+    }
+
+    $_SESSION['user'] = [
+        'id' => (int) $row['id'],
+        'username' => $row['username'],
+        'display_name' => $row['display_name'],
+        'role' => $row['role'],
+    ];
+}
+
+try_remember_login($pdo);
 
 $user = require_login();
 $action = $_GET['action'] ?? $_POST['action'] ?? '';

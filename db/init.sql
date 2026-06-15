@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS products (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
-/* =========================================================
+/* =========== ==============================================
    TABLA: door_lists
    ---------------------------------------------------------
    Guarda las listas de puerta.
@@ -299,16 +299,37 @@ CREATE TABLE IF NOT EXISTS app_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+-- -- =========================================================
+--     TABLA: user_remember_tokens
+--     ---------------------------------------------------------
+--     Guarda los tokens de "recordarme" para sesiones persistentes.
+--     Cada token tiene un selector (público) y un token_hash (secreto).
+--     ========================================================= */
+    
+
+CREATE TABLE IF NOT EXISTS user_remember_tokens (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  selector VARCHAR(64) NOT NULL UNIQUE,
+  token_hash VARCHAR(255) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX (user_id),
+  INDEX (selector),
+  INDEX (expires_at)
+);
+
 /* =========================================================
-   PRODUCTOS INICIALES
-   ---------------------------------------------------------
-   Inserta productos base.
-   Si el producto ya existe por code, actualiza:
-   - name
-   - price
-   - cat
-   - sub
-   - active
+    PRODUCTOS INICIALES
+    ---------------------------------------------------------
+    Inserta productos base.
+    Si el producto ya existe por code, actualiza:
+    - name
+    - price
+    - cat
+    - sub
+    - active
    ========================================================= */
 
 INSERT INTO products (code, name, price, cat, sub, custom, active)
@@ -345,9 +366,8 @@ VALUES
 ('p30', 'Dilema Rosado',             15000, 'Botellas',  '',                                      0, 1),
 ('p31', 'Dilema Tinto',             15000, 'Botellas',  '',                                      0, 1),
 ('p32', 'Santa julia',               21000, 'Botellas',  '',                                      0, 1),
-('p33', 'Combo Champagne',            28000, 'Combos',    '1 Champagne + 2 Speed',                 0, 1)
-
-
+('p33', 'Combo Champagne', 28000, 'Combos', '1 Champagne + 2 Speed', 0, 1),
+('p34', 'Chandon', 32000, 'Botellas', 'Botella de chandon (Consultar disponibilidad entre rose,delice,normal)', 0, 1)
 
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
@@ -358,7 +378,7 @@ ON DUPLICATE KEY UPDATE
 
 
 /* =========================================================
-   FIN DEL ARCHIVO
+    FIN DEL ARCHIVO
    ========================================================= */
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -2802,3 +2802,52 @@ body {
     order: 3 !important;
   }
 }
+html,
+body {
+  min-height: 100%;
+  background: #0c0a12;
+}
+
+body {
+  background-attachment: fixed;
+}
+
+#page-menu {
+  min-height: 100dvh;
+}
+
+.menu-wrap {
+  min-height: 100dvh;
+  max-height: none;
+  overflow: visible;
+}
+
+.menu-logo {
+  max-width: 100%;
+  font-size: clamp(28px, 10vw, 42px);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.menu-info {
+  min-width: 0;
+}
+
+.menu-name,
+.menu-desc {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.menu-card {
+  width: 100%;
+  min-width: 0;
+}
+
+.menu-user-info {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
+}

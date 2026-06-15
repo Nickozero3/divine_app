@@ -20,7 +20,7 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= APP_NAME ?> Scanner QR</title>
 
-<link rel="stylesheet" href="./scanner.css">
+<link rel="stylesheet" href="styles/scanner.css">
 <link rel="stylesheet" href="styles.css">
 <script src="https://unpkg.com/html5-qrcode"></script>
 

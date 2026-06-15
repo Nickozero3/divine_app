@@ -93,6 +93,13 @@ $canManageDoor  = $isAdmin || $isPuerta;
         <div class="menu-arr">›</div>
       </div>
 
+      <div class="menu-card" onclick="location.href='menu.php'">
+        <div class="menu-icon">📋</div>
+        <div class="menu-info">
+          <div class="menu-name">Carta </div>
+          <div class="menu-desc">Consulta rápida de precios</div>
+        </div>
+        <div class="menu-arr">›</div>
     </div>
   </div>
 </div>
