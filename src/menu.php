@@ -34,7 +34,7 @@ function columnExists(PDO $pdo, string $table, string $column): bool
         ':column_name' => $column,
     ]);
 
-    return (int)$stmt->fetchColumn() > 0;
+    return (int) $stmt->fetchColumn() > 0;
 }
 
 function normalizeCategory(string $cat): string
@@ -63,58 +63,62 @@ function categorySlug(string $category): string
 
     $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
 
-    return trim($slug, '-');
+    return trim($slug, '-') ?: 'categoria';
 }
 
-function renderCategory(string $category, array $grouped): void
+function renderProductsPanel(string $category, array $items, bool $active): void
 {
-    if (empty($grouped[$category])) {
-        return;
-    }
-
-    $items = $grouped[$category];
     $slug = categorySlug($category);
     ?>
-    <section 
-        class="menu-section" 
-        id="cat-<?= e($slug) ?>" 
-        data-category="<?= e($slug) ?>"
+    <section
+        id="panel-<?= e($slug) ?>"
+        class="tab-panel <?= $active ? 'active' : '' ?>"
+        data-panel="<?= e($slug) ?>"
+        role="tabpanel"
+        aria-labelledby="tab-<?= e($slug) ?>"
+        <?= $active ? '' : 'hidden' ?>
     >
-        <div class="section-head">
-            <div>
-                <h2><?= e($category) ?></h2>
-                <span><?= count($items) ?> producto<?= count($items) === 1 ? '' : 's' ?></span>
+        <div class="menu-section">
+            <div class="section-head">
+                <div>
+                    <h2><?= e($category) ?></h2>
+                    <span><?= count($items) ?> producto<?= count($items) === 1 ? '' : 's' ?></span>
+                </div>
             </div>
-        </div>
 
-        <div class="products-list">
-            <?php foreach ($items as $item): ?>
-                <article class="product-card">
-                    <div class="product-info">
-                        <div class="product-name"><?= e((string)$item['name']) ?></div>
+            <div class="products-list">
+                <?php foreach ($items as $item): ?>
+                    <article class="product-card">
+                        <div class="product-info">
+                            <div class="product-name"><?= e((string)($item['name'] ?? '')) ?></div>
 
-                        <?php if (!empty($item['sub'])): ?>
-                            <div class="product-sub"><?= e((string)$item['sub']) ?></div>
-                        <?php endif; ?>
-                    </div>
+                            <?php if (!empty($item['sub'])): ?>
+                                <div class="product-sub"><?= e((string)$item['sub']) ?></div>
+                            <?php endif; ?>
+                        </div>
 
-                    <div class="product-price">
-                        <?= money($item['price']) ?>
-                    </div>
-                </article>
-            <?php endforeach; ?>
+                        <div class="product-price">
+                            <?= money($item['price'] ?? 0) ?>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            </div>
         </div>
     </section>
     <?php
 }
 
 $hasSub = columnExists($pdo, 'products', 'sub');
+$hasActive = columnExists($pdo, 'products', 'active');
+
 $subSelect = $hasSub ? ', sub' : ", '' AS sub";
+$activeWhere = $hasActive ? "AND COALESCE(active, 1) = 1" : "";
 
 $stmt = $pdo->query("
     SELECT id, cat, name, price {$subSelect}
     FROM products
     WHERE LOWER(TRIM(cat)) NOT IN ('extras', 'extra', 'otros', 'snacks')
+      {$activeWhere}
     ORDER BY
       CASE LOWER(TRIM(cat))
         WHEN 'vasos' THEN 1
@@ -144,18 +148,23 @@ foreach ($products as $product) {
     $grouped[$category][] = $product;
 }
 
-$leftCategories = ['Vasos', 'Botellas'];
-$rightCategories = ['Combos', 'Bebidas'];
+$mainOrder = ['Vasos', 'Botellas', 'Combos', 'Bebidas'];
 
-$usedCategories = array_merge($leftCategories, $rightCategories);
+$categories = [];
 
-$extraCategories = array_values(array_filter(array_keys($grouped), function ($cat) use ($usedCategories) {
-    return !in_array($cat, $usedCategories, true);
-}));
+foreach ($mainOrder as $category) {
+    if (!empty($grouped[$category])) {
+        $categories[] = $category;
+    }
+}
+
+foreach (array_keys($grouped) as $category) {
+    if (!in_array($category, $categories, true)) {
+        $categories[] = $category;
+    }
+}
 
 $updatedAt = date('d/m/Y H:i');
-
-$floatingCategories = ['Vasos','Botellas','Combos', 'Bebidas'];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -165,7 +174,7 @@ $floatingCategories = ['Vasos','Botellas','Combos', 'Bebidas'];
 
 <title><?= e($appName) ?> · Menú</title>
 
-<link rel="stylesheet" href="styles/menu.css">
+<link rel="stylesheet" href="styles/menu.css?v=<?= time() ?>">
 </head>
 
 <body>
@@ -177,52 +186,42 @@ $floatingCategories = ['Vasos','Botellas','Combos', 'Bebidas'];
     <p class="menu-subtitle">Menú de productos</p>
   </header>
 
-  <?php if (empty($grouped)): ?>
+  <?php if (empty($categories)): ?>
 
     <div class="empty">No hay productos disponibles para mostrar.</div>
 
   <?php else: ?>
 
-    <div class="menu-grid">
-      <div class="menu-column">
-        <?php foreach ($leftCategories as $category): ?>
-          <?php renderCategory($category, $grouped); ?>
-        <?php endforeach; ?>
-      </div>
+    <main class="tabs-card">
 
-      <div class="menu-column">
-        <?php foreach ($rightCategories as $category): ?>
-          <?php renderCategory($category, $grouped); ?>
-        <?php endforeach; ?>
-      </div>
-    </div>
-
-    <?php if (!empty($extraCategories)): ?>
-      <div class="menu-grid extra-grid">
-        <?php foreach ($extraCategories as $category): ?>
-          <div class="menu-column">
-            <?php renderCategory($category, $grouped); ?>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    <?php endif; ?>
-
-    <nav class="floating-category-nav" aria-label="Navegación rápida del menú">
-      <?php foreach ($floatingCategories as $category): ?>
-        <?php if (!empty($grouped[$category])): ?>
-          <?php $slug = categorySlug($category); ?>
-
-          <a
-            href="#cat-<?= e($slug) ?>"
-            class="floating-category-btn"
+      <nav class="tabs-bar" role="tablist" aria-label="Categorías del menú">
+        <?php foreach ($categories as $index => $category): ?>
+          <?php
+            $slug = categorySlug($category);
+            $active = $index === 0;
+          ?>
+          <button
+            id="tab-<?= e($slug) ?>"
+            type="button"
+            class="tab-button <?= $active ? 'active' : '' ?>"
             data-target="<?= e($slug) ?>"
-            aria-label="Ir a <?= e($category) ?>"
+            role="tab"
+            aria-selected="<?= $active ? 'true' : 'false' ?>"
+            aria-controls="panel-<?= e($slug) ?>"
+            tabindex="<?= $active ? '0' : '-1' ?>"
           >
             <?= e($category) ?>
-          </a>
-        <?php endif; ?>
-      <?php endforeach; ?>
-    </nav>
+          </button>
+        <?php endforeach; ?>
+      </nav>
+
+      <div class="tabs-content">
+        <?php foreach ($categories as $index => $category): ?>
+          <?php renderProductsPanel($category, $grouped[$category], $index === 0); ?>
+        <?php endforeach; ?>
+      </div>
+
+    </main>
 
   <?php endif; ?>
 
@@ -244,107 +243,58 @@ $floatingCategories = ['Vasos','Botellas','Combos', 'Bebidas'];
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const sections = document.querySelectorAll('.menu-section[data-category]');
-  const buttons = document.querySelectorAll('.floating-category-btn');
+  const tabs = Array.from(document.querySelectorAll('.tab-button'));
+  const panels = Array.from(document.querySelectorAll('.tab-panel'));
 
-  let manualScrolling = false;
+  function activateTab(tab, focus = false) {
+    if (!tab) return;
 
-  function setActive(category) {
-    buttons.forEach((button) => {
-      const isActive = button.dataset.target === category;
+    const target = tab.dataset.target;
 
-      button.classList.toggle('active', isActive);
-
-      if (isActive) {
-        button.setAttribute('aria-current', 'true');
-      } else {
-        button.removeAttribute('aria-current');
-      }
+    tabs.forEach(item => {
+      const active = item === tab;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-selected', active ? 'true' : 'false');
+      item.tabIndex = active ? 0 : -1;
     });
-  }
 
-  function highlightSection(section) {
-    section.classList.remove('section-highlight');
+    panels.forEach(panel => {
+      const active = panel.dataset.panel === target;
+      panel.classList.toggle('active', active);
+      panel.hidden = !active;
+    });
 
-    // Reinicia la animación aunque toques el mismo botón varias veces
-    void section.offsetWidth;
-
-    section.classList.add('section-highlight');
-
-    setTimeout(() => {
-      section.classList.remove('section-highlight');
-    }, 1800);
-  }
-
-  function smoothScrollTo(targetY, duration = 950, callback = null) {
-    const startY = window.scrollY;
-    const distance = targetY - startY;
-    const startTime = performance.now();
-
-    manualScrolling = true;
-
-    function easeInOutCubic(t) {
-      return t < 0.5
-        ? 4 * t * t * t
-        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    if (focus) {
+      tab.focus({ preventScroll: true });
     }
+  }
 
-    function animation(currentTime) {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = easeInOutCubic(progress);
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => activateTab(tab));
 
-      window.scrollTo(0, startY + distance * eased);
+    tab.addEventListener('keydown', event => {
+      let nextIndex = null;
 
-      if (progress < 1) {
-        requestAnimationFrame(animation);
-      } else {
-        manualScrolling = false;
-
-        if (typeof callback === 'function') {
-          callback();
-        }
+      if (event.key === 'ArrowRight') {
+        nextIndex = (index + 1) % tabs.length;
       }
-    }
 
-    requestAnimationFrame(animation);
-  }
+      if (event.key === 'ArrowLeft') {
+        nextIndex = (index - 1 + tabs.length) % tabs.length;
+      }
 
-  const observer = new IntersectionObserver((entries) => {
-    if (manualScrolling) return;
+      if (event.key === 'Home') {
+        nextIndex = 0;
+      }
 
-    const visible = entries
-      .filter((entry) => entry.isIntersecting)
-      .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+      if (event.key === 'End') {
+        nextIndex = tabs.length - 1;
+      }
 
-    if (visible.length > 0) {
-      setActive(visible[0].target.dataset.category);
-    }
-  }, {
-    root: null,
-    threshold: [0.20, 0.35, 0.50, 0.70],
-    rootMargin: '-20% 0px -45% 0px'
-  });
-
-  sections.forEach((section) => observer.observe(section));
-
-  buttons.forEach((button) => {
-    button.addEventListener('click', (e) => {
-      e.preventDefault();
-
-      const targetSelector = button.getAttribute('href');
-      const target = document.querySelector(targetSelector);
-
-      if (!target) return;
-
-      setActive(button.dataset.target);
-
-      const extraOffset = 16;
-      const targetY = target.getBoundingClientRect().top + window.scrollY - extraOffset;
-
-      smoothScrollTo(targetY, 950, () => {
-        highlightSection(target);
-      });
+      if (nextIndex !== null) {
+        event.preventDefault();
+        activateTab(tabs[nextIndex], true);
+      }
     });
   });
 });
