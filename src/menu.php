@@ -183,7 +183,7 @@ $updatedAt = date('d/m/Y H:i');
 
   <header class="menu-header">
     <h1 class="menu-title">Carta Virtual de <?= e($appName) ?></h1>
-    <p class="menu-subtitle">Menú de productos</p>
+    <p class="menu-subtitle">Lista de precios (Pedir en la barra) </p>
   </header>
 
   <?php if (empty($categories)): ?>
