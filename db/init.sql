@@ -348,12 +348,12 @@ VALUES
 ('p12', 'Combo de Gin',              48000, 'Combos',    '1 Gin Heráclito + 1 botella 1.5 de tónica', 0, 1),
 ('p13', 'VIP',                        5000, 'Extras',    '',                                      0, 1),
 ('p14', 'Combo Absolut',             75000, 'Combos',    '1 Absolut + 3 Speed',                   0, 1),
-('p15', 'Gaseosa',                    6000, 'Bebidas',   'Coca cola | Sprite',                                      0, 1),
-('p16', 'Speed',                      6000, 'Bebidas',   'lata de speed',                                      0, 1),
-('p17', 'Agua',                       5000, 'Bebidas',   'Botella de agua (natural o fria)',                                      0, 1),
+('p15', 'Gaseosa', 6000, 'Sin alcohol', 'Coca cola | Sprite', 0, 1),
+('p16', 'Speed',   6000, 'Sin alcohol', 'lata de speed', 0, 1),
+('p17', 'Agua',    5000, 'Sin alcohol', 'Botella de agua (natural o fria)', 0, 1),
 ('p18', 'Combo de Bombarder',41000, 'Combos',   'Botella de bombarder de caramelo + 3 speeds',                                      0, 1),
 ('p19', 'Lata Cerveza',               8000, 'Bebidas',   'Heineken,Golden,Ipa,Roja,Negra',                                      0, 1),
-('p20', 'Otro loco Tinto',          15000, 'Botellas',   '',                                      0, 1),
+('p20', 'Otro loco Tinto',          15000, 'Vinos',   '',                                      0, 1),
 ('p21', 'Vodka Economico',              12500, 'Vasos',     'Uva,Sin gusto, Caramelo',                                      0, 1),
 ('p22', 'Fernet',                    14000, 'Vasos',     '',                                      0, 1),
 ('p23', 'Vodka Absolut',             22000, 'Vasos',     'Mandarina, WildBerry, Raspberry, original',                                      0, 1),
@@ -362,14 +362,19 @@ VALUES
 ('p26', 'Jaggermeister',             22000, 'Vasos',     'Medida de jaggermeister con speed',                                      0, 1),
 ('p27', 'Mumm',                      24000, 'Botellas',  '',                                      0, 1),
 ('p28', 'Du',                        16000, 'Botellas',  '',                                      0, 1),
-('p29', 'Dilema Blanco',             15000, 'Botellas',  '',                                      0, 1),
-('p30', 'Dilema Rosado',             15000, 'Botellas',  '',                                      0, 1),
-('p31', 'Dilema Tinto',             15000, 'Botellas',  '',                                      0, 1),
-('p32', 'Santa julia',               21000, 'Botellas',  '',                                      0, 1),
+('p29', 'Dilema Blanco',             15000, 'Vinos',  '',                                      0, 1),
+('p30', 'Dilema Rosado',             15000, 'Vinos',  '',                                      0, 1),
+('p31', 'Dilema Tinto',             15000, 'Vinos',  '',                                      0, 1),
+('p32', 'Santa julia',               21000, 'Vinos',  '',                                      0, 1),
 ('p33', 'Combo Du', 28000, 'Combos', '1 botella de Du + 2 Speed', 0, 1),
 ('p34', 'Chandon', 32000, 'Botellas', 'Botella de chandon (Consultar disponibilidad entre rose,delice,normal)', 0, 1),
 ('p35', 'Cuba libre', 0, 'Vasos', '', 0, 1),
-('p36', 'Baron B', 0, 'Botellas', '', 0, 1)
+('p36', 'Baron B', 0, 'Botellas', '', 0, 1),
+('p37', 'Heinkein Sin alcohol', 0, 'Sin alcohol', '', 0, 1),
+('p38', 'Imperial Sin alcohol', 0, 'Sin alcohol', '', 0, 1),
+('p39', 'Santa julia Tinto', 21000, 'Vinos', '', 0, 1)
+
+
 
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),

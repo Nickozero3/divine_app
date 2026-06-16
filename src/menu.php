@@ -148,7 +148,7 @@ foreach ($products as $product) {
     $grouped[$category][] = $product;
 }
 
-$mainOrder = ['Vasos', 'Botellas', 'Combos', 'Bebidas'];
+$mainOrder = ['Vasos', 'Botellas', 'Combos', 'Bebidas', 'Vinos', 'Sin alcohol'];
 
 $categories = [];
 
