@@ -93,34 +93,43 @@ body {
   z-index: 20;
 
   display: flex;
-  align-items: flex-end;
-  gap: 2px;
+  flex-wrap: wrap; /* <- permite bajar de línea */
+  gap: 4px;
 
-  padding: 8px 8px 0;
-  overflow-x: auto;
-  overflow-y: hidden;
+  padding: 8px;
+
+  overflow: visible; /* <- sin scroll */
 
   background: rgba(7, 4, 11, .96);
   border-bottom: 1px solid var(--border);
-
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
 }
+
 
 .tabs-bar::-webkit-scrollbar {
   display: none;
 }
 
-.tab-button {
-  flex: 0 0 auto;
+.tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 
-  min-width: auto;
+  padding: 8px;
+  overflow: visible;
+
+  background: rgba(7, 4, 11, .96);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-button {
+  flex: 1 1 95px;
+
+  min-width: 95px;
   min-height: 40px;
   padding: 9px 13px;
 
   border: 1px solid rgba(245, 217, 148, .20);
-  border-bottom: 0;
-  border-radius: 14px 14px 0 0;
+  border-radius: 999px; /* redondeado completo */
 
   background: rgba(18, 10, 27, .92);
   color: var(--muted);
@@ -130,6 +139,12 @@ body {
   letter-spacing: .2px;
 
   cursor: pointer;
+}
+
+.tab-button.active {
+  background: linear-gradient(180deg, #ffe8a6, #e8bd58);
+  color: #170d12;
+  border-color: rgba(255, 248, 234, .65);
 }
 
 .tab-button.active {
