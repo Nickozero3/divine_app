@@ -57,9 +57,12 @@ function normalizeCategory(string $cat): string
 
     return match ($catLower) {
         'vaso', 'vasos' => 'Vasos',
-        'botella', 'botellas' => 'Botellas',
         'combo', 'combos' => 'Combos',
-        'bebida', 'bebidas' => 'Bebidas',
+        'sin alcohol', 'sinalcohol' => 'Sin alcohol',
+        'cerveza', 'cervezas' => 'Cervezas',
+        'vino', 'vinos' => 'Vinos',
+        'champagne', 'champagnes', 'champaña', 'champañas' => 'Champagnes',
+        'shot', 'shots' => 'Shot',
         'snack', 'snacks' => 'Snacks',
         'extra', 'extras' => 'Extras',
         'otro', 'otros' => 'Otros',
@@ -85,9 +88,12 @@ $hasCustom = columnExists($pdo, 'products', 'custom');
 
 $allowedCategories = [
     'Vasos',
-    'Botellas',
     'Combos',
-    'Bebidas',
+    'Sin alcohol',
+    'Cervezas',
+    'Vinos',
+    'Champagnes',
+    'Shot',
     'Snacks',
     'Extras',
     'Otros',
@@ -245,21 +251,26 @@ $stmt = $pdo->query("
       CASE LOWER(TRIM(cat))
         WHEN 'vasos' THEN 1
         WHEN 'vaso' THEN 1
-        WHEN 'botellas' THEN 2
-        WHEN 'botella' THEN 2
-        WHEN 'combos' THEN 3
-        WHEN 'combo' THEN 3
-        WHEN 'bebidas' THEN 4
-        WHEN 'bebida' THEN 4
-        WHEN 'snacks' THEN 5
-        WHEN 'snack' THEN 5
-        WHEN 'extras' THEN 6
-        WHEN 'extra' THEN 6
-        WHEN 'otros' THEN 7
-        WHEN 'otro' THEN 7
+        WHEN 'combos' THEN 2
+        WHEN 'combo' THEN 2
+        WHEN 'sin alcohol' THEN 3
+        WHEN 'cervezas' THEN 4
+        WHEN 'cerveza' THEN 4
+        WHEN 'vinos' THEN 5
+        WHEN 'vino' THEN 5
+        WHEN 'champagnes' THEN 6
+        WHEN 'champagne' THEN 6
+        WHEN 'shot' THEN 7
+        WHEN 'shots' THEN 7
+        WHEN 'snacks' THEN 8
+        WHEN 'snack' THEN 8
+        WHEN 'extras' THEN 9
+        WHEN 'extra' THEN 9
+        WHEN 'otros' THEN 10
+        WHEN 'otro' THEN 10
         ELSE 99
       END,
-      name ASC
+        name ASC
 ");
 
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -769,8 +780,7 @@ body {
     <?php endif; ?>
 
     <?php foreach ($grouped as $category => $items): ?>
-      <section class="product-section" data-category="<?= e(mb_strtolower($category, 'UTF-8')) ?>">
-        <button class="section-toggle" type="button" onclick="toggleProductSection(this)">
+     <section class="product-section is-collapsed" data-category="<?= e(mb_strtolower($category, 'UTF-8')) ?>">  <button class="section-toggle" type="button" onclick="toggleProductSection(this)">
           <span class="section-main">
             <span class="section-title"><?= e($category) ?></span>
             <span class="section-sub">
@@ -778,7 +788,7 @@ body {
             </span>
           </span>
 
-          <span class="section-pill">Ocultar</span>
+          <span class="section-pill">Ver</span>
         </button>
 
         <div class="section-body">
