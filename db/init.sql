@@ -352,7 +352,7 @@ VALUES
 ('p16', 'Speed',   6000, 'Sin alcohol', 'lata de speed', 0, 1),
 ('p17', 'Agua',    5000, 'Sin alcohol', 'Botella de agua (natural o fria)', 0, 1),
 ('p18', 'Combo de Bombarder',41000, 'Combos',   'Botella de bombarder de caramelo + 3 speeds',                                      0, 1),
-('p19', 'Lata Cerveza',               8000, 'Bebidas',   'Heineken,Golden,Ipa,Roja,Negra',                                      0, 1),
+('p19', 'Lata Cerveza Heinekein',               8000, 'Bebidas',   'Heineken,Golden,Ipa,Roja,Negra',                                      0, 1),
 ('p20', 'Otro loco Tinto',          15000, 'Vinos',   '',                                      0, 1),
 ('p21', 'Vodka Economico',              12500, 'Vasos',     'Uva,Sin gusto, Caramelo',                                      0, 1),
 ('p22', 'Fernet',                    14000, 'Vasos',     '',                                      0, 1),
@@ -372,7 +372,8 @@ VALUES
 ('p36', 'Baron B', 0, 'Botellas', '', 0, 1),
 ('p37', 'Heinkein Sin alcohol', 0, 'Sin alcohol', '', 0, 1),
 ('p38', 'Imperial Sin alcohol', 0, 'Sin alcohol', '', 0, 1),
-('p39', 'Santa julia Tinto', 21000, 'Vinos', '', 0, 1)
+('p39', 'Santa julia Tinto', 21000, 'Vinos', '', 0, 1),
+('p40', 'Lata de Cerveza Imperial', 8000, 'Bebidas', 'Lata de cerveza imperial rubia, negra o roja', 0, 1)
 
 
 
