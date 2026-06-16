@@ -44,9 +44,12 @@ function normalizeCategory(string $cat): string
 
     return match ($catLower) {
         'vaso', 'vasos' => 'Vasos',
-        'botella', 'botellas' => 'Botellas',
         'combo', 'combos' => 'Combos',
-        'bebida', 'bebidas' => 'Bebidas',
+        'sin alcohol', 'sinalcohol' => 'Sin alcohol',
+        'cerveza', 'cervezas' => 'Cervezas',
+        'vino', 'vinos' => 'Vinos',
+        'champagne', 'champagnes', 'champaña', 'champañas' => 'Champagnes',
+        'shot', 'shots' => 'Shot',
         default => $cat !== '' ? $cat : 'Sin categoría',
     };
 }
@@ -117,20 +120,36 @@ $activeWhere = $hasActive ? "AND COALESCE(active, 1) = 1" : "";
 $stmt = $pdo->query("
     SELECT id, cat, name, price {$subSelect}
     FROM products
-    WHERE LOWER(TRIM(cat)) NOT IN ('extras', 'extra', 'otros', 'snacks')
+    WHERE LOWER(TRIM(cat)) NOT IN ('extras', 'extra', 'otros', 'otro', 'snacks', 'snack')
       {$activeWhere}
     ORDER BY
       CASE LOWER(TRIM(cat))
         WHEN 'vasos' THEN 1
         WHEN 'vaso' THEN 1
-        WHEN 'botellas' THEN 2
-        WHEN 'botella' THEN 2
-        WHEN 'combos' THEN 3
-        WHEN 'combo' THEN 3
-        WHEN 'bebidas' THEN 4
-        WHEN 'bebida' THEN 4
+
+        WHEN 'combos' THEN 2
+        WHEN 'combo' THEN 2
+
+        WHEN 'sin alcohol' THEN 3
+        WHEN 'sinalcohol' THEN 3
+
+        WHEN 'cervezas' THEN 4
+        WHEN 'cerveza' THEN 4
+
+        WHEN 'vinos' THEN 5
+        WHEN 'vino' THEN 5
+
+        WHEN 'champagnes' THEN 6
+        WHEN 'champagne' THEN 6
+        WHEN 'champañas' THEN 6
+        WHEN 'champaña' THEN 6
+
+        WHEN 'shot' THEN 7
+        WHEN 'shots' THEN 7
+
         ELSE 99
       END,
+      price ASC,
       name ASC
 ");
 

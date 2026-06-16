@@ -2100,7 +2100,7 @@ function closeModal(id) {
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
-      overlay.classList.remo
+      overlay.classList.remove('open');
     }
   });
 });
