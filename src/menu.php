@@ -199,7 +199,6 @@ $updatedAt = date('d/m/Y H:i');
 <body>
 
 <div class="menu-wrap">
-
   <header class="menu-header">
     <h1 class="menu-title">Carta Virtual de <?= e($appName) ?></h1>
     <p class="menu-subtitle">Lista de precios (Pedir en la barra) </p>
@@ -254,70 +253,19 @@ $updatedAt = date('d/m/Y H:i');
     </div>
 
     <a href="https://instagram.com/Nickozero3">
-      Hecho con ❤️ por <?= e(defined('APP_AUTHOR') ? APP_AUTHOR : '@Nickozero3') ?>.
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" style="vertical-align:middle; margin-right:0.35rem;">
+        <path d="M7 2C4.243 2 2 4.243 2 7v10c0 2.757 2.243 5 5 5h10c2.757 0 5-2.243 5-5V7c0-2.757-2.243-5-5-5H7zm10 2c1.654 0 3 1.346 3 3v10c0 1.654-1.346 3-3 3H7c-1.654 0-3-1.346-3-3V7c0-1.654 1.346-3 3-3h10zm-5 3a5 5 0 100 10 5 5 0 000-10zm0 2a3 3 0 110 6 3 3 0 010-6zm4.5-2.5a1 1 0 100 2 1 1 0 000-2z" fill="currentColor"/>
+      </svg>
+      Hecho con ❤️ por el bartender <?= e(defined('APP_AUTHOR') ? APP_AUTHOR : '@Nickozero3') ?>.
     </a>
+    <button type="button" class="theme-toggle" id="themeToggle">
+  Modo original
+</button>
   </footer>
 
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const tabs = Array.from(document.querySelectorAll('.tab-button'));
-  const panels = Array.from(document.querySelectorAll('.tab-panel'));
-
-  function activateTab(tab, focus = false) {
-    if (!tab) return;
-
-    const target = tab.dataset.target;
-
-    tabs.forEach(item => {
-      const active = item === tab;
-      item.classList.toggle('active', active);
-      item.setAttribute('aria-selected', active ? 'true' : 'false');
-      item.tabIndex = active ? 0 : -1;
-    });
-
-    panels.forEach(panel => {
-      const active = panel.dataset.panel === target;
-      panel.classList.toggle('active', active);
-      panel.hidden = !active;
-    });
-
-    if (focus) {
-      tab.focus({ preventScroll: true });
-    }
-  }
-
-  tabs.forEach((tab, index) => {
-    tab.addEventListener('click', () => activateTab(tab));
-
-    tab.addEventListener('keydown', event => {
-      let nextIndex = null;
-
-      if (event.key === 'ArrowRight') {
-        nextIndex = (index + 1) % tabs.length;
-      }
-
-      if (event.key === 'ArrowLeft') {
-        nextIndex = (index - 1 + tabs.length) % tabs.length;
-      }
-
-      if (event.key === 'Home') {
-        nextIndex = 0;
-      }
-
-      if (event.key === 'End') {
-        nextIndex = tabs.length - 1;
-      }
-
-      if (nextIndex !== null) {
-        event.preventDefault();
-        activateTab(tabs[nextIndex], true);
-      }
-    });
-  });
-});
-</script>
+<script src="js/menu.js?v=<?= time() ?>"></script>
 
 </body>
 </html>
