@@ -50,6 +50,10 @@ function normalizeCategory(string $cat): string
         'vino', 'vinos' => 'Vinos',
         'champagne', 'champagnes', 'champaña', 'champañas' => 'Champagnes',
         'shot', 'shots' => 'Shot',
+
+        // Categoría Kiosko
+        'kiosko', 'kiosco', 'snack', 'snacks' => 'Kiosko',
+
         default => $cat !== '' ? $cat : 'Sin categoría',
     };
 }
@@ -120,32 +124,37 @@ $activeWhere = $hasActive ? "AND COALESCE(active, 1) = 1" : "";
 $stmt = $pdo->query("
     SELECT id, cat, name, price {$subSelect}
     FROM products
-    WHERE LOWER(TRIM(cat)) NOT IN ('extras', 'extra', 'otros', 'otro', 'snacks', 'snack')
+    WHERE LOWER(TRIM(cat)) NOT IN ('extras', 'extra', 'otros', 'otro')
       {$activeWhere}
     ORDER BY
       CASE LOWER(TRIM(cat))
         WHEN 'vasos' THEN 1
         WHEN 'vaso' THEN 1
 
-        WHEN 'combos' THEN 2
-        WHEN 'combo' THEN 2
+        WHEN 'champagnes' THEN 2
+        WHEN 'champagne' THEN 2
+        WHEN 'champañas' THEN 2
+        WHEN 'champaña' THEN 2
 
-        WHEN 'sin alcohol' THEN 3
-        WHEN 'sinalcohol' THEN 3
+        WHEN 'combos' THEN 3
+        WHEN 'combo' THEN 3
 
-        WHEN 'cervezas' THEN 4
-        WHEN 'cerveza' THEN 4
+        WHEN 'vinos' THEN 4
+        WHEN 'vino' THEN 4
 
-        WHEN 'vinos' THEN 5
-        WHEN 'vino' THEN 5
+        WHEN 'sin alcohol' THEN 5
+        WHEN 'sinalcohol' THEN 5
 
-        WHEN 'champagnes' THEN 6
-        WHEN 'champagne' THEN 6
-        WHEN 'champañas' THEN 6
-        WHEN 'champaña' THEN 6
+        WHEN 'cervezas' THEN 6
+        WHEN 'cerveza' THEN 6
 
-        WHEN 'shot' THEN 7
-        WHEN 'shots' THEN 7
+        WHEN 'kiosko' THEN 7
+        WHEN 'kiosco' THEN 7
+        WHEN 'snacks' THEN 7
+        WHEN 'snack' THEN 7
+
+        WHEN 'shot' THEN 8
+        WHEN 'shots' THEN 8
 
         ELSE 99
       END,
@@ -167,7 +176,7 @@ foreach ($products as $product) {
     $grouped[$category][] = $product;
 }
 
-$mainOrder = ['Vasos', 'Champagnes', 'Combos', 'Bebidas', 'Vinos', 'Sin alcohol'];
+$mainOrder = ['Vasos', 'Champagnes', 'Combos', 'Bebidas', 'Vinos', 'Sin alcohol','Kiosko', 'Shot'];
 
 $categories = [];
 

@@ -2537,6 +2537,41 @@ async function generarImagenQR({ token, personName, personNote, listName, expire
   }, 'image/png');
 }
 
+(function () {
+  const body = document.body;
+  const btn = document.getElementById('themeToggle');
+
+  const savedTheme = localStorage.getItem('menuTheme') || 'red';
+
+  if (savedTheme === 'red') {
+    body.classList.add('theme-red');
+  } else {
+    body.classList.remove('theme-red');
+  }
+
+  function updateButton() {
+    if (!btn) return;
+
+    btn.textContent = body.classList.contains('theme-red')
+      ? 'Modo original'
+      : 'Modo rojo';
+  }
+
+  updateButton();
+
+  if (btn) {
+    btn.addEventListener('click', () => {
+      body.classList.toggle('theme-red');
+
+      const newTheme = body.classList.contains('theme-red')
+        ? 'red'
+        : 'original';
+
+      localStorage.setItem('menuTheme', newTheme);
+      updateButton();
+    });
+  }
+})();
 
 /* =========================
    INIT DE LA APP

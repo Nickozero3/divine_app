@@ -352,7 +352,9 @@ $canManageDoor  = $isAdmin || $isPuerta;
     </div>
   </div>
 </div>
-
+  <button type="button" class="theme-toggle" id="themeToggle">
+    Modo original
+  </button>
 <script>
 window.DIVINE_USER = <?= json_encode([
     'id' => (int) $currentUser['id'],

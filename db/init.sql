@@ -338,10 +338,9 @@ VALUES
 ('p2',  'Vodka Sernova',             14000, 'Vasos',     'Frutos rojos|Manzana verde|Marayuca|Coco con jugo o speed',                                      0, 1),
 ('p3',  'Campari',                   13000, 'Vasos',     '',                                      0, 1),
 ('p4',  'Gin Gordon | Blu | Heraclito',14500,'Vasos',    '',                                      0, 1),
-('p5',  'Chicles',                    2000, 'Snacks',    '',                                      0, 1),
-('p6',  'Etiquetas cigarrillos',      6000, 'Snacks',    '',                                      0, 1),
-('p7',  'Papitas',                    2500, 'Snacks',    '',                                      0, 1),
-('p8',  'Combo Sernova',             43000, 'Combos',    '1 Sernova + 3 Speed',                   0, 1),
+('p5', 'Chicles',                 2000, 'Kiosko', '', 0, 1),
+('p6', 'Etiquetas cigarrillos',   6000, 'Kiosko', '', 0, 1),
+('p7', 'Papitas',                 2500, 'Kiosko', '', 0, 1),('p8',  'Combo Sernova',             43000, 'Combos',    '1 Sernova + 3 Speed',                   0, 1),
 ('p9',  'Combo Fernet',              41000, 'Combos',    '1 Fernet + 4 cocas lata',               0, 1),
 ('p10', 'Combo Smirnoff',            45000, 'Combos',    '1 Smirnoff rojo/verde + 3 Speed',       0, 1),
 ('p11', 'Combo Skyy',                47000, 'Combos',    '1 Skyy + 3 Speed',                      0, 1),
@@ -378,7 +377,15 @@ VALUES
 ('p42', 'Shot de Ron', 6000, 'Shot', 'Medida de ron', 0, 1),
 ('p43', 'Shot de Tekila', 6000, 'Shot', 'Medida de Tekila', 0, 1),
 ('p44', 'Shot de Jagger', 8000, 'Shot', 'Medida de Jaggermeister', 0, 1),
-('p45', 'Imperial Ipa', 8000, 'Cervezas', 'Lata de cerveza imperial ipa', 0, 1)
+('p45', 'Imperial Ipa', 8000, 'Cervezas', 'Lata de cerveza imperial ipa', 0, 1),
+('p46', 'Preservativos', 5000, 'Kiosko', '', 0, 1),
+('p47', 'Beldem', 2000, 'Kiosko', '', 0, 1),
+('p48', 'Topline 7', 2500, 'Kiosko', '', 0, 1),
+('p49', 'Quento', 4000, 'Kiosko', '', 0, 1),
+('p50', 'Saladix', 2500, 'Kiosko', '', 0, 1),
+('p51', 'Saladix Caja', 4000, 'Kiosko', '', 0, 1),
+('p52', 'Chocolate', 3000, 'Kiosko', '', 0, 1),
+('p53', 'Camel x10', 4500, 'Kiosko', '', 0, 1)
 
 
 ON DUPLICATE KEY UPDATE
