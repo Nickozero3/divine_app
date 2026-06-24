@@ -1,372 +1,104 @@
 <?php
-include_once __DIR__ . '/const.php'; 
-session_start();
-
-if (!isset($_SESSION['user'])) {
-    header('Location: login.php');
-    exit;
-}
-
-$currentUser = $_SESSION['user'];
-
-$currentRole = strtolower(trim((string)($currentUser['role'] ?? '')));
-
-$isAdmin  = $currentRole === 'admin';
-$isPuerta = $currentRole === 'puerta';
-
-$canSeeAdmin    = $isAdmin;
-$canSeeScanner  = $isAdmin || $isPuerta;
-$canSeeKioskito = $isAdmin;
-$canManageDoor  = $isAdmin || $isPuerta;
-
+declare(strict_types=1);
+require_once __DIR__ . '/auth.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#f8f4ea">
-<title><?= APP_NAME ?></title>
-<link rel="stylesheet" href="styles.css?v=<?= time() ?>">
-<link rel="icon" type="image/x-icon" href="./favicon.ico">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#f8f4ea">
+  <title><?= e(APP_NAME) ?></title>
+  <link rel="stylesheet" href="styles.css?v=<?= time() ?>">
+  <link rel="icon" type="image/x-icon" href="./favicon.ico">
+
+<link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
+<script src="js/theme.js?v=<?= time() ?>" defer></script>
 </head>
-<body>
+<body data-page="menu">
+  <div class="stars"></div>
 
-<div class="stars"></div>
-<!-- MENU -->
-<div id="page-menu" class="page active">
-  <div class="menu-wrap">
-    <div>
-      <div class="menu-logo"><?= APP_NAME ?><br>APP</div>
-      <div class="menu-sub">Panel de control Divino</div>
+  <main id="page-menu" class="page active">
+    <div class="menu-wrap">
+      <div>
+        <div class="menu-logo"><?= e(APP_NAME) ?><br>APP</div>
+        <div class="menu-sub">Panel de control Divino</div>
 
-      <div style="text-align:center;margin-top:12px;color:var(--text2);font-size:13px;">
-        <?= htmlspecialchars($currentUser['display_name'], ENT_QUOTES, 'UTF-8') ?>
-        ·
-        <?= htmlspecialchars(ucfirst($currentRole), ENT_QUOTES, 'UTF-8') ?>
-        ·
-        <a href="logout.php" style="color:var(--gold-2);text-decoration:none;">Salir</a>
+        <div style="text-align:center;margin-top:12px;color:var(--text2);font-size:13px;">
+          <?= e((string) ($currentUser['display_name'] ?? 'Usuario')) ?>
+          · <?= e(ucfirst($currentRole)) ?>
+          · <a href="logout.php" style="color:var(--gold-2);text-decoration:none;">Salir</a>
+        </div>
       </div>
-    </div>
 
-    <div class="menu-cards">
+      <div class="menu-cards">
+        <?php if ($canSeeAdmin): ?>
+          <div class="menu-card" onclick="location.href='admin.php'">
+            <div class="menu-icon">📊</div>
+            <div class="menu-info">
+              <div class="menu-name">ADMIN</div>
+              <div class="menu-desc">Dashboard · QR · Estadísticas</div>
+            </div>
+            <div class="menu-arr">›</div>
+          </div>
+        <?php endif; ?>
 
-      <?php if ($canSeeAdmin): ?>
-        <div class="menu-card" onclick="location.href='admin.php'">
-          <div class="menu-icon">📊</div>
+        <?php if ($canSeeScanner): ?>
+          <div class="menu-card" onclick="location.href='scanner.php'">
+            <div class="menu-icon">📷</div>
+            <div class="menu-info">
+              <div class="menu-name">SCANNER</div>
+              <div class="menu-desc">Escanear QR · Confirmar entrada</div>
+            </div>
+            <div class="menu-arr">›</div>
+          </div>
+        <?php endif; ?>
+
+        <?php if ($canSeeKioskito): ?>
+          <div class="menu-card" onclick="location.href='kioskito.php'">
+            <div class="menu-icon">🛒</div>
+            <div class="menu-info">
+              <div class="menu-name">KIOSKITO</div>
+              <div class="menu-desc">Ventas · Productos · Caja</div>
+            </div>
+            <div class="menu-arr">›</div>
+          </div>
+        <?php endif; ?>
+
+        <div class="menu-card" onclick="location.href='listas.php'">
+          <div class="menu-icon">🚪</div>
           <div class="menu-info">
-            <div class="menu-name">ADMIN</div>
-            <div class="menu-desc">Dashboard · QR · Estadísticas</div>
+            <div class="menu-name">PUERTA</div>
+            <div class="menu-desc">Listas · Entradas · Control</div>
           </div>
           <div class="menu-arr">›</div>
         </div>
-      <?php endif; ?>
 
-      <?php if ($canSeeScanner): ?>
-        <div class="menu-card" onclick="location.href='scanner.php'">
-          <div class="menu-icon">📷</div>
+        <div class="menu-card" onclick="location.href='menu.php'">
+          <div class="menu-icon">📋</div>
           <div class="menu-info">
-            <div class="menu-name">SCANNER</div>
-            <div class="menu-desc">Escanear QR · Confirmar entrada</div>
+            <div class="menu-name">Carta</div>
+            <div class="menu-desc">Consulta rápida de precios</div>
           </div>
           <div class="menu-arr">›</div>
         </div>
-      <?php endif; ?>
-
-      <?php if ($canSeeKioskito): ?>
-        <div class="menu-card" onclick="goTo('kioskito')">
-          <div class="menu-icon">🛒</div>
-          <div class="menu-info">
-            <div class="menu-name">KIOSKITO</div>
-            <div class="menu-desc">Ventas · Productos · Caja</div>
-          </div>
-          <div class="menu-arr">›</div>
-        </div>
-      <?php endif; ?>
-
-      <div class="menu-card" onclick="goTo('puerta')">
-        <div class="menu-icon">🚪</div>
-        <div class="menu-info">
-          <div class="menu-name">PUERTA</div>
-          <div class="menu-desc">Listas · Entradas · Control</div>
-        </div>
-        <div class="menu-arr">›</div>
-      </div>
-
-      <div class="menu-card" onclick="location.href='menu.php'">
-        <div class="menu-icon">📋</div>
-        <div class="menu-info">
-          <div class="menu-name">Carta</div>
-          <div class="menu-desc">Consulta rápida de precios</div>
-        </div>
-        <div class="menu-arr">›</div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<!-- KIOSKITO -->
-<?php if ($canSeeKioskito): ?>
-<div id="page-kioskito" class="page">
-
-  <div class="topbar">
-    <div class="topbar-title" onclick="goTo('menu')">
-      <?= APP_NAME ?> Kioskito 🛒
-      <span class="live-dot">● live</span>
-    </div>
-    <button class="topbar-back" onclick="goTo('menu')">← Menú</button>
-  </div>
-
-  <div class="page-kioskito-wrap" style="padding-top:12px">
-
-    <!-- COLUMNA DERECHA -->
-    <div id="kioskito-side-panel" class="kioskito-side-panel">
-
-      <!-- VENTA ACTUAL -->
-      <div class="kioskito-sale-card">
-
-        <div class="kioskito-sale-header">
-          <span>🛒 Venta actual</span>
-          <span id="k-total">$0</span>
-        </div>
-
-        <div id="sale-detail" class="kioskito-sale-detail">
-          <div class="kioskito-empty-cart">
-            Sin productos agregados.
-          </div>
-        </div>
-
-        <div class="kioskito-sale-sticky">
-
-          <div class="payment-methods">
-            <button class="payment-btn active" data-payment="efectivo" onclick="selectPaymentMethod('efectivo')">
-              💵 Efectivo
-            </button>
-
-            <button class="payment-btn" data-payment="transferencia" onclick="selectPaymentMethod('transferencia')">
-              📲 Transferencia
-            </button>
-
-            <button class="payment-btn" data-payment="tarjeta" onclick="selectPaymentMethod('tarjeta')">
-              💳 Tarjeta
-            </button>
-
-            <button class="payment-btn" data-payment="regalo" onclick="selectPaymentMethod('regalo')">
-              🎁 Regalo
-            </button>
-          </div>
-
-          <button id="confirm-sale-btn" onclick="confirmCurrentSale()" class="btn-action btn-add">
-            ✓ Confirmar venta
-          </button>
-
-        </div>
-
-      </div>
-
-      <!-- GUARDARROPAS SE INSERTA ACA POR JS -->
-
-      <!-- HISTORIAL DE VENTAS -->
-      <div id="sales-history"></div>
-
-    </div>
-
-    <!-- PRODUCTOS -->
-    <div id="k-categories"></div>
-
-    <!-- RESUMEN -->
-    <div class="kioskito-bottom">
-      <div id="kiosko-summary"></div>
-
-      <!--
-      <div class="action-row">
-        <button class="btn-action btn-add" onclick="openAddProduct()">
-          ＋ Añadir
-        </button>
-
-        <button class="btn-action" onclick="toggleEditProducts()">
-          ✎ Modificar
-        </button>
-
-        <button class="btn-action btn-reset" onclick="openPin()">
-          🔒 Reiniciar
-        </button>
-      </div>
-      -->
-      <button class="btn-action btn-close-cash" onclick="closeKioskoCash()">
-          🧾 Cerrar caja
-      </button>
-    </div>
-
-  </div>
-</div>
-<?php endif; ?>
-
-<!-- PUERTA -->
-<div id="page-puerta" class="page">
-  <div class="topbar">
-    <div class="topbar-title" onclick="goTo('menu')">
-      <?= APP_NAME ?> Puerta 🚪
-      <span class="live-dot">● live</span>
-    </div>
-    <button class="topbar-back" onclick="goTo('menu')">← Menú</button>
-  </div>
-
-  <div class="lists-wrap">
-    <div style="padding:0 0 12px;display:flex;flex-direction:column;gap:10px;">
-      <?php if ($canManageDoor): ?>
-      <input
-        id="list-search"
-        type="text"
-        placeholder="Buscar por lista o usuario..."
-        oninput="drawPuerta()"
-        style="width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--text);outline:none;font-size:14px;"
-      >
-      <?php endif; ?>
-
-      <input
-        id="person-search"
-        type="text"
-        placeholder="<?= $canManageDoor ? 'Buscar por nombre en todas las listas...' : 'Buscar nombre dentro de tu lista...' ?>"
-        oninput="drawPuerta()"
-        style="width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--text);outline:none;font-size:14px;"
-      >
-    </div>
-
-    <div id="p-lists"></div>
-  </div>
-
-  <button class="fab" onclick="openAddList()" title="Nueva lista">＋</button>
-</div>
-
-<!-- MODAL ADD PRODUCT -->
-<?php if ($isAdmin): ?>
-<div class="modal-overlay" id="modal-add-product">
-  <div class="modal-box">
-    <div class="modal-title">Nuevo producto</div>
-
-    <div class="modal-field">
-      <label>Nombre</label>
-      <input type="text" id="ap-name" placeholder="Ej: Fernet" maxlength="40">
-    </div>
-
-    <div class="modal-field">
-      <label>Precio</label>
-      <input type="number" id="ap-price" placeholder="0" min="0">
-    </div>
-
-    <div class="modal-field">
-      <label>Categoría</label>
-      <select id="ap-cat">
-        <option value="Vasos">Vasos</option>
-        <option value="Combos">Combos</option>
-        <option value="Botellas">Botellas</option>
-        <option value="Snacks">Snacks</option>
-        <option value="Extras">Extras</option>
-        <option value="Otros">Otros</option>
-
-      </select>
-    </div>
-
-    <div class="modal-btns">
-      <button class="btn-modal btn-cancel" onclick="closeModal('modal-add-product')">Cancelar</button>
-      <button class="btn-modal btn-confirm" id="ap-submit-btn" onclick="saveProduct()">Agregar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL PIN -->
-<div class="modal-overlay" id="modal-pin">
-  <div class="modal-box">
-    <div class="modal-title">🔒 Confirmar reinicio</div>
-    <div class="pin-display" id="pin-display">·  ·  ·  ·</div>
-    <div class="pin-grid" id="pin-grid"></div>
-    <div class="pin-err" id="pin-err"></div>
-
-    <div class="modal-btns" style="margin-top:14px">
-      <button class="btn-modal btn-cancel" onclick="closeModal('modal-pin'); pinClear();">Cancelar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL GUARDARROPAS -->
-<div class="modal-overlay" id="modal-guardarropas">
-  <div class="modal-box">
-    <div class="modal-title">🧥 Nuevo guardarropas</div>
-
-    <div class="modal-field">
-      <label>Nombre</label>
-      <input type="text" id="gr-name" placeholder="Ej: Nicko"
-        onkeydown="if(event.key==='Enter'){document.getElementById('gr-dni').focus();}">
-    </div>
-
-    <div class="modal-field">
-      <label>DNI (opcional)</label>
-      <input type="text" id="gr-dni" placeholder="Ej: 40111222"
-        onkeydown="if(event.key==='Enter'){document.getElementById('gr-phone').focus();}">
-    </div>
-
-    <div class="modal-field">
-      <label>Teléfono (opcional)</label>
-      <input type="text" id="gr-phone" placeholder="Ej: 3548..."
-        onkeydown="if(event.key==='Enter'){crearGuardarropas();}">
-    </div>
-
-    <div style="padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--gold-2);font-weight:700;margin-bottom:12px;">
-      1 número = 1 prenda = $2.000
-    </div>
-
-    <div class="modal-btns">
-      <button class="btn-modal btn-cancel" onclick="closeModal('modal-guardarropas')">Cancelar</button>
-      <button class="btn-modal btn-confirm" onclick="crearGuardarropas()">Crear número</button>
-    </div>
-  </div>
-</div>
-
-<?php endif; ?>
-
-<!-- MODAL ADD LIST -->
-<div class="modal-overlay" id="modal-add-list">
-  <div class="modal-box">
-    <div class="modal-title">Nueva lista</div>
-
-    <div class="modal-field" id="auto-list-info">
-      <label>Nombre automático</label>
-      <div style="padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);font-size:14px;line-height:1.35;">
-        La lista normal se crea como <b style="color:var(--gold-2);"><?= htmlspecialchars($currentUser['display_name'], ENT_QUOTES, 'UTF-8') ?></b>.<br>
-        Si marcás cumpleaños, se crea como <b style="color:var(--gold-2);"><?= htmlspecialchars($currentUser['display_name'], ENT_QUOTES, 'UTF-8') ?> Cumpleaños 1</b>, <b style="color:var(--gold-2);"><?= htmlspecialchars($currentUser['display_name'], ENT_QUOTES, 'UTF-8') ?> Cumpleaños 2</b>, etc.
       </div>
     </div>
-
-    <div class="modal-field">
-      <label style="display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);">
-        <input type="checkbox" id="al-birthday" style="width:18px;height:18px;accent-color:#b07cff;">
-        Crear como cumpleaños
-      </label>
-    </div>
-
-    <div class="modal-btns">
-      <button type="button" class="btn-modal btn-cancel" onclick="closeModal('modal-add-list')">Cancelar</button>
-      <button type="button" class="btn-modal btn-confirm" onclick="addList(this)">Crear</button>
-    </div>
-  </div>
-</div>
-  <button type="button" class="theme-toggle" id="themeToggle">
-    Modo original
-  </button>
-<script>
-window.DIVINE_USER = <?= json_encode([
-    'id' => (int) $currentUser['id'],
-    'username' => $currentUser['username'],
-    'display_name' => $currentUser['display_name'],
-    'role' => $currentRole,
-    'is_admin' => $isAdmin,
-    'is_puerta' => $isPuerta,
-    'can_manage_door' => $canManageDoor,
-], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-</script>
-<script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+  </main>
 <script src="script.js?v=<?= time() ?>"></script>
+
+  <footer class="theme-footer" aria-label="Preferencias visuales">
+  <button type="button" class="theme-toggle" id="themeToggle" data-theme-toggle aria-label="Cambiar tema">
+    <span class="theme-toggle__icon" aria-hidden="true">◐</span>
+    <span class="theme-toggle__copy">
+      <span class="theme-toggle__eyebrow">Tema visual</span>
+      <span class="theme-toggle__label" data-theme-label>Cambiar tema</span>
+    </span>
+    <span class="theme-toggle__track" aria-hidden="true">
+      <span class="theme-toggle__thumb"></span>
+    </span>
+  </button>
+</footer>
+
 </body>
 </html>

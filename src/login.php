@@ -161,6 +161,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="styles/login.css">
     <link rel="stylesheet" href="styles.css">
+
+<link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
+<script src="js/theme.js?v=<?= time() ?>" defer></script>
 </head>
 <body class="login-page">
 <form class="login-box" method="POST">
@@ -184,5 +187,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <button type="submit">Entrar</button>
 </form>
+
+  <footer class="theme-footer" aria-label="Preferencias visuales">
+  <button type="button" class="theme-toggle" id="themeToggle" data-theme-toggle aria-label="Cambiar tema">
+    <span class="theme-toggle__icon" aria-hidden="true">◐</span>
+    <span class="theme-toggle__copy">
+      <span class="theme-toggle__eyebrow">Tema visual</span>
+      <span class="theme-toggle__label" data-theme-label>Cambiar tema</span>
+    </span>
+    <span class="theme-toggle__track" aria-hidden="true">
+      <span class="theme-toggle__thumb"></span>
+    </span>
+  </button>
+</footer>
+
 </body>
 </html>

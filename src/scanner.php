@@ -24,6 +24,9 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 <link rel="stylesheet" href="styles.css">
 <script src="https://unpkg.com/html5-qrcode"></script>
 
+
+<link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
+<script src="js/theme.js?v=<?= time() ?>" defer></script>
 </head>
 
 <body>
@@ -240,6 +243,20 @@ function startScanner() {
 
 startScanner();
 </script>
+
+
+  <footer class="theme-footer" aria-label="Preferencias visuales">
+  <button type="button" class="theme-toggle" id="themeToggle" data-theme-toggle aria-label="Cambiar tema">
+    <span class="theme-toggle__icon" aria-hidden="true">◐</span>
+    <span class="theme-toggle__copy">
+      <span class="theme-toggle__eyebrow">Tema visual</span>
+      <span class="theme-toggle__label" data-theme-label>Cambiar tema</span>
+    </span>
+    <span class="theme-toggle__track" aria-hidden="true">
+      <span class="theme-toggle__thumb"></span>
+    </span>
+  </button>
+</footer>
 
 </body>
 </html>

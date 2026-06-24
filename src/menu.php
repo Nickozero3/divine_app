@@ -176,8 +176,17 @@ foreach ($products as $product) {
     $grouped[$category][] = $product;
 }
 
-$mainOrder = ['Vasos', 'Champagnes', 'Combos', 'Bebidas', 'Vinos', 'Sin alcohol','Kiosko', 'Shot'];
-
+$mainOrder = [
+    'Vasos',
+    'Champagnes',
+    'Combos',
+    'Bebidas',
+    'Vinos',
+    'Sin alcohol',
+    'Cervezas',
+    'Kiosko',
+    'Shot',
+];
 $categories = [];
 
 foreach ($mainOrder as $category) {
@@ -201,8 +210,11 @@ $updatedAt = date('d/m/Y H:i');
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title><?= e($appName) ?> · Menú</title>
-
+<link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="styles/menu.css?v=<?= time() ?>">
+
+<link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
+<script src="js/theme.js?v=<?= time() ?>" defer></script>
 </head>
 
 <body>
@@ -267,14 +279,27 @@ $updatedAt = date('d/m/Y H:i');
       </svg>
       Hecho con ❤️ por el bartender <?= e(defined('APP_AUTHOR') ? APP_AUTHOR : '@Nickozero3') ?>.
     </a>
-    <button type="button" class="theme-toggle" id="themeToggle">
-  Modo original
-</button>
+    
+
+
+    <div class="theme-footer__actions">
+      <button type="button" class="theme-toggle" id="themeToggle" data-theme-toggle aria-label="Cambiar tema">
+    <span class="theme-toggle__icon" aria-hidden="true">◐</span>
+    <span class="theme-toggle__copy">
+      <span class="theme-toggle__eyebrow">Tema visual</span>
+      <span class="theme-toggle__label" data-theme-label>Cambiar tema</span>
+    </span>
+    <span class="theme-toggle__track" aria-hidden="true">
+      <span class="theme-toggle__thumb"></span>
+    </span>
+  </button>
+    </div>
   </footer>
 
 </div>
 
 <script src="js/menu.js?v=<?= time() ?>"></script>
+
 
 </body>
 </html>

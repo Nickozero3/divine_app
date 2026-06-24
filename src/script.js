@@ -323,36 +323,20 @@ function setButtonLoading(btn, loading, textLoading = 'Procesando...', textNorma
    NAVIGATION
 ========================= */
 function goTo(page) {
-  safeRun(`No se pudo abrir la página "${page}"`, () => {
-    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  const routes = {
+    menu: 'index.php',
+    kioskito: 'kioskito.php',
+    puerta: 'listas.php'
+  };
 
-    const target = document.getElementById("page-" + page);
+  const route = routes[page];
 
-    if (!target) {
-      throw new Error(`No existe el contenedor: page-${page}`);
-    }
+  if (!route) {
+    showAppBroken('No se pudo abrir la página', new Error(`Ruta desconocida: ${page}`));
+    return;
+  }
 
-    target.classList.add("active");
-
-    if (page === "puerta") {
-      safeRunAsync('No se pudo cargar Puerta', () => renderPuerta(true), 'p-lists');
-    }
-
-    if (page === "kioskito") {
-      safeRunAsync('No se pudo cargar Kioskito', renderKioskito, 'k-categories');
-      safeRunAsync('No se pudo cargar historial de ventas', renderSalesHistory, 'sales-history');
-      safeRunAsync('No se pudo cargar resumen de caja', renderKioskoSummary, 'kiosko-summary');
-
-
-      setTimeout(() => {
-        safeRun('No se pudo instalar Guardarropas', instalarGuardarropas);
-        safeRunAsync('No se pudo cargar Guardarropas', renderGuardarropas, 'gr-list');
-      }, 100);
-    }
-
-    startLiveApp();
-    window.scrollTo(0, 0);
-  });
+  window.location.href = route;
 }/* ============================================================
    🛒 KIOSKITO — PRODUCTOS, CARRITO, PAGOS Y VENTAS
    ============================================================ */
@@ -2118,8 +2102,9 @@ function startLiveApp() {
   }
 
   liveTimer = setInterval(async () => {
-    const puertaActiva = document.getElementById("page-puerta")?.classList.contains("active");
-    const kioskitoActivo = document.getElementById("page-kioskito")?.classList.contains("active");
+    const currentPage = document.body.dataset.page || '';
+    const puertaActiva = currentPage === 'listas' || document.getElementById("page-puerta")?.classList.contains("active");
+    const kioskitoActivo = currentPage === 'kioskito' || document.getElementById("page-kioskito")?.classList.contains("active");
 
     const estaEscribiendo = document.activeElement?.matches("input, textarea, select");
     const modalAbierto = !!document.querySelector(".modal-overlay.open");
@@ -2423,7 +2408,7 @@ async function enviarQRPersona(personId, personName, personNote, listName, curre
 
 async function generarImagenQR({ token, personName, personNote, listName, expiresAt }) {
   if (typeof QRious === 'undefined') {
-    alert('Falta cargar QRious en index.php');
+    alert('Falta cargar QRious en listas.php');
     return;
   }
 
@@ -2536,50 +2521,55 @@ async function generarImagenQR({ token, personName, personNote, listName, expire
     }
   }, 'image/png');
 }
+/* =====================================
+   VOLVER AL INDEX AL USAR ATRÁS
+===================================== */
 
-(function () {
-  const body = document.body;
-  const btn = document.getElementById('themeToggle');
+document.addEventListener('DOMContentLoaded', () => {
+  const currentPage = document.body.dataset.page || '';
 
-  const savedTheme = localStorage.getItem('menuTheme') || 'red';
-
-  if (savedTheme === 'red') {
-    body.classList.add('theme-red');
-  } else {
-    body.classList.remove('theme-red');
+  // No se aplica dentro del propio index.
+  if (currentPage === 'menu' || currentPage === 'index') {
+    return;
   }
 
-  function updateButton() {
-    if (!btn) return;
+  // Crea una entrada para detectar el botón o gesto "Atrás".
+  history.pushState(
+    { divinePage: currentPage },
+    '',
+    window.location.href
+  );
 
-    btn.textContent = body.classList.contains('theme-red')
-      ? 'Modo original'
-      : 'Modo rojo';
-  }
-
-  updateButton();
-
-  if (btn) {
-    btn.addEventListener('click', () => {
-      body.classList.toggle('theme-red');
-
-      const newTheme = body.classList.contains('theme-red')
-        ? 'red'
-        : 'original';
-
-      localStorage.setItem('menuTheme', newTheme);
-      updateButton();
-    });
-  }
-})();
-
+  window.addEventListener('popstate', () => {
+    window.location.replace('index.php');
+  });
+});
 /* =========================
    INIT DE LA APP
 ========================= */
 window.addEventListener("load", () => {
   safeRun('No se pudo iniciar la app', () => {
-    buildPinPad();
-    goTo("menu");
-    startLiveApp();
+    const currentPage = document.body.dataset.page || '';
+
+    if (currentPage === 'kioskito') {
+      buildPinPad();
+
+      safeRunAsync('No se pudo cargar Kioskito', renderKioskito, 'k-categories');
+      safeRunAsync('No se pudo cargar historial de ventas', renderSalesHistory, 'sales-history');
+      safeRunAsync('No se pudo cargar resumen de caja', renderKioskoSummary, 'kiosko-summary');
+
+      setTimeout(() => {
+        safeRun('No se pudo instalar Guardarropas', instalarGuardarropas);
+        safeRunAsync('No se pudo cargar Guardarropas', renderGuardarropas, 'gr-list');
+      }, 100);
+
+      startLiveApp();
+      return;
+    }
+
+    if (currentPage === 'listas') {
+      safeRunAsync('No se pudo cargar Puerta', () => renderPuerta(true), 'p-lists');
+      startLiveApp();
+    }
   });
 });

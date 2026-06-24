@@ -1,0 +1,463 @@
+/* ============================================================
+   TEMA GLOBAL DIVINE APP
+   Unifica el cambio rojo / morado en todas las pantallas.
+============================================================ */
+
+html {
+  --theme-accent: #a56cff;
+  --theme-accent-strong: #7a35ed;
+  --theme-highlight: #f0d48d;
+  --theme-surface: rgba(20, 14, 29, 0.94);
+  --theme-border: rgba(176, 124, 255, 0.34);
+  --theme-glow: rgba(142, 91, 255, 0.24);
+  --theme-focus: rgba(166, 108, 255, 0.34);
+  --theme-track-border: rgba(166, 108, 255, 0.52);
+  --theme-track-bg: rgba(73, 34, 123, 0.68);
+  --theme-button-text: #fffaf0;
+}
+
+html[data-theme="red"] {
+  --theme-accent: #ff2744;
+  --theme-accent-strong: #970012;
+  --theme-highlight: #ff667b;
+  --theme-surface: rgba(18, 0, 3, 0.94);
+  --theme-border: rgba(255, 39, 68, 0.48);
+  --theme-glow: rgba(255, 0, 31, 0.25);
+  --theme-focus: rgba(255, 39, 68, 0.34);
+  --theme-track-border: rgba(255, 39, 68, 0.58);
+  --theme-track-bg: rgba(111, 0, 14, 0.78);
+  --theme-button-text: #ffffff;
+}
+
+/* Variables compartidas por las distintas hojas del proyecto. */
+html[data-theme="red"] body,
+body.theme-red {
+  --bg: #050002;
+  --bg2: #0d0003;
+  --bg3: #180006;
+  --card: #120004;
+  --panel: rgba(15, 0, 4, 0.92);
+  --panel-2: rgba(5, 0, 2, 0.92);
+  --panel-strong: rgba(20, 0, 5, 0.96);
+  --input: rgba(18, 0, 5, 0.92);
+
+  --gold: #ff2744;
+  --gold-2: #ff667b;
+  --gold-3: #ffd0d7;
+  --gold-strong: #ff536a;
+  --purple: #8f0011;
+  --purple-2: #ff2744;
+  --purple-soft: rgba(255, 39, 68, 0.14);
+
+  --text: #ffffff;
+  --text2: rgba(255, 255, 255, 0.70);
+  --muted: rgba(255, 255, 255, 0.66);
+  --muted-2: rgba(255, 255, 255, 0.48);
+  --border: rgba(255, 39, 68, 0.38);
+  --border-strong: rgba(255, 39, 68, 0.72);
+
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 0, 31, 0.34), transparent 29%),
+    radial-gradient(circle at 100% 18%, rgba(255, 39, 68, 0.17), transparent 25%),
+    linear-gradient(180deg, #180004 0%, #060002 62%, #000000 100%) !important;
+}
+
+/* Suaviza el cambio sin animar medidas ni posiciones. */
+body,
+.topbar,
+.menu-card,
+.admin-card,
+.admin-counter-card,
+.admin-link-card,
+.card,
+.stat,
+.product-section,
+.user-row,
+.user-card,
+.editor,
+.editor-panel,
+.scanner-card,
+.result-card,
+.login-box,
+.qr-card,
+.box,
+.tabs-card,
+.menu-header,
+.menu-section,
+.product-card,
+.pos-product-card,
+.list-card,
+.kioskito-sale-card,
+.modal-box {
+  transition:
+    background-color 0.22s ease,
+    background 0.22s ease,
+    border-color 0.22s ease,
+    color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+/* Refuerzo visual para páginas con estilos internos y colores fijos. */
+html[data-theme="red"] body .admin-card,
+html[data-theme="red"] body .admin-counter-card,
+html[data-theme="red"] body .admin-link-card,
+html[data-theme="red"] body .card,
+html[data-theme="red"] body .stat,
+html[data-theme="red"] body .product-section,
+html[data-theme="red"] body .user-row,
+html[data-theme="red"] body .user-card,
+html[data-theme="red"] body .editor,
+html[data-theme="red"] body .editor-panel,
+html[data-theme="red"] body .scanner-card,
+html[data-theme="red"] body .result-card,
+html[data-theme="red"] body .login-box,
+html[data-theme="red"] body .qr-card,
+html[data-theme="red"] body .box {
+  border-color: rgba(255, 39, 68, 0.30) !important;
+  background:
+    radial-gradient(circle at top right, rgba(255, 39, 68, 0.10), transparent 36%),
+    linear-gradient(145deg, rgba(18, 0, 4, 0.96), rgba(2, 0, 1, 0.94)) !important;
+  box-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.38),
+    inset 0 0 0 1px rgba(255, 39, 68, 0.04) !important;
+}
+
+html[data-theme="red"] body .topbar {
+  background: rgba(8, 0, 2, 0.90) !important;
+  border-bottom-color: rgba(255, 39, 68, 0.28) !important;
+}
+
+html[data-theme="red"] body .admin-btn:not(.secondary),
+html[data-theme="red"] body .btn:not(.secondary):not(.btn-delete),
+html[data-theme="red"] body .btn-add,
+html[data-theme="red"] body .btn-confirm,
+html[data-theme="red"] body .payment-btn.active,
+html[data-theme="red"] body .fab,
+html[data-theme="red"] body .qr-send-btn,
+html[data-theme="red"] body .login-box button[type="submit"] {
+  background: linear-gradient(180deg, #ff334f, #990012) !important;
+  border-color: rgba(255, 39, 68, 0.78) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 22px rgba(255, 0, 31, 0.18) !important;
+}
+
+html[data-theme="red"] body input:focus,
+html[data-theme="red"] body select:focus,
+html[data-theme="red"] body textarea:focus {
+  border-color: #ff536a !important;
+  box-shadow: 0 0 0 3px rgba(255, 39, 68, 0.16) !important;
+}
+
+html[data-theme="red"] body input[type="checkbox"],
+html[data-theme="red"] body input[type="radio"] {
+  accent-color: #ff2744;
+}
+
+/* ============================================================
+   PIE GLOBAL Y BOTÓN DE TEMA
+============================================================ */
+
+/*
+  El selector de tema vive únicamente dentro del pie de cada
+  pantalla. Ya no usa position: fixed y no tapa contenido.
+*/
+.theme-footer {
+  position: relative;
+  z-index: 20;
+
+  width: min(1180px, calc(100% - 28px));
+  margin: 30px auto 18px;
+  padding: 18px 0 max(12px, env(safe-area-inset-bottom));
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-top: 1px solid var(--theme-border);
+}
+
+/* La carta pública ya posee un footer propio. */
+.site-footer .theme-footer__actions {
+  width: 100%;
+  margin-top: 14px;
+  padding-top: 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-top: 1px solid var(--theme-border);
+}
+
+.theme-toggle {
+  position: static !important;
+  inset: auto !important;
+  z-index: auto !important;
+
+  width: min(100%, 290px) !important;
+  max-width: 290px !important;
+  min-width: 0 !important;
+  min-height: 56px !important;
+  margin: 0 !important;
+  padding: 8px 10px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+
+  border: 1px solid var(--theme-border) !important;
+  border-radius: 18px !important;
+  outline: none !important;
+
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025)),
+    var(--theme-surface) !important;
+  color: var(--theme-button-text) !important;
+
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.34),
+    0 0 18px var(--theme-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+
+  font: inherit !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  overflow: hidden !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-tap-highlight-color: transparent;
+
+  transform: translateZ(0);
+  transition:
+    transform 0.18s ease,
+    border-color 0.22s ease,
+    background 0.22s ease,
+    box-shadow 0.22s ease !important;
+}
+
+/* Anula implementaciones antiguas hechas con pseudoelementos. */
+.theme-toggle::before,
+.theme-toggle::after {
+  content: none !important;
+  display: none !important;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-2px) !important;
+  border-color: var(--theme-accent) !important;
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.40),
+    0 0 24px var(--theme-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+}
+
+.theme-toggle:active {
+  transform: scale(0.98) !important;
+}
+
+.theme-toggle:focus-visible {
+  outline: 3px solid var(--theme-focus) !important;
+  outline-offset: 3px !important;
+}
+
+.theme-toggle__icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--theme-highlight), var(--theme-accent-strong));
+  box-shadow:
+    0 7px 18px var(--theme-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  font-size: 21px;
+  line-height: 1;
+  transition: transform 0.32s ease, background 0.22s ease;
+}
+
+.theme-toggle:hover .theme-toggle__icon {
+  transform: rotate(180deg);
+}
+
+.theme-toggle__copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.theme-toggle__eyebrow {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+}
+
+.theme-toggle__label {
+  color: var(--theme-button-text);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.22;
+  white-space: nowrap;
+}
+
+.theme-toggle__track {
+  position: relative;
+  width: 44px;
+  height: 25px;
+  flex: 0 0 44px;
+  padding: 3px;
+  border: 1px solid var(--theme-track-border);
+  border-radius: 999px;
+  background: var(--theme-track-bg);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.42);
+}
+
+.theme-toggle__thumb {
+  display: block;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.42);
+  transform: translateX(0);
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html[data-theme="red"] .theme-toggle__thumb {
+  transform: translateX(19px);
+}
+
+html[data-theme="red"] .theme-toggle__track {
+  background: linear-gradient(135deg, #ff334f, #8d000f);
+}
+
+/* Login: formulario centrado y selector de tema en el pie. */
+body.login-page {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  align-content: stretch;
+}
+
+body.login-page > .login-box {
+  grid-row: 1;
+  align-self: center;
+  justify-self: center;
+}
+
+body.login-page > .theme-footer {
+  grid-row: 2;
+  align-self: end;
+  justify-self: center;
+  width: min(380px, 92vw);
+  margin: 18px auto 0;
+}
+
+/* Páginas QR que originalmente centran una sola tarjeta con CSS Grid. */
+body.centered-theme-page {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  align-content: stretch;
+}
+
+body.centered-theme-page > .qr-card,
+body.centered-theme-page > .box {
+  grid-row: 1;
+  align-self: center;
+  justify-self: center;
+}
+
+body.centered-theme-page > .theme-footer {
+  grid-row: 2;
+  align-self: end;
+  justify-self: center;
+  width: min(460px, 100%);
+  margin: 18px auto 0;
+}
+
+/* El botón no debe aparecer en impresiones de tickets o QR. */
+@media print {
+  .theme-footer,
+  .theme-footer__actions,
+  .theme-toggle {
+    display: none !important;
+  }
+}
+
+@media (max-width: 540px) {
+  .theme-footer {
+    width: calc(100% - 20px);
+    margin-top: 22px;
+    margin-bottom: 10px;
+    padding-top: 14px;
+  }
+
+  .theme-toggle {
+    width: 100% !important;
+    max-width: 340px !important;
+    min-height: 52px !important;
+    padding: 7px 9px !important;
+    border-radius: 16px !important;
+  }
+
+  .theme-toggle__icon {
+    width: 37px;
+    height: 37px;
+    flex-basis: 37px;
+    border-radius: 12px;
+  }
+
+  .theme-toggle__label {
+    font-size: 12px;
+  }
+
+  .theme-toggle__eyebrow {
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  .theme-toggle__eyebrow {
+    display: none;
+  }
+}
+
+/* ============================================================
+   PUERTA / LISTAS: PIE SIEMPRE AL FINAL DE LA PANTALLA
+============================================================ */
+body[data-page="listas"] {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+body[data-page="listas"] > #page-puerta {
+  width: 100%;
+  flex: 1 0 auto;
+}
+
+body[data-page="listas"] > .theme-footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+  margin-bottom: 0;
+}
+
+/* En celular, el botón + queda por encima del pie y no lo tapa. */
+@media (max-width: 540px) {
+  body[data-page="listas"] .fab {
+    bottom: calc(104px + env(safe-area-inset-bottom));
+  }
+
+  body[data-page="listas"] > .theme-footer {
+    margin-top: auto;
+    margin-bottom: 0;
+  }
+}
