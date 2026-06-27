@@ -972,12 +972,32 @@ body {
   }
 }
 
+/* Scroll vertical */
 ::-webkit-scrollbar {
   width: 4px;
+  height: 0;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #5e477f;
+  background: var(--scroll-color, #5e477f);
   border-radius: 4px;
+}
+
+/* Evita la línea horizontal inferior */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden !important;
+}
+
+/* Tema rojo */
+body.theme-red {
+  --scroll-color: #d41132;
+}
+
+/* Tema morado */
+body.theme-purple {
+  --scroll-color: #5e477f;
 }
 
 /* Estado solo lectura para usuarios no admin */

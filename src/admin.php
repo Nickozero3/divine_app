@@ -207,6 +207,109 @@ if (($currentUser['role'] ?? '') !== 'admin') {
   text-align: center;
 }
 
+
+.admin-history-section {
+  overflow: hidden;
+}
+
+.admin-history-heading {
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.admin-history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-history-empty,
+.admin-history-error,
+.admin-history-loading {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px dashed var(--border);
+  color: var(--text2);
+  background: rgba(255,255,255,.025);
+}
+
+.admin-history-error {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+}
+
+.admin-closing-card {
+  background: rgba(255,255,255,.035);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.admin-closing-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.admin-closing-meta {
+  min-width: 0;
+}
+
+.admin-closing-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gold-2);
+  font-weight: 900;
+  font-size: 15px;
+}
+
+.admin-closing-amount {
+  color: var(--green);
+  font-weight: 900;
+  font-size: 22px;
+  white-space: nowrap;
+}
+
+.admin-closing-details {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.admin-closing-detail {
+  background: rgba(255,255,255,.035);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 9px;
+}
+
+.admin-closing-detail strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.admin-closing-detail span {
+  display: block;
+  margin-top: 3px;
+  color: var(--text2);
+  font-size: 11px;
+}
+
+.admin-btn.danger {
+  margin-top: 12px;
+  width: 100%;
+  background: rgba(255, 70, 70, .12);
+  border: 1px solid rgba(255, 70, 70, .35);
+  color: #ff8b8b;
+}
+
+.admin-btn.danger:hover {
+  background: rgba(255, 70, 70, .2);
+}
+
 @media(max-width:650px) {
   .admin-links-grid {
     grid-template-columns: 1fr;
@@ -230,6 +333,14 @@ if (($currentUser['role'] ?? '') !== 'admin') {
   .qr-actions-right {
     min-width: 100%;
     width: 100%;
+  }
+
+  .admin-closing-main {
+    flex-direction: column;
+  }
+
+  .admin-closing-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>
@@ -291,8 +402,8 @@ if (($currentUser['role'] ?? '') !== 'admin') {
 
       <div class="admin-counter-card">
         <div class="admin-counter-info">
-          <div class="admin-name">Kioskito</div>
-          <div class="admin-label">Ventas registradas</div>
+          <div class="admin-name">Kioskito · caja actual</div>
+          <div class="admin-label">Ventas realizadas desde el último cierre</div>
         </div>
         <div class="admin-num" id="total-kioskito">$0</div>
       </div>
@@ -321,8 +432,27 @@ if (($currentUser['role'] ?? '') !== 'admin') {
   </div>
 
   <div class="admin-card">
-    <div class="section-title">Productos más vendidos</div>
+    <div class="section-title">Productos vendidos en la caja actual</div>
     <div id="admin-products"></div>
+  </div>
+
+  <div class="admin-card admin-history-section">
+    <div class="admin-row admin-history-heading">
+      <div>
+        <div class="section-title">Historial de cajas cerradas</div>
+        <div class="admin-sub">
+          Muestra quién cerró cada caja, el monto y la fecha. Eliminar solo la oculta del historial.
+        </div>
+      </div>
+
+      <button class="admin-btn secondary" type="button" onclick="manualRefreshAdmin()">
+        Actualizar
+      </button>
+    </div>
+
+    <div id="admin-closings" class="admin-history-list">
+      <div class="admin-history-loading">Cargando cajas cerradas…</div>
+    </div>
   </div>
 
   <div class="admin-card">
@@ -402,17 +532,28 @@ async function renderAdmin(silent = false) {
   }
 
   try {
-    const [salesData, doorData, guardarData, qrData] = await Promise.all([
+    const [salesData, doorData, guardarData, qrData, closingsResult] = await Promise.all([
       api('sales_history'),
       api('door_lists'),
       api('guardarropas_list'),
-      api('admin_qr_people')
+      api('admin_qr_people'),
+      api('kiosko_closings_list')
+        .then(data => ({ data, error: null }))
+        .catch(error => ({ data: null, error }))
     ]);
 
     const sales = Array.isArray(salesData.sales) ? salesData.sales : [];
     const lists = Array.isArray(doorData.lists) ? doorData.lists : [];
     const guardarropas = Array.isArray(guardarData.items) ? guardarData.items : [];
     const peopleQR = Array.isArray(qrData.people) ? qrData.people : [];
+
+    const closings = closingsResult.data && Array.isArray(closingsResult.data.closings)
+      ? closingsResult.data.closings
+      : [];
+
+    const closingsError = closingsResult.error
+      ? closingsResult.error.message
+      : '';
 
     const totalKioskito = sales.reduce((acc, sale) => {
       return acc + Number(sale.total || 0);
@@ -445,6 +586,7 @@ async function renderAdmin(silent = false) {
 
     renderDoorSummary(lists, totalPersonas, totalEntraron);
     renderTopProducts(sales);
+    renderClosings(closings, closingsError);
     renderQRPeople(peopleQR);
 
     if (liveStatus) {
@@ -545,6 +687,150 @@ function renderTopProducts(sales) {
       </div>
     </div>
   `).join('');
+}
+
+
+function formatAdminDate(value) {
+  if (!value) return 'Fecha no disponible';
+
+  const normalized = String(value).replace(' ', 'T');
+  const date = new Date(normalized);
+
+  if (Number.isNaN(date.getTime())) {
+    return esc(value);
+  }
+
+  return new Intl.DateTimeFormat('es-AR', {
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }).format(date);
+}
+
+function renderClosings(closings, errorMessage = '') {
+  const wrap = document.getElementById('admin-closings');
+  if (!wrap) return;
+
+  if (errorMessage) {
+    wrap.innerHTML = `
+      <div class="admin-history-error">
+        No se pudo cargar el historial: ${esc(errorMessage)}
+      </div>
+    `;
+    return;
+  }
+
+  if (!Array.isArray(closings) || !closings.length) {
+    wrap.innerHTML = `
+      <div class="admin-history-empty">
+        Todavía no hay cajas cerradas visibles en el historial.
+      </div>
+    `;
+    return;
+  }
+
+  wrap.innerHTML = closings.map(closing => {
+    const closingId = Number(closing.id || 0);
+    const closedBy = closing.closed_by || 'Administrador';
+    const closedAt = closing.closed_at || closing.created_at;
+    const salesCount = Number(closing.sales_count || 0);
+
+    return `
+      <article class="admin-closing-card" id="admin-closing-${closingId}">
+        <div class="admin-closing-main">
+          <div class="admin-closing-meta">
+            <div class="admin-closing-id">Caja #${closingId}</div>
+            <div class="admin-name">${esc(closedBy)}</div>
+            <div class="admin-sub">
+              Cerrada el ${formatAdminDate(closedAt)} · ${salesCount} venta${salesCount === 1 ? '' : 's'}
+            </div>
+          </div>
+
+          <div class="admin-closing-amount">${fmt(closing.total)}</div>
+        </div>
+
+        <div class="admin-closing-details">
+          <div class="admin-closing-detail">
+            <strong>${fmt(closing.efectivo_total)}</strong>
+            <span>Efectivo</span>
+          </div>
+
+          <div class="admin-closing-detail">
+            <strong>${fmt(closing.transferencia_total)}</strong>
+            <span>Transferencia</span>
+          </div>
+
+          <div class="admin-closing-detail">
+            <strong>${fmt(closing.tarjeta_total)}</strong>
+            <span>Tarjeta</span>
+          </div>
+
+          <div class="admin-closing-detail">
+            <strong>${fmt(closing.regalo_total)}</strong>
+            <span>Regalos</span>
+          </div>
+        </div>
+
+        <button
+          class="admin-btn danger"
+          type="button"
+          onclick="deleteClosing(${closingId})"
+        >
+          Eliminar del historial
+        </button>
+      </article>
+    `;
+  }).join('');
+}
+
+async function deleteClosing(closingId) {
+  const confirmed = confirm(
+    '¿Eliminar esta caja del historial?\n\n' +
+    'Las ventas seguirán consideradas como cerradas y no volverán a la caja actual.'
+  );
+
+  if (!confirmed) return;
+
+  markAdminInteraction();
+
+  const button = document.querySelector(
+    `#admin-closing-${Number(closingId)} .admin-btn.danger`
+  );
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Eliminando…';
+  }
+
+  try {
+    await api('kiosko_closing_delete', {
+      id: Number(closingId)
+    });
+
+    const card = document.getElementById(
+      `admin-closing-${Number(closingId)}`
+    );
+
+    if (card) {
+      card.remove();
+    }
+
+    const wrap = document.getElementById('admin-closings');
+
+    if (wrap && !wrap.querySelector('.admin-closing-card')) {
+      wrap.innerHTML = `
+        <div class="admin-history-empty">
+          No quedan cajas cerradas visibles en el historial.
+        </div>
+      `;
+    }
+  } catch (error) {
+    alert(error.message);
+
+    if (button) {
+      button.disabled = false;
+      button.textContent = 'Eliminar del historial';
+    }
+  }
 }
 
 function renderQRPeople(people) {

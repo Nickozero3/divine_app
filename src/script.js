@@ -1001,9 +1001,10 @@ async function renderSalesHistory() {
     if (!sales.length) {
       wrap.innerHTML = `
         <div class="section">
-          <div class="section-title">Historial de ventas</div>
+          <div class="section-title">
+Ventas de la caja actual</div>
           <div style="padding:14px 16px;color:var(--text2);font-size:14px;">
-            Sin ventas registradas.
+            La caja actual todavía no tiene ventas.
           </div>
         </div>
       `;
@@ -1602,50 +1603,67 @@ function drawPuerta() {
         </div>
 
         <div class="person-list">
-          ${filteredPeople.length
-            ? filteredPeople.map(person => `
-              <div
-                class="person-row ${esc(person.status)} ${canManageDoor ? 'person-row-clickable' : ''} ${lastChangedPersonId === Number(person.id) ? `status-${esc(person.status)}` : ''}"
-                ${canManageDoor ? `onclick="togglePersonStatus(${Number(list.id)}, ${Number(person.id)})"` : ''}
-              >
+            ${filteredPeople.length
+              ? filteredPeople.map(person => {
+                  /*
+                  * Admin puede eliminar cualquier persona.
+                  * RRPP/Pública solamente cuando todavía está en no_vino.
+                  * Puerta no puede eliminar porque canEditThisList será false.
+                  */
+                  const canDeletePerson =
+                    canEditThisList &&
+                    (isAdmin || person.status === 'no_vino');
 
-                <div class="person-info">
-                  <div class="person-name">${esc(person.name)}</div>
-                  <div class="person-note">${esc(person.note || '')}</div>
+                  return `
+                    <div
+                      class="person-row ${esc(person.status)} ${canManageDoor ? 'person-row-clickable' : ''} ${lastChangedPersonId === Number(person.id) ? `status-${esc(person.status)}` : ''}"
+                      ${canManageDoor
+                        ? `onclick="togglePersonStatus(${Number(list.id)}, ${Number(person.id)})"`
+                        : ''}
+                    >
+                      <div class="person-info">
+                        <div class="person-name">${esc(person.name)}</div>
+                        <div class="person-note">${esc(person.note || '')}</div>
+                      </div>
+
+                      <div class="person-actions">
+                        ${statusControl(person)}
+
+                        ${canEditThisList ? `
+                          <button
+                            class="qr-send-btn"
+                            onclick='event.stopPropagation(); enviarQRPersona(
+                              ${Number(person.id)},
+                              ${JSON.stringify(person.name)},
+                              ${JSON.stringify(person.note || '')},
+                              ${JSON.stringify(list.name)},
+                              ${JSON.stringify(person.qr_token || '')}
+                            )'>
+                            📤 Enviar QR
+                          </button>
+                        ` : ''}
+
+                        ${canDeletePerson ? `
+                          <button
+                            class="btn-del-person"
+                            onclick="event.stopPropagation(); deletePerson(
+                              ${Number(list.id)},
+                              ${Number(person.id)}
+                            )">
+                            ✕
+                          </button>
+                        ` : ''}
+                      </div>
+                    </div>
+                  `;
+                }).join('')
+              : `
+                <div style="padding:8px 4px;color:var(--text2);">
+                  Sin personas en esta lista.
                 </div>
-
-                <div class="person-actions">
-                  ${statusControl(person)}
-
-                  ${canEditThisList ? `
-                    <button
-                      class="qr-send-btn"
-                      onclick='event.stopPropagation(); enviarQRPersona(
-                        ${Number(person.id)},
-                        ${JSON.stringify(person.name)},
-                        ${JSON.stringify(person.note || '')},
-                        ${JSON.stringify(list.name)},
-                        ${JSON.stringify(person.qr_token || '')}
-                      )'>
-                      📤 Enviar QR
-                    </button>
-                  ` : ''}
-
-                  ${canEditThisList ? `
-                    <button
-                      class="btn-del-person"
-                      onclick="event.stopPropagation(); deletePerson(${Number(list.id)}, ${Number(person.id)}, this)">
-                      ✕
-                    </button>
-                  ` : ''}
-                </div>
-
-              </div>
-            `).join('')
-            : `<div style="padding:8px 4px;color:var(--text2);">Sin personas en esta lista.</div>`
-          }
-        </div>
-
+              `
+            }
+          </div>
         ${canEditThisList ? `
           <div class="quick-add-panel ${openQuickAddListId === Number(list.id) ? '' : 'hidden'}" data-list-id="${Number(list.id)}">
 

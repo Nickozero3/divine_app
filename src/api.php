@@ -1,7 +1,13 @@
 <?php
+declare(strict_types=1);
+
 session_start();
 require_once __DIR__ . '/config/conexion.php';
 require_once __DIR__ . '/config/app_logs.php';
+
+if (!isset($pdo) || !($pdo instanceof PDO)) {
+    throw new RuntimeException('No se pudo iniciar la conexión PDO.');
+}
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -74,9 +80,8 @@ function fail(string $message, int $status = 400): never
     response_json(['ok' => false, 'error' => $message], $status);
 }
 
-function require_login(): array
+function require_login(PDO $pdo): array
 {
-    global $pdo;
 
     if (!isset($_SESSION['user']['id'])) {
         fail('No autorizado. Iniciá sesión nuevamente.', 401);
@@ -370,7 +375,7 @@ function try_remember_login(PDO $pdo): void
 
 try_remember_login($pdo);
 
-$user = require_login();
+$user = require_login($pdo);
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 $input = read_input();
 
@@ -737,15 +742,66 @@ try {
             ok(['status' => $next]);
         }
 
-        case 'person_delete': {
+       case 'person_delete': {   
             $listId = (int) ($input['listId'] ?? 0);
             $personId = (int) ($input['personId'] ?? 0);
-            if ($listId <= 0 || $personId <= 0) fail('Datos inválidos.');
+
+            if ($listId <= 0 || $personId <= 0) {
+                fail('Datos inválidos.', 422);
+            }
+
+            // Verifica que sea Admin o el dueño de la lista.
             current_user_can_access_list($pdo, $listId, $user);
 
-            $stmt = $pdo->prepare('DELETE FROM door_people WHERE id = :person_id AND list_id = :list_id');
-            $stmt->execute([':person_id' => $personId, ':list_id' => $listId]);
-            ok();
+            $stmtPerson = $pdo->prepare("
+                SELECT id, name, status
+                FROM door_people
+                WHERE id = :person_id
+                AND list_id = :list_id
+                LIMIT 1
+            ");
+
+            $stmtPerson->execute([
+                ':person_id' => $personId,
+                ':list_id' => $listId,
+            ]);
+
+            $person = $stmtPerson->fetch(PDO::FETCH_ASSOC);
+
+            if (!$person) {
+                fail('Persona no encontrada.', 404);
+            }
+
+            $role = strtolower(trim((string) ($user['role'] ?? '')));
+            $status = (string) ($person['status'] ?? 'no_vino');
+
+            /*
+            * Una RRPP/Pública solamente puede borrar personas
+            * que todavía no hayan ingresado.
+            *
+            * Admin sí puede borrar cualquiera.
+            */
+            if ($role !== 'admin' && $status !== 'no_vino') {
+                fail(
+                    'No podés eliminar a esta persona porque ya ingresó al evento.',
+                    403
+                );
+            }
+
+            $stmtDelete = $pdo->prepare("
+                DELETE FROM door_people
+                WHERE id = :person_id
+                AND list_id = :list_id
+            ");
+
+            $stmtDelete->execute([
+                ':person_id' => $personId,
+                ':list_id' => $listId,
+            ]);
+
+            ok([
+                'message' => 'Persona eliminada correctamente.',
+            ]);
         }
 
         /* =========================
@@ -1178,21 +1234,37 @@ try {
         case 'sales_history': {
             require_admin($user);
 
-            $stmt = $pdo->query("
+            // Mostrar solamente las ventas de la caja actualmente abierta.
+            // Los cierres ocultos del historial también cuentan como cierres válidos.
+            $stmtLast = $pdo->query("
+                SELECT COALESCE(MAX(to_sale_id), 0)
+                FROM kiosko_closings
+            ");
+
+            $lastClosedSaleId = (int) $stmtLast->fetchColumn();
+
+            $stmt = $pdo->prepare("
                 SELECT id, items, total, payment_method, created_at
                 FROM kiosko_sales
+                WHERE id > :last_closed_sale_id
                 ORDER BY id DESC
                 LIMIT 100
             ");
 
+            $stmt->execute([
+                ':last_closed_sale_id' => $lastClosedSaleId,
+            ]);
+
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $sales = array_map(function ($row) {
-                $paymentMethod = normalize_payment_method((string) ($row['payment_method'] ?? 'efectivo'));
+            $sales = array_map(function (array $row): array {
+                $paymentMethod = normalize_payment_method(
+                    (string) ($row['payment_method'] ?? 'efectivo')
+                );
 
                 return [
                     'id' => (int) $row['id'],
-                    'items' => json_decode($row['items'], true) ?: [],
+                    'items' => json_decode((string) $row['items'], true) ?: [],
                     'total' => (int) $row['total'],
                     'payment_method' => $paymentMethod,
                     'payment_label' => payment_label($paymentMethod),
@@ -1200,7 +1272,11 @@ try {
                 ];
             }, $rows);
 
-            ok(['sales' => $sales]);
+            ok([
+                'sales' => $sales,
+                'lastClosedSaleId' => $lastClosedSaleId,
+                'scope' => 'current_cash',
+            ]);
         }
         case 'kiosko_summary': {
             require_admin($user);
@@ -1232,36 +1308,37 @@ try {
             ");
 
             $lastClosedSaleId = (int) $stmtLast->fetchColumn();
-
             $summary = build_kiosko_summary($pdo, $lastClosedSaleId);
 
             if ((int) $summary['sales_count'] <= 0) {
+                $pdo->rollBack();
                 fail('No hay ventas nuevas para cerrar.');
             }
 
+            // La tabla real usa las columnas `total` e `items`.
             $stmt = $pdo->prepare("
                 INSERT INTO kiosko_closings (
                     user_id,
                     from_sale_id,
                     to_sale_id,
                     sales_count,
-                    total_amount,
+                    total,
                     efectivo_total,
                     transferencia_total,
                     tarjeta_total,
                     regalo_total,
-                    summary
+                    items
                 ) VALUES (
                     :user_id,
                     :from_sale_id,
                     :to_sale_id,
                     :sales_count,
-                    :total_amount,
+                    :total,
                     :efectivo_total,
                     :transferencia_total,
                     :tarjeta_total,
                     :regalo_total,
-                    :summary
+                    :items
                 )
             ");
 
@@ -1270,22 +1347,168 @@ try {
                 ':from_sale_id' => (int) $summary['from_sale_id'],
                 ':to_sale_id' => (int) $summary['to_sale_id'],
                 ':sales_count' => (int) $summary['sales_count'],
-                ':total_amount' => (int) $summary['total_amount'],
+                ':total' => (int) $summary['total_amount'],
                 ':efectivo_total' => (int) $summary['by_payment']['efectivo'],
                 ':transferencia_total' => (int) $summary['by_payment']['transferencia'],
                 ':tarjeta_total' => (int) $summary['by_payment']['tarjeta'],
                 ':regalo_total' => (int) $summary['by_payment']['regalo'],
-                ':summary' => json_encode($summary, JSON_UNESCAPED_UNICODE),
+                ':items' => json_encode(
+                    $summary,
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                ),
             ]);
 
             $closingId = (int) $pdo->lastInsertId();
-
             $pdo->commit();
 
             ok([
                 'id' => $closingId,
                 'summary' => $summary,
                 'message' => 'Caja cerrada correctamente.'
+            ]);
+        }
+
+        case 'kiosko_closings_list': {
+            require_admin($user);
+
+            $columnCheck = $pdo->query("
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'kiosko_closings'
+                  AND COLUMN_NAME = 'deleted_at'
+            ");
+
+            if ((int) $columnCheck->fetchColumn() === 0) {
+                $pdo->exec("
+                    ALTER TABLE kiosko_closings
+                    ADD COLUMN deleted_at DATETIME NULL,
+                    ADD INDEX idx_kiosko_closings_deleted_at (deleted_at)
+                ");
+            }
+
+            $stmt = $pdo->query("
+                SELECT
+                    kc.id,
+                    kc.user_id,
+                    kc.from_sale_id,
+                    kc.to_sale_id,
+                    kc.sales_count,
+                    kc.total,
+                    kc.efectivo_total,
+                    kc.transferencia_total,
+                    kc.tarjeta_total,
+                    kc.regalo_total,
+                    kc.items,
+                    kc.created_at,
+                    kc.closed_at,
+                    COALESCE(u.display_name, u.username, 'Usuario eliminado') AS closed_by
+                FROM kiosko_closings kc
+                LEFT JOIN users u ON u.id = kc.user_id
+                WHERE kc.deleted_at IS NULL
+                ORDER BY COALESCE(kc.closed_at, kc.created_at) DESC, kc.id DESC
+                LIMIT 200
+            ");
+
+            $closings = [];
+            $historySummary = [
+                'closings' => 0,
+                'sales' => 0,
+                'total' => 0,
+                'efectivo' => 0,
+                'transferencia' => 0,
+                'tarjeta' => 0,
+                'regalo' => 0,
+            ];
+
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $decoded = json_decode((string) ($row['items'] ?? ''), true);
+                $products = [];
+
+                if (is_array($decoded)) {
+                    if (isset($decoded['products']) && is_array($decoded['products'])) {
+                        $products = $decoded['products'];
+                    } elseif (array_is_list($decoded)) {
+                        $products = $decoded;
+                    }
+                }
+
+                $closing = [
+                    'id' => (int) $row['id'],
+                    'user_id' => isset($row['user_id']) ? (int) $row['user_id'] : null,
+                    'from_sale_id' => (int) ($row['from_sale_id'] ?? 0),
+                    'to_sale_id' => (int) ($row['to_sale_id'] ?? 0),
+                    'sales_count' => (int) ($row['sales_count'] ?? 0),
+                    'total' => (int) ($row['total'] ?? 0),
+                    'efectivo_total' => (int) ($row['efectivo_total'] ?? 0),
+                    'transferencia_total' => (int) ($row['transferencia_total'] ?? 0),
+                    'tarjeta_total' => (int) ($row['tarjeta_total'] ?? 0),
+                    'regalo_total' => (int) ($row['regalo_total'] ?? 0),
+                    'created_at' => $row['created_at'] ?? null,
+                    'closed_at' => $row['closed_at'] ?? null,
+                    'closed_by' => (string) ($row['closed_by'] ?? 'Administrador'),
+                    'products' => $products,
+                ];
+
+                $closings[] = $closing;
+                $historySummary['closings']++;
+                $historySummary['sales'] += $closing['sales_count'];
+                $historySummary['total'] += $closing['total'];
+                $historySummary['efectivo'] += $closing['efectivo_total'];
+                $historySummary['transferencia'] += $closing['transferencia_total'];
+                $historySummary['tarjeta'] += $closing['tarjeta_total'];
+                $historySummary['regalo'] += $closing['regalo_total'];
+            }
+
+            ok([
+                'closings' => $closings,
+                'summary' => $historySummary,
+            ]);
+        }
+
+        case 'kiosko_closing_delete': {
+            require_admin($user);
+
+            $closingId = (int) ($input['id'] ?? 0);
+
+            if ($closingId <= 0) {
+                fail('El cierre seleccionado no es válido.', 422);
+            }
+
+            $columnCheck = $pdo->query("
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'kiosko_closings'
+                  AND COLUMN_NAME = 'deleted_at'
+            ");
+
+            if ((int) $columnCheck->fetchColumn() === 0) {
+                $pdo->exec("
+                    ALTER TABLE kiosko_closings
+                    ADD COLUMN deleted_at DATETIME NULL,
+                    ADD INDEX idx_kiosko_closings_deleted_at (deleted_at)
+                ");
+            }
+
+            $stmt = $pdo->prepare("
+                UPDATE kiosko_closings
+                SET deleted_at = NOW()
+                WHERE id = :id
+                  AND deleted_at IS NULL
+            ");
+
+            $stmt->execute([
+                ':id' => $closingId,
+            ]);
+
+            if ($stmt->rowCount() === 0) {
+                fail('La caja ya fue eliminada del historial o no existe.', 404);
+            }
+
+            ok([
+                'id' => $closingId,
+                'message' => 'Caja eliminada del historial.',
             ]);
         }
 

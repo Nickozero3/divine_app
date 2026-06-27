@@ -1,207 +1,526 @@
-# ✨ Divine App ✨
+<div align="center">
 
+# ✨ Divine App
 
+### Gestión integral para eventos, boliches y fiestas
 
-\
+Puerta · Listas · QR · Scanner · Kioskito · Guardarropas · Caja · Stock · Administración
 
----
+<br>
 
-## 🚀 ¿Qué es Divine App?
+![PHP](https://img.shields.io/badge/PHP-8%2B-777BB4?logo=php&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?logo=javascript&logoColor=111)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)
+![Responsive](https://img.shields.io/badge/UI-Responsive-8A2BE2)
+![Estado](https://img.shields.io/badge/Estado-En%20desarrollo-success)
 
-**Divine App** es una aplicación web para administrar eventos, boliches, fiestas o locales desde un panel simple, rápido y responsive.
+**Una sola aplicación para controlar toda la operación de la noche.**
 
-Permite gestionar en tiempo real:
-
-* 🚪 **Puerta:** listas, invitados y estados de ingreso.
-* 📲 **QR:** generación, envío y validación de entradas.
-* 📷 **Scanner:** lectura de QR desde cámara.
-* 🛒 **Kioskito:** ventas tipo carrito con métodos de pago.
-* 🧾 **Cierre de caja:** resumen y cierre por rango de ventas.
-* 🧥 **Guardarropas:** registro, cobro y retiro de prendas.
-* 👑 **Admin:** estadísticas, usuarios, roles, productos y control general.
-* 🔴 **Live:** actualización automática sin recargar.
+</div>
 
 ---
 
-## ✨ Funciones principales
+## 📌 Índice
 
-| Módulo              | Función                                                     |
-| ------------------- | ----------------------------------------------------------- |
-| 🚪 Puerta           | Ver listas, buscar invitados y controlar ingresos           |
-| 📲 QR               | Generar y compartir QR personalizados                       |
-| 📷 Scanner          | Validar entradas por QR desde cámara                        |
-| 🛒 Kioskito         | Vender productos con carrito                                |
-| 💵 Métodos de pago  | Efectivo, transferencia, tarjeta y regalo                   |
-| 🧾 Cierre de caja   | Guardar totales por caja cerrada                            |
-| 🧥 Guardarropas     | Registrar prendas, cobrar y marcar retiradas                |
-| 👑 Admin            | Control total de listas, usuarios, productos y estadísticas |
-| 🚪 Puerta rol       | Ver todas las listas, usar scanner y cambiar estados        |
-| 👤 Usuario/RRPP     | Administrar solo sus propias listas                         |
-| ⚙️ Variables `.env` | Cambiar nombre de app, precio de ropero y datos generales   |
-
----
-
-## 🔐 Roles
-
-### 👑 Admin
-
-Puede:
-
-* Ver todas las listas.
-* Buscar por usuario, lista o persona.
-* Cambiar estados de ingreso: `No vino`, `Entró`, `Se fue`.
-* Usar Kioskito.
-* Usar Scanner.
-* Acceder al Panel Admin.
-* Enviar QR.
-* Crear usuarios.
-* Modificar roles.
-* Eliminar listas y personas.
-* Administrar productos.
-* Ver ventas.
-* Cerrar caja.
-* Usar Guardarropas.
+- [Descripción](#-descripción)
+- [Módulos](#-módulos)
+- [Roles y permisos](#-roles-y-permisos)
+- [Flujo operativo](#-flujo-operativo)
+- [Caja actual e historial](#-caja-actual-e-historial)
+- [Productos y categorías](#-productos-y-categorías)
+- [Tecnologías](#-tecnologías)
+- [Instalación con Docker](#-instalación-con-docker)
+- [Variables de entorno](#️-variables-de-entorno)
+- [Base de datos](#️-base-de-datos)
+- [Migraciones](#-migraciones)
+- [Estructura del proyecto](#-estructura-del-proyecto)
+- [Seguridad y reglas importantes](#-seguridad-y-reglas-importantes)
+- [Errores frecuentes](#-errores-frecuentes)
+- [Comandos útiles](#-comandos-útiles)
 
 ---
 
-### 🚪 Puerta
+## 🚀 Descripción
 
-Puede:
+**Divine App** es una aplicación web responsive para administrar eventos, boliches, fiestas y locales nocturnos desde una única interfaz.
 
-* Ver todas las listas.
-* Buscar por usuario, lista o persona.
-* Cambiar estados: `No vino`, `Entró`, `Se fue`.
-* Usar Scanner.
-* Confirmar entradas por QR.
+Está diseñada para trabajar en tiempo real desde computadoras, tablets y celulares, permitiendo separar claramente las tareas de:
 
-No puede:
+- 👑 Administración.
+- 🚪 Guardia y control de puerta.
+- 👤 RRPP y públicas.
+- 🛒 Barra, Kioskito y Guardarropas.
+- 📱 Clientes que consultan la carta pública.
 
-* Acceder al Panel Admin.
-* Usar Kioskito.
-* Crear usuarios.
-* Modificar productos.
-* Eliminar listas.
-* Eliminar personas.
-* Crear o pegar listas.
+La aplicación utiliza sesiones PHP, permisos por rol y una base de datos MySQL para mantener listas, ventas, cierres de caja, productos, prendas, QR y movimientos internos.
 
 ---
 
-### 👤 Usuario / RRPP
+## 🧩 Módulos
 
-Puede:
+### 🚪 Listas en puerta
 
-* Ver solo sus propias listas.
-* Crear listas normales.
-* Crear listas de cumpleaños.
-* Agregar personas.
-* Pegar listas completas.
-* Buscar invitados dentro de sus listas.
-* Enviar QR.
+Permite:
 
-No puede:
+- Crear listas normales.
+- Crear listas de cumpleaños.
+- Agregar personas individualmente.
+- Pegar listas completas.
+- Buscar invitados.
+- Consultar estados de ingreso.
+- Generar y compartir QR.
+- Ver estadísticas por lista.
 
-* Ver listas ajenas.
-* Cambiar estados de ingreso.
-* Usar Scanner.
-* Usar Kioskito.
-* Acceder al Panel Admin.
-* Cerrar caja.
+Estados disponibles:
+
+```txt
+no_vino
+entro
+se_fue
+```
+
+Regla de eliminación:
+
+| Rol | `no_vino` | `entro` | `se_fue` |
+|---|:---:|:---:|:---:|
+| Admin | ✅ | ✅ | ✅ |
+| RRPP / Pública | ✅ | ❌ | ❌ |
+| Guardia / Puerta | ❌ | ❌ | ❌ |
+
+Una RRPP no puede eliminar a una persona que ya ingresó o que ya se retiró.
+
+---
+
+### 📷 Scanner QR
+
+Permite:
+
+- Leer entradas usando la cámara.
+- Validar que el QR exista.
+- Verificar que esté habilitado.
+- Evitar el uso duplicado.
+- Confirmar el ingreso.
+- Cambiar automáticamente el estado a `entro`.
+
+> [!IMPORTANT]
+> La cámara requiere `HTTPS` o `localhost`.
+
+---
+
+### 🛒 Kioskito
+
+Kioskito concentra las tareas de:
+
+- Registrar ventas.
+- Agregar productos al carrito.
+- Sumar o restar cantidades.
+- Seleccionar método de pago.
+- Consultar la caja abierta.
+- Cerrar caja.
+- Gestionar Guardarropas desde el mismo módulo.
+
+Métodos de pago:
+
+```txt
+efectivo
+transferencia
+tarjeta
+regalo
+```
+
+La aplicación evita ventas duplicadas mediante `client_sale_id`.
+
+---
+
+### 🧥 Guardarropas
+
+Guardarropas se encuentra **dentro de Kioskito** y comparte el mismo rol de acceso.
+
+Permite:
+
+- Asignar número y código.
+- Guardar nombre.
+- Guardar DNI opcional.
+- Guardar teléfono opcional.
+- Registrar el cobro.
+- Buscar prendas.
+- Marcar una prenda como retirada.
+- Consultar ingresos y retiros.
+
+Estados:
+
+```txt
+pendiente
+retirado
+```
+
+---
+
+### 🧾 Cierre de caja
+
+Cada cierre guarda:
+
+- Usuario que cerró.
+- Primera venta incluida.
+- Última venta incluida.
+- Cantidad de ventas.
+- Total general.
+- Total en efectivo.
+- Total por transferencia.
+- Total con tarjeta.
+- Total en regalos.
+- Fecha y hora.
+- Resumen de productos.
+
+La caja actual contiene únicamente las ventas posteriores al último cierre.
+
+---
+
+### 📦 Stock del contenedor
+
+Disponible exclusivamente para administración.
+
+Permite:
+
+- Separar stock interno y externo.
+- Registrar cantidades.
+- Ajustar existencias.
+- Detectar faltantes.
+- Marcar stock bajo.
+- Generar una lista para compartir.
+- Crear artículos personalizados.
+
+Estado sugerido:
+
+```txt
+Agotado: cantidad = 0
+Stock bajo: cantidad <= límite configurado
+En stock: cantidad > límite configurado
+```
+
+---
+
+### 👑 Panel administrativo
+
+Permite:
+
+- Ver los contadores de la caja actual.
+- Ver ingresos de puerta.
+- Ver ingresos de Guardarropas.
+- Consultar productos vendidos.
+- Administrar usuarios.
+- Cambiar roles.
+- Administrar productos.
+- Ver QR.
+- Consultar cajas cerradas.
+- Eliminar cierres del historial de forma segura.
+- Acceder al stock del contenedor.
+- Auditar acciones mediante logs.
+
+---
+
+### 📖 Carta pública
+
+La carta está disponible para todos:
+
+- Admin.
+- Guardia.
+- RRPP.
+- Barra.
+- Clientes sin sesión.
+
+Debe permanecer accesible sin exigir inicio de sesión:
+
+```txt
+/menu.php
+```
+
+---
+
+## 🔐 Roles y permisos
+
+La aplicación utiliza cuatro roles:
+
+```sql
+ENUM('admin', 'usuario', 'puerta', 'kiosko')
+```
+
+### Matriz de permisos
+
+| Función | Admin | Guardia / Puerta | RRPP / Pública | Kioskito / Guardarropas |
+|---|:---:|:---:|:---:|:---:|
+| Ver carta | ✅ | ✅ | ✅ | ✅ |
+| Ver todas las listas | ✅ | ✅ | ❌ | ❌ |
+| Ver listas propias | ✅ | ❌ | ✅ | ❌ |
+| Crear listas | ✅ | ❌ | ✅ | ❌ |
+| Agregar personas | ✅ | ❌ | ✅ | ❌ |
+| Eliminar personas `no_vino` | ✅ | ❌ | ✅ | ❌ |
+| Eliminar personas que ya ingresaron | ✅ | ❌ | ❌ | ❌ |
+| Cambiar estados de ingreso | ✅ | ✅ | ❌ | ❌ |
+| Usar Scanner | ✅ | ✅ | ❌ | ❌ |
+| Generar QR | ✅ | Opcional | ✅, propios | ❌ |
+| Registrar ventas | ✅ | ❌ | ❌ | ✅ |
+| Usar Guardarropas | ✅ | ❌ | ❌ | ✅ |
+| Ver caja actual | ✅ | ❌ | ❌ | ✅ |
+| Cerrar caja | ✅ | ❌ | ❌ | Según configuración |
+| Ver historial de cajas | ✅ | ❌ | ❌ | ❌ |
+| Eliminar cajas del historial | ✅ | ❌ | ❌ | ❌ |
+| Gestionar productos | ✅ | ❌ | ❌ | ❌ |
+| Gestionar stock | ✅ | ❌ | ❌ | ❌ |
+| Gestionar usuarios | ✅ | ❌ | ❌ | ❌ |
+| Ver Panel Admin | ✅ | ❌ | ❌ | ❌ |
+
+### 👑 `admin`
+
+Acceso completo a todos los módulos y acciones administrativas.
+
+### 🚪 `puerta`
+
+Nombre visible:
+
+```txt
+Guardia / Puerta
+```
+
+Accede a:
+
+- Listas en puerta.
+- Todas las listas.
+- Scanner.
+- Cambio de estados.
+- Carta.
+
+No puede crear listas, eliminar personas, vender ni administrar usuarios.
+
+### 👤 `usuario`
+
+Nombre visible:
+
+```txt
+RRPP / Pública
+```
+
+Accede a:
+
+- Sus propias listas.
+- Creación de listas.
+- Carga de invitados.
+- Pegado masivo.
+- QR de sus invitados.
+- Carta.
+
+No puede ver listas ajenas ni cambiar estados de ingreso.
+
+### 🛒 `kiosko`
+
+Nombre visible:
+
+```txt
+Kioskito / Guardarropas
+```
+
+Accede a:
+
+- Kioskito.
+- Caja actual.
+- Guardarropas.
+- Carta.
+
+Guardarropas no aparece como tarjeta independiente en el inicio: se encuentra dentro de Kioskito.
+
+---
+
+## 🔄 Flujo operativo
+
+```mermaid
+flowchart LR
+    A[RRPP carga invitados] --> B[Se genera o comparte QR]
+    B --> C[Guardia busca o escanea]
+    C --> D[Invitado pasa a estado Entró]
+    E[Barra registra ventas] --> F[Caja actual]
+    G[Guardarropas registra prendas] --> H[Retiro de prenda]
+    F --> I[Admin o encargado cierra caja]
+    I --> J[Historial de cajas cerradas]
+```
+
+### Separación de responsabilidades
+
+```txt
+RRPP       → carga y mantiene sus invitados
+Puerta     → confirma ingresos
+Kioskito   → registra ventas y prendas
+Admin      → supervisa y administra todo
+```
+
+---
+
+## 💰 Caja actual e historial
+
+### Caja actual
+
+La caja abierta debe consultar únicamente ventas posteriores al último cierre.
+
+Conceptualmente:
+
+```sql
+SELECT *
+FROM kiosko_sales
+WHERE id > ultimo_to_sale_id
+ORDER BY id DESC;
+```
+
+La caja actual se utiliza para:
+
+- Total de Kioskito.
+- Productos vendidos.
+- Totales por medio de pago.
+- Cierre siguiente.
+
+### Historial de cajas cerradas
+
+El Panel Admin muestra un bloque independiente con:
+
+- Número de cierre.
+- Usuario que cerró.
+- Monto.
+- Fecha.
+- Cantidad de ventas.
+- Efectivo.
+- Transferencia.
+- Tarjeta.
+- Regalos.
+- Botón para eliminar del historial.
+
+La eliminación debe ser lógica:
+
+```sql
+deleted_at DATETIME NULL
+```
+
+Al eliminar un cierre se actualiza `deleted_at`, pero se conserva `to_sale_id`.
+
+Esto evita que las ventas cerradas reaparezcan en la caja actual.
+
+---
+
+## 🧃 Productos y categorías
+
+Los productos se agrupan por categoría con un orden persistente.
+
+Orden recomendado:
+
+| Orden | Categoría |
+|---:|---|
+| 1 | Vasos |
+| 2 | Vinos |
+| 3 | Champagnes |
+| 4 | Cervezas |
+| 5 | Sin alcohol |
+| 6 | Combos |
+| 7 | Shots |
+| 8 | Kiosko |
+| 9 | Extras |
+| 99 | Otros |
+
+Campos utilizados:
+
+```sql
+category_order TINYINT UNSIGNED NOT NULL DEFAULT 99
+sort_order INT UNSIGNED NOT NULL DEFAULT 0
+```
+
+Consulta recomendada:
+
+```sql
+SELECT *
+FROM products
+WHERE active = 1
+ORDER BY
+    category_order ASC,
+    sort_order ASC,
+    price ASC,
+    name ASC;
+```
+
+Así se muestran primero todos los vasos, luego todos los vinos, champagnes, cervezas y el resto de categorías.
 
 ---
 
 ## 🧩 Tecnologías
 
-```txt
-Frontend: HTML + CSS + JavaScript
-Backend: PHP
-Base de datos: MySQL
-Sesiones: PHP Sessions
-Servidor local: Apache
-Deploy local: Docker / XAMPP
-```
+| Capa | Tecnología |
+|---|---|
+| Frontend | HTML, CSS y JavaScript |
+| Backend | PHP 8+ |
+| Base de datos | MySQL 8 |
+| Autenticación | PHP Sessions |
+| Servidor web | Apache |
+| Contenedores | Docker y Docker Compose |
+| Administración DB | phpMyAdmin |
+| QR | Tokens únicos por persona |
 
 ---
 
-## ⚙️ Variables `.env`
+## 🐳 Instalación con Docker
 
-La app puede tomar configuraciones desde el archivo `.env`.
+### 1. Clonar o copiar el proyecto
 
-Ejemplo:
+Estructura mínima:
+
+```txt
+divine_app/
+├── src/
+├── db/
+├── Dockerfile
+├── docker-compose.yml
+└── .env
+```
+
+### 2. Configurar `.env`
 
 ```env
 NAME_APP=Divine
 APP_VERSION=1.0.0
 APP_AUTHOR=Nicko
 
-MYSQL_ROOT_PASSWORD=root
+MYSQL_ROOT_PASSWORD=cambiar_root
 MYSQL_DATABASE=divine_db
 MYSQL_USER=usuario
-MYSQL_PASSWORD=password
+MYSQL_PASSWORD=cambiar_password
 
 DB_HOST=mysql
 DB_PORT=3306
 DB_NAME=divine_db
 DB_USER=usuario
-DB_PASSWORD=password
+DB_PASSWORD=cambiar_password
 ```
 
-Variables principales:
-
-| Variable                        | Uso                          |
-| ------------------------------- | ---------------------------- |
-| `NAME_APP`                      | Nombre visible de la app     |
-| `PRECIO_ROPERO`                 | Precio base del guardarropas |
-| `APP_VERSION`                   | Versión visible o interna    |
-| `APP_AUTHOR`                    | Autor de la app              |
-| `DB_HOST` / `MYSQLHOST`         | Host de MySQL                |
-| `DB_NAME` / `MYSQLDATABASE`     | Nombre de la base            |
-| `DB_USER` / `MYSQLUSER`         | Usuario de MySQL             |
-| `DB_PASSWORD` / `MYSQLPASSWORD` | Contraseña de MySQL          |
-
-En PHP se usa así:
-
-```php
-<?= APP_NAME ?>
-```
-
-Ejemplo:
-
-```php
-<title><?= APP_NAME ?></title>
-```
-
----
-
-## 🐳 Levantar con Docker
+### 3. Levantar los servicios
 
 ```bash
 docker compose up -d --build
 ```
 
-Abrir la app:
+### 4. Abrir la aplicación
 
 ```txt
-http://localhost:8080
+Aplicación:  http://localhost:8080
+phpMyAdmin:  http://localhost:8081
 ```
 
-phpMyAdmin:
-
-```txt
-http://localhost:8081
-```
-
-Datos de phpMyAdmin:
+Datos de acceso a phpMyAdmin:
 
 ```txt
 Servidor: mysql
-Usuario: usuario
-Contraseña: password
-Base: divine_db
+Usuario:  el valor de MYSQL_USER
+Clave:    el valor de MYSQL_PASSWORD
+Base:     divine_db
 ```
 
 ---
 
-## 🐳 Docker compose recomendado
+## 🐳 Docker Compose recomendado
 
 ```yaml
 services:
@@ -225,15 +544,24 @@ services:
     image: mysql:8.0
     container_name: divine_mysql
     environment:
-      MYSQL_ROOT_PASSWORD: 12345678
-      MYSQL_DATABASE: divine_db
-      MYSQL_USER: usuario
-      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h localhost -u${MYSQL_USER} -p${MYSQL_PASSWORD}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: always
 
   phpmyadmin:
@@ -245,7 +573,8 @@ services:
       PMA_HOST: mysql
       PMA_PORT: 3306
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     restart: always
 
 volumes:
@@ -273,7 +602,6 @@ RUN apt-get update && apt-get install -y \
     php-zip \
     unzip \
     curl \
-    nano \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -287,7 +615,8 @@ RUN rm -f /var/www/html/index.html
 COPY db/ /var/www/db/
 COPY src/ /var/www/html/
 
-RUN echo "DirectoryIndex index.php index.html" > /etc/apache2/mods-enabled/dir.conf
+RUN echo "DirectoryIndex index.php index.html" \
+    > /etc/apache2/mods-enabled/dir.conf
 
 RUN chown -R www-data:www-data /var/www/html
 
@@ -298,351 +627,86 @@ CMD ["apachectl", "-D", "FOREGROUND"]
 
 ---
 
-## 🔄 Cambiar `.env` en desarrollo
+## ⚙️ Variables de entorno
 
-Si el `.env` está montado como volumen:
+| Variable | Descripción |
+|---|---|
+| `NAME_APP` | Nombre visible de la aplicación |
+| `APP_VERSION` | Versión de la aplicación |
+| `APP_AUTHOR` | Autor |
+| `MYSQL_ROOT_PASSWORD` | Clave root de MySQL |
+| `MYSQL_DATABASE` | Base inicial |
+| `MYSQL_USER` | Usuario de MySQL |
+| `MYSQL_PASSWORD` | Contraseña del usuario |
+| `DB_HOST` | Host usado desde PHP |
+| `DB_PORT` | Puerto interno de MySQL |
+| `DB_NAME` | Nombre de la base |
+| `DB_USER` | Usuario usado por PDO |
+| `DB_PASSWORD` | Contraseña usada por PDO |
 
-```yaml
-- ./.env:/var/www/.env:ro
+Uso desde PHP:
+
+```php
+<title><?= e(APP_NAME) ?></title>
 ```
 
-se puede cambiar, guardar y refrescar el navegador.
-
-Ejemplo:
-
-```env
-NAME_APP=Lopez
-```
-
-Cambiar a:
-
-```env
-NAME_APP=Cubik
-```
-
-Luego refrescar la web.
+> [!CAUTION]
+> No publiques el `.env` ni contraseñas reales en GitHub.
 
 ---
 
-## 🧪 Crear usuarios iniciales
+## 🗄️ Base de datos
 
-Abrir una vez:
+Tablas principales:
 
-```txt
-http://localhost:8080/setup.php
-```
-
-Luego entrar al login:
-
-```txt
-http://localhost:8080/login.php
-```
-
-Usuarios disponibles:
-
-```txt
-Lopez      / lopez123       -> admin
-Nicolas    / nicolas123     -> admin
-Camila     / camila123      -> puerta
-Publica    / publica123     -> usuario
-Candelaria / candelaria123  -> usuario
-```
-
-Después de crear los usuarios, borrar:
-
-```txt
-src/setup.php
-```
+| Tabla | Contenido |
+|---|---|
+| `users` | Usuarios y roles |
+| `products` | Productos y orden de categorías |
+| `kiosko_sales` | Ventas individuales |
+| `kiosko_closings` | Cierres de caja |
+| `door_lists` | Listas de RRPP |
+| `door_people` | Invitados, estados y QR |
+| `guardarropas` | Prendas |
+| `container_stock_items` | Stock actual |
+| `container_stock_movements` | Movimientos de stock |
+| `app_logs` | Auditoría |
+| `user_remember_tokens` | Sesiones persistentes |
 
 ---
 
-## 🖥️ Usar con XAMPP
+## 🛠️ Migraciones
 
-Copiar `src` dentro de:
-
-```txt
-C:\xampp\htdocs\divine
-```
-
-Crear la base:
-
-```txt
-divine_db
-```
-
-Importar:
-
-```txt
-db/init.sql
-```
-
-Abrir:
-
-```txt
-http://localhost/divine/login.php
-```
-
----
-
-## 📁 Archivos importantes
-
-```txt
-src/index.php              Pantalla principal / menú
-src/login.php              Inicio de sesión
-src/logout.php             Cierre de sesión
-src/const.php              Constantes y lectura de .env
-src/api.php                Endpoints PHP
-src/script.js              Lógica frontend
-src/styles.css             Estilos responsive
-src/admin.php              Panel Admin
-src/scanner.php            Scanner QR
-src/qr.php                 Validación QR
-src/setup.php              Creación inicial de usuarios
-src/config/conexion.php    Conexión MySQL
-src/config/app_logs.php    Registro de acciones internas
-db/init.sql                Tablas y productos iniciales
-.env                       Variables de entorno
-Dockerfile                 Imagen del servidor web
-docker-compose.yml         Servicios Docker
-```
-
----
-
-## 🗄️ Tablas principales
-
-```txt
-users             Usuarios y roles
-products          Productos del Kioskito
-kiosko_sales      Historial de ventas
-kiosko_closings   Cierres de caja
-door_lists        Listas de puerta
-door_people       Personas dentro de cada lista y QR
-guardarropas      Prendas registradas
-app_logs          Logs internos de acciones
-```
-
----
-
-## 🛒 Kioskito
-
-El módulo Kioskito permite:
-
-* Agregar productos al carrito.
-* Sumar y restar cantidades.
-* Confirmar ventas.
-* Registrar método de pago.
-* Ver historial.
-* Ver resumen de caja.
-* Cerrar caja.
-* Evitar ventas duplicadas con `client_sale_id`.
-
-Métodos de pago disponibles:
-
-```txt
-efectivo
-transferencia
-tarjeta
-regalo
-```
-
-La tabla `kiosko_sales` guarda:
-
-```txt
-id
-client_sale_id
-user_id
-items
-total
-payment_method
-created_at
-```
-
----
-
-## 🧾 Cierre de caja
-
-La app usa la tabla `kiosko_closings` para guardar cierres de caja.
-
-Campos principales:
-
-```txt
-id
-user_id
-from_sale_id
-to_sale_id
-total
-efectivo_total
-transferencia_total
-tarjeta_total
-regalo_total
-sales_count
-items
-note
-created_at
-closed_at
-```
-
-El cierre permite saber qué ventas quedaron incluidas entre:
-
-```txt
-from_sale_id
-to_sale_id
-```
-
-Esto evita volver a cerrar ventas ya cerradas.
-
----
-
-## 🚪 Puerta
-
-El módulo Puerta permite:
-
-* Crear listas normales.
-* Crear listas de cumpleaños.
-* Agregar personas.
-* Pegar listas completas.
-* Buscar personas.
-* Controlar estados de ingreso.
-* Enviar QR.
-* Ver estadísticas por lista.
-
-Estados disponibles:
-
-```txt
-no_vino
-entro
-se_fue
-```
-
-Precios sugeridos:
-
-```txt
-Lista normal: $500
-Lista cumpleaños: $1000
-```
-
----
-
-## 📲 QR y Scanner
-
-Cada persona puede tener un QR único mediante `qr_token`.
-
-La tabla `door_people` guarda:
-
-```txt
-qr_token
-qr_enabled
-qr_used_at
-```
-
-El Scanner permite:
-
-* Leer QR desde cámara.
-* Validar si el QR existe.
-* Confirmar entrada.
-* Evitar QR inválidos.
-
-Importante:
-
-```txt
-El scanner necesita HTTPS o localhost para usar la cámara.
-```
-
----
-
-## 🧥 Guardarropas
-
-El módulo Guardarropas permite:
-
-* Crear número de prenda.
-* Guardar nombre.
-* Guardar DNI opcional.
-* Guardar teléfono opcional.
-* Marcar como retirado.
-* Calcular ingresos.
-
-Estado de prenda:
-
-```txt
-pendiente
-retirado
-```
-
-Precio por defecto:
-
-```txt
-$2000
-```
-
-Puede configurarse desde:
-
-```env
-PRECIO_ROPERO=2000
-```
-
----
-
-## 📊 Admin
-
-El Panel Admin permite:
-
-* Ver estadísticas.
-* Ver usuarios.
-* Crear usuarios.
-* Modificar roles.
-* Controlar listas.
-* Controlar QR.
-* Ver actividad general.
-* Auditar acciones mediante logs.
-
----
-
-## 🧾 Logs internos
-
-La tabla `app_logs` guarda acciones importantes:
-
-```txt
-ventas
-cambios de estado
-eliminaciones
-errores
-acciones administrativas
-```
-
-Sirve para auditoría y control interno.
-
----
-
-## 🛠️ Roles permitidos en la base de datos
-
-El campo `role` de la tabla `users` debe aceptar:
-
-```sql
-ENUM('admin', 'usuario', 'puerta')
-```
-
-Ejemplo:
+### Agregar el rol `kiosko`
 
 ```sql
 ALTER TABLE users
-MODIFY role ENUM('admin', 'usuario', 'puerta') NOT NULL DEFAULT 'usuario';
+MODIFY COLUMN role
+ENUM('admin', 'usuario', 'puerta', 'kiosko')
+NOT NULL DEFAULT 'usuario';
 ```
 
-Para convertir un usuario existente al rol puerta:
+### Agregar orden de productos
 
 ```sql
-UPDATE users
-SET role = 'puerta'
-WHERE username = 'camila';
+ALTER TABLE products
+ADD COLUMN category_order TINYINT UNSIGNED
+NOT NULL DEFAULT 99 AFTER qty;
+
+ALTER TABLE products
+ADD COLUMN sort_order INT UNSIGNED
+NOT NULL DEFAULT 0 AFTER category_order;
 ```
 
----
+### Agregar borrado lógico a cierres
 
-## 🛠️ Migraciones útiles
+```sql
+ALTER TABLE kiosko_closings
+ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL
+AFTER closed_at;
+```
 
-Si la base ya existe, `init.sql` no siempre se vuelve a ejecutar automáticamente porque MySQL conserva el volumen.
-
-Para agregar `client_sale_id` a ventas:
+### Agregar identificador de venta cliente
 
 ```sql
 ALTER TABLE kiosko_sales
@@ -652,95 +716,205 @@ ALTER TABLE kiosko_sales
 ADD UNIQUE KEY uq_kiosko_sales_client_sale_id (client_sale_id);
 ```
 
-Para agregar métodos de pago:
+### Asegurar los métodos de pago
 
 ```sql
 ALTER TABLE kiosko_sales
-MODIFY payment_method ENUM('efectivo', 'transferencia', 'tarjeta', 'regalo') NOT NULL DEFAULT 'efectivo';
+MODIFY payment_method
+ENUM('efectivo', 'transferencia', 'tarjeta', 'regalo')
+NOT NULL DEFAULT 'efectivo';
 ```
 
-Para crear cierre de caja:
+> [!NOTE]
+> `init.sql` se ejecuta automáticamente solo cuando MySQL crea un volumen nuevo.  
+> Para actualizar una base existente hay que ejecutar las migraciones manualmente.
 
-```sql
-CREATE TABLE IF NOT EXISTS kiosko_closings (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+---
 
-    user_id INT NULL,
+## 👥 Crear usuarios iniciales
 
-    from_sale_id INT NULL,
-    to_sale_id INT NULL,
+Abrir una única vez:
 
-    total INT NOT NULL DEFAULT 0,
-    efectivo_total INT NOT NULL DEFAULT 0,
-    transferencia_total INT NOT NULL DEFAULT 0,
-    tarjeta_total INT NOT NULL DEFAULT 0,
-    regalo_total INT NOT NULL DEFAULT 0,
-
-    sales_count INT NOT NULL DEFAULT 0,
-
-    items LONGTEXT NULL,
-    note VARCHAR(255) NULL,
-
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    closed_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
-
-    INDEX idx_kiosko_closings_user_id (user_id),
-    INDEX idx_kiosko_closings_sale_range (from_sale_id, to_sale_id),
-    INDEX idx_kiosko_closings_created_at (created_at),
-
-    CONSTRAINT fk_kiosko_closings_user
-        FOREIGN KEY (user_id)
-        REFERENCES users(id)
-        ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```txt
+http://localhost:8080/setup.php
 ```
 
-Si ya existe `kiosko_closings` pero faltan columnas:
+Luego ingresar desde:
 
-```sql
-ALTER TABLE kiosko_closings
-ADD COLUMN from_sale_id INT NULL AFTER user_id;
-
-ALTER TABLE kiosko_closings
-ADD COLUMN to_sale_id INT NULL AFTER from_sale_id;
-
-ALTER TABLE kiosko_closings
-ADD INDEX idx_kiosko_closings_sale_range (from_sale_id, to_sale_id);
+```txt
+http://localhost:8080/login.php
 ```
 
-Para cambiar `cortesia_total` a `regalo_total`:
+Después de crear los usuarios:
 
-```sql
-ALTER TABLE kiosko_closings
-CHANGE cortesia_total regalo_total INT NOT NULL DEFAULT 0;
+```txt
+Eliminar o deshabilitar src/setup.php
+```
+
+Roles permitidos:
+
+```txt
+admin
+puerta
+usuario
+kiosko
 ```
 
 ---
 
-## ⚠️ Notas importantes
+## 📁 Estructura del proyecto
 
-* La app guarda la información en **MySQL**.
-* El scanner QR necesita **HTTPS o localhost** para usar la cámara.
-* El live reload se pausa al escribir, pegar listas o abrir modales.
-* Los estados de ingreso los pueden cambiar los roles `admin` y `puerta`.
-* El rol `puerta` ve todas las listas, pero no administra productos ni usuarios.
-* Los QR se guardan en la tabla `door_people`.
-* Las ventas se guardan en `kiosko_sales`.
-* Los cierres de caja se guardan en `kiosko_closings`.
-* Si se usa Docker con volumen de MySQL, modificar `init.sql` no actualiza una base ya creada.
-* Para aplicar cambios en una base existente hay que ejecutar las migraciones manualmente en phpMyAdmin.
-* Si se cambia el `.env` montado como volumen, alcanza con guardar y refrescar.
-* Si el `.env` se copia dentro de la imagen Docker, hay que reconstruir con `docker compose up -d --build`.
+```txt
+src/
+├── index.php
+├── login.php
+├── logout.php
+├── admin.php
+├── listas.php
+├── kioskito.php
+├── scanner.php
+├── menu.php
+├── menu_qr.php
+├── stock_contenedor.php
+├── qr.php
+├── api.php
+├── auth.php
+├── const.php
+├── setup.php
+│
+├── config/
+│   ├── conexion.php
+│   └── app_logs.php
+│
+├── styles/
+│   ├── theme.css
+│   ├── index.css
+│   └── stock-contenedor.css
+│
+└── js/
+    ├── theme.js
+    └── stock-contenedor.js
+
+db/
+└── init.sql
+
+.env
+Dockerfile
+docker-compose.yml
+README.md
+```
 
 ---
 
-## 🧯 Errores comunes
+## 🔒 Seguridad y reglas importantes
 
-### Unknown column `client_sale_id`
+- Los permisos deben validarse en PHP, no solo ocultando botones.
+- RRPP solo puede acceder a listas propias.
+- RRPP solo puede eliminar personas con estado `no_vino`.
+- Guardia puede cambiar estados, pero no eliminar personas.
+- Kioskito comparte acceso con Guardarropas.
+- Solo Admin puede gestionar usuarios y productos.
+- Solo Admin puede ver y eliminar cierres del historial.
+- El borrado de cierres debe ser lógico.
+- Los QR usados no deben volver a aceptarse.
+- `client_sale_id` evita registrar una misma venta dos veces.
+- Las contraseñas deben guardarse con `password_hash()`.
+- El `.env` nunca debe subirse con datos reales.
+- Los endpoints sensibles deben comprobar la sesión y el rol.
 
-Falta la columna en `kiosko_sales`.
+Ejemplo de validación:
 
-Solución:
+```php
+function require_bar_access(array $user): void
+{
+    $role = strtolower(trim((string) ($user['role'] ?? '')));
+
+    if (!in_array($role, ['admin', 'kiosko'], true)) {
+        fail('No tenés permiso para usar Kioskito.', 403);
+    }
+}
+```
+
+---
+
+## 🧯 Errores frecuentes
+
+### `Unknown column 'total_amount'`
+
+La tabla utiliza `total`, no `total_amount`.
+
+Correcto:
+
+```sql
+INSERT INTO kiosko_closings (
+    total,
+    items
+)
+```
+
+`total_amount` puede existir como clave interna del array PHP, pero no como columna SQL.
+
+---
+
+### Kioskito muestra ventas de cajas anteriores
+
+El endpoint `sales_history` debe filtrar usando el último `to_sale_id`.
+
+```sql
+SELECT COALESCE(MAX(to_sale_id), 0)
+FROM kiosko_closings;
+```
+
+Luego:
+
+```sql
+SELECT *
+FROM kiosko_sales
+WHERE id > :last_closed_sale_id;
+```
+
+---
+
+### Un cierre eliminado vuelve a abrir ventas viejas
+
+No hay que borrar físicamente el cierre.
+
+Usar:
+
+```sql
+UPDATE kiosko_closings
+SET deleted_at = NOW()
+WHERE id = :id;
+```
+
+Para determinar la última venta cerrada se deben considerar también los cierres ocultos.
+
+---
+
+### `Expected type object, found null` en `$pdo`
+
+Pasar la conexión como parámetro:
+
+```php
+function require_login(PDO $pdo): array
+{
+    // ...
+}
+
+$user = require_login($pdo);
+```
+
+Y validar la conexión:
+
+```php
+if (!isset($pdo) || !($pdo instanceof PDO)) {
+    throw new RuntimeException('Conexión PDO no disponible.');
+}
+```
+
+---
+
+### `Unknown column 'client_sale_id'`
 
 ```sql
 ALTER TABLE kiosko_sales
@@ -749,114 +923,105 @@ ADD COLUMN client_sale_id VARCHAR(80) NULL AFTER id;
 
 ---
 
-### Table `kiosko_closings` doesn't exist
+### `Table 'kiosko_closings' doesn't exist`
 
-Falta la tabla de cierres de caja.
-
-Solución:
-
-```sql
-CREATE TABLE IF NOT EXISTS kiosko_closings (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NULL,
-    from_sale_id INT NULL,
-    to_sale_id INT NULL,
-    total INT NOT NULL DEFAULT 0,
-    efectivo_total INT NOT NULL DEFAULT 0,
-    transferencia_total INT NOT NULL DEFAULT 0,
-    tarjeta_total INT NOT NULL DEFAULT 0,
-    regalo_total INT NOT NULL DEFAULT 0,
-    sales_count INT NOT NULL DEFAULT 0,
-    items LONGTEXT NULL,
-    note VARCHAR(255) NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    closed_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP
-);
-```
+Importar la tabla desde `db/init.sql` o ejecutar la migración correspondiente.
 
 ---
 
-### Unknown column `to_sale_id`
+### `APP_NAME` no cambia
 
-Faltan columnas de rango de cierre.
-
-Solución:
-
-```sql
-ALTER TABLE kiosko_closings
-ADD COLUMN from_sale_id INT NULL AFTER user_id;
-
-ALTER TABLE kiosko_closings
-ADD COLUMN to_sale_id INT NULL AFTER from_sale_id;
-```
-
----
-
-### `APP_NAME` no cambia desde `.env`
-
-Revisar que exista:
+Verificar que exista:
 
 ```txt
 /var/www/.env
 ```
 
-y que en `docker-compose.yml` esté montado:
+Y que Docker lo monte:
 
 ```yaml
 - ./.env:/var/www/.env:ro
-```
-
-También revisar que `.dockerignore` no ignore el archivo:
-
-```txt
-.env
 ```
 
 ---
 
 ## 🧼 Comandos útiles
 
-Levantar:
+### Levantar
 
 ```bash
 docker compose up -d --build
 ```
 
-Apagar:
+### Apagar
 
 ```bash
 docker compose down
 ```
 
-Reconstruir sin caché:
+### Reconstruir sin caché
 
 ```bash
 docker compose build --no-cache
 docker compose up -d
 ```
 
-Ver contenedores:
+### Ver contenedores
 
 ```bash
 docker ps
 ```
 
-Entrar al contenedor web:
+### Ver logs
+
+```bash
+docker compose logs -f
+```
+
+### Entrar al contenedor web
 
 ```bash
 docker exec -it divine_web bash
 ```
 
-Entrar a MySQL:
+### Entrar a MySQL
 
 ```bash
-docker exec -it divine_mysql mysql -u usuario -p divine_db
+docker exec -it divine_mysql \
+mysql -u usuario -p divine_db
+```
+
+### Validar un archivo PHP
+
+```bash
+php -l src/api.php
 ```
 
 ---
 
-### 💜 Divine App
+## 🗺️ Próximas mejoras
 
-Sistema simple, rápido y responsive para controlar eventos, puerta, ventas, QR y caja.
+- [ ] Permisos configurables por módulo.
+- [ ] Exportar cierres a PDF o Excel.
+- [ ] Estadísticas por fecha.
+- [ ] Dashboard de productos más vendidos.
+- [ ] Registro completo de movimientos de stock.
+- [ ] Multi-local con una sola instalación.
+- [ ] Copias de seguridad automáticas.
+- [ ] Notificaciones de stock bajo.
+- [ ] Mejoras de accesibilidad.
+- [ ] Pruebas automáticas de API.
 
-**Hecho con PHP + MySQL + JavaScript + Docker**
+---
+
+<div align="center">
+
+## 💜 Divine App
+
+Sistema simple, rápido y responsive para controlar toda la noche.
+
+**Desarrollado con PHP, MySQL, JavaScript y Docker.**
+
+Hecho por **Nicko**
+
+</div>
