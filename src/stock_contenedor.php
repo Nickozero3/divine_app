@@ -76,45 +76,6 @@ if (!function_exists('stock_input')) {
     }
 }
 
-if (!function_exists('stock_seed_items')) {
-    function stock_seed_items(): array
-    {
-        return [
-            // EXTERNO: se cuentan cajas de bebidas.
-            ['daemong', 'Daemong', 'Bebidas alcohólicas', 'externo'],
-            ['sernova_rojo', 'Vodka Sernova rojo', 'Bebidas alcohólicas', 'externo'],
-            ['sernova_maracuya', 'Vodka Sernova maracuyá', 'Bebidas alcohólicas', 'externo'],
-            ['sernova_verde', 'Vodka Sernova verde', 'Bebidas alcohólicas', 'externo'],
-            ['fernet_chico', 'Fernet chico', 'Bebidas alcohólicas', 'externo'],
-            ['fernet_grande', 'Fernet grande', 'Bebidas alcohólicas', 'externo'],
-            ['vodka_barato', 'Vodka barato', 'Bebidas alcohólicas', 'externo'],
-            ['gancia', 'Gancia', 'Bebidas alcohólicas', 'externo'],
-            ['campari', 'Campari', 'Bebidas alcohólicas', 'externo'],
-            ['dilema_blanco', 'Dilema blanco', 'Vinos y espumantes', 'externo'],
-            ['dilema_rosado', 'Dilema rosado', 'Vinos y espumantes', 'externo'],
-            ['dilema_tinto', 'Dilema tinto', 'Vinos y espumantes', 'externo'],
-            ['santa_julia_blanco', 'Santa Julia blanco', 'Vinos y espumantes', 'externo'],
-            ['santa_julia_tinto', 'Santa Julia tinto', 'Vinos y espumantes', 'externo'],
-            ['du', 'DU', 'Vinos y espumantes', 'externo'],
-            ['baron_b', 'Baron B', 'Vinos y espumantes', 'externo'],
-
-            // INTERNO: insumos, gaseosas, latas, agua y energizantes.
-            ['vasos', 'Vasos', 'Insumos', 'interno'],
-            ['fraperas', 'Fráperas', 'Insumos', 'interno'],
-            ['sorbetes', 'Sorbetes', 'Insumos', 'interno'],
-            ['jugos', 'Jugos', 'Insumos', 'interno'],
-            ['coca_lata', 'Coca en lata', 'Gaseosas', 'interno'],
-            ['sprite', 'Sprite', 'Gaseosas', 'interno'],
-            ['coca_zero', 'Coca Zero', 'Gaseosas', 'interno'],
-            ['speed', 'Speed', 'Gaseosas', 'interno'],
-            ['agua', 'Agua', 'Gaseosas', 'interno'],
-            ['sprite_botella', 'Sprite en botella', 'Gaseosas', 'interno'],
-            ['coca_botella', 'Coca en botella', 'Gaseosas', 'interno'],
-            ['tonicas_botella', 'Tónicas en botella', 'Gaseosas', 'interno'],
-        ];
-    }
-}
-
 if (!function_exists('stock_ensure_schema')) {
     function stock_ensure_schema(PDO $pdo): void
     {
@@ -179,28 +140,6 @@ CREATE TABLE IF NOT EXISTS container_stock_movements (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 SQL);
 
-        $seed = $pdo->prepare(<<<'SQL'
-INSERT INTO container_stock_items
-    (code, name, category, sector, quantity, low_threshold, sort_order, active)
-VALUES
-    (:code, :name, :category, :sector, 0, 4, :sort_order, 1)
-ON DUPLICATE KEY UPDATE
-    name = VALUES(name),
-    category = VALUES(category),
-    sector = VALUES(sector),
-    sort_order = VALUES(sort_order),
-    active = 1
-SQL);
-
-        foreach (stock_seed_items() as $index => [$code, $name, $category, $sector]) {
-            $seed->execute([
-                ':code' => $code,
-                ':name' => $name,
-                ':category' => $category,
-                ':sector' => $sector,
-                ':sort_order' => $index + 1,
-            ]);
-        }
     }
 }
 
