@@ -1,5 +1,5 @@
 /* =========================================================
-   DIVINE APP - BASE DE DATOS INICIAL
+   DIVINE APP - BASE DE DATOS INICIAL Y ACTUALIZACIÓN SEGURA
    ---------------------------------------------------------
    Este archivo crea las tablas principales de la app:
    - Usuarios
@@ -14,6 +14,14 @@
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
+
+/*
+ * Este archivo es idempotente:
+ * - crea las tablas que falten;
+ * - agrega columnas conocidas únicamente cuando faltan;
+ * - inserta productos/artículos faltantes por su code;
+ * - conserva productos, cantidades y configuraciones ya existentes.
+ */
 
 
 /* =========================================================
@@ -41,15 +49,6 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_users_username (username),
     INDEX idx_users_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-/*
- * Compatibilidad con instalaciones existentes.
- * Amplía los roles sin eliminar usuarios.
- */
-ALTER TABLE users
-    MODIFY COLUMN role ENUM('admin', 'usuario', 'puerta', 'kiosko')
-    NOT NULL DEFAULT 'usuario';
 
 
 /* =========================================================
@@ -94,10 +93,14 @@ CREATE TABLE IF NOT EXISTS products (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
-/*
- * Compatibilidad con bases existentes:
- * añade columnas de orden sin borrar productos.
- */
+/* =========================================================
+   COMPATIBILIDAD: users y products
+   ========================================================= */
+
+ALTER TABLE users
+    MODIFY COLUMN role ENUM('admin', 'usuario', 'puerta', 'kiosko')
+    NOT NULL DEFAULT 'usuario';
+
 SET @products_category_order_exists := (
     SELECT COUNT(*)
     FROM INFORMATION_SCHEMA.COLUMNS
@@ -108,7 +111,7 @@ SET @products_category_order_exists := (
 SET @products_category_order_sql := IF(
     @products_category_order_exists = 0,
     'ALTER TABLE products ADD COLUMN category_order TINYINT UNSIGNED NOT NULL DEFAULT 99 AFTER qty',
-    'SELECT 1'
+    'DO 0'
 );
 PREPARE products_category_order_stmt FROM @products_category_order_sql;
 EXECUTE products_category_order_stmt;
@@ -124,11 +127,43 @@ SET @products_sort_order_exists := (
 SET @products_sort_order_sql := IF(
     @products_sort_order_exists = 0,
     'ALTER TABLE products ADD COLUMN sort_order INT UNSIGNED NOT NULL DEFAULT 0 AFTER category_order',
-    'SELECT 1'
+    'DO 0'
 );
 PREPARE products_sort_order_stmt FROM @products_sort_order_sql;
 EXECUTE products_sort_order_stmt;
 DEALLOCATE PREPARE products_sort_order_stmt;
+
+SET @products_custom_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'products'
+      AND COLUMN_NAME = 'custom'
+);
+SET @products_custom_sql := IF(
+    @products_custom_exists = 0,
+    'ALTER TABLE products ADD COLUMN custom TINYINT(1) NOT NULL DEFAULT 0 AFTER sort_order',
+    'DO 0'
+);
+PREPARE products_custom_stmt FROM @products_custom_sql;
+EXECUTE products_custom_stmt;
+DEALLOCATE PREPARE products_custom_stmt;
+
+SET @products_active_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'products'
+      AND COLUMN_NAME = 'active'
+);
+SET @products_active_sql := IF(
+    @products_active_exists = 0,
+    'ALTER TABLE products ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1 AFTER custom',
+    'DO 0'
+);
+PREPARE products_active_stmt FROM @products_active_sql;
+EXECUTE products_active_stmt;
+DEALLOCATE PREPARE products_active_stmt;
 
 SET @products_order_index_exists := (
     SELECT COUNT(*)
@@ -140,7 +175,7 @@ SET @products_order_index_exists := (
 SET @products_order_index_sql := IF(
     @products_order_index_exists = 0,
     'ALTER TABLE products ADD INDEX idx_products_category_order (category_order, sort_order)',
-    'SELECT 1'
+    'DO 0'
 );
 PREPARE products_order_index_stmt FROM @products_order_index_sql;
 EXECUTE products_order_index_stmt;
@@ -293,9 +328,43 @@ CREATE TABLE IF NOT EXISTS kiosko_closings (
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-/*
- * Borrado lógico: oculta cierres sin reabrir ventas antiguas.
- */
+
+/* =========================================================
+   COMPATIBILIDAD: ventas y cierres de Kioskito
+   ========================================================= */
+
+SET @kiosko_client_sale_id_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'kiosko_sales'
+      AND COLUMN_NAME = 'client_sale_id'
+);
+SET @kiosko_client_sale_id_sql := IF(
+    @kiosko_client_sale_id_exists = 0,
+    'ALTER TABLE kiosko_sales ADD COLUMN client_sale_id VARCHAR(80) NULL AFTER id',
+    'DO 0'
+);
+PREPARE kiosko_client_sale_id_stmt FROM @kiosko_client_sale_id_sql;
+EXECUTE kiosko_client_sale_id_stmt;
+DEALLOCATE PREPARE kiosko_client_sale_id_stmt;
+
+SET @kiosko_client_sale_index_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'kiosko_sales'
+      AND INDEX_NAME = 'uq_kiosko_sales_client_sale_id'
+);
+SET @kiosko_client_sale_index_sql := IF(
+    @kiosko_client_sale_index_exists = 0,
+    'ALTER TABLE kiosko_sales ADD UNIQUE INDEX uq_kiosko_sales_client_sale_id (client_sale_id)',
+    'DO 0'
+);
+PREPARE kiosko_client_sale_index_stmt FROM @kiosko_client_sale_index_sql;
+EXECUTE kiosko_client_sale_index_stmt;
+DEALLOCATE PREPARE kiosko_client_sale_index_stmt;
+
 SET @kiosko_deleted_at_exists := (
     SELECT COUNT(*)
     FROM INFORMATION_SCHEMA.COLUMNS
@@ -306,13 +375,13 @@ SET @kiosko_deleted_at_exists := (
 SET @kiosko_deleted_at_sql := IF(
     @kiosko_deleted_at_exists = 0,
     'ALTER TABLE kiosko_closings ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL AFTER closed_at',
-    'SELECT 1'
+    'DO 0'
 );
 PREPARE kiosko_deleted_at_stmt FROM @kiosko_deleted_at_sql;
 EXECUTE kiosko_deleted_at_stmt;
 DEALLOCATE PREPARE kiosko_deleted_at_stmt;
 
- 
+
 /* =========================================================
    TABLA: guardarropas
    ---------------------------------------------------------
@@ -390,7 +459,7 @@ CREATE TABLE IF NOT EXISTS app_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- -- =========================================================
+-- =========================================================
 --     TABLA: user_remember_tokens
 --     ---------------------------------------------------------
 --     Guarda los tokens de "recordarme" para sesiones persistentes.
@@ -415,12 +484,7 @@ CREATE TABLE IF NOT EXISTS user_remember_tokens (
     PRODUCTOS INICIALES
     ---------------------------------------------------------
     Inserta productos base.
-    Si el producto ya existe por code, actualiza:
-    - name
-    - price
-    - cat
-    - sub
-    - active
+    Si el producto ya existe por code, lo omite sin modificarlo.
    ========================================================= */
 
 /*
@@ -536,15 +600,8 @@ VALUES
        9. EXTRAS
        ============================== */
     ('p13', 'VIP', 5000, 'Extras', '', 9, 1, 0, 1)
-
 ON DUPLICATE KEY UPDATE
-    name = VALUES(name),
-    price = VALUES(price),
-    cat = VALUES(cat),
-    sub = VALUES(sub),
-    category_order = VALUES(category_order),
-    sort_order = VALUES(sort_order),
-    active = VALUES(active);
+    code = VALUES(code);
 
 /*
  * Usar este ORDER BY en Kioskito, Carta y Administración:
@@ -553,14 +610,14 @@ ON DUPLICATE KEY UPDATE
  */
 
 
-
-
 /* =========================================================
    DIVINE APP - STOCK DEL CONTENEDOR
    Sectores: EXTERNO / INTERNO
    Categorías conservadas: Bebidas alcohólicas, Vinos y
    espumantes, Insumos y Gaseosas.
-   Stock bajo: cantidad <= 4
+   Cada artículo posee un mínimo y un máximo individual.
+   Bajo: quantity <= low_threshold.
+   Máximo permitido: max_quantity.
    ========================================================= */
 
 SET NAMES utf8mb4;
@@ -573,6 +630,7 @@ CREATE TABLE IF NOT EXISTS container_stock_items (
     sector ENUM('interno', 'externo') NOT NULL DEFAULT 'interno',
     quantity INT NOT NULL DEFAULT 0,
     low_threshold INT NOT NULL DEFAULT 4,
+    max_quantity INT NOT NULL DEFAULT 100,
     sort_order INT NOT NULL DEFAULT 0,
     active TINYINT(1) NOT NULL DEFAULT 1,
     updated_by INT DEFAULT NULL,
@@ -591,22 +649,43 @@ CREATE TABLE IF NOT EXISTS container_stock_items (
         ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-/* Añade sector sin borrar cantidades si la tabla ya existía. */
-SET @sector_exists := (
+
+/* =========================================================
+   COMPATIBILIDAD: stock existente
+   ========================================================= */
+
+SET @stock_sector_exists := (
     SELECT COUNT(*)
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME = 'container_stock_items'
       AND COLUMN_NAME = 'sector'
 );
-SET @sector_sql := IF(
-    @sector_exists = 0,
+SET @stock_sector_sql := IF(
+    @stock_sector_exists = 0,
     "ALTER TABLE container_stock_items ADD COLUMN sector ENUM('interno', 'externo') NOT NULL DEFAULT 'interno' AFTER category",
-    'SELECT 1'
+    'DO 0'
 );
-PREPARE stock_sector_stmt FROM @sector_sql;
+PREPARE stock_sector_stmt FROM @stock_sector_sql;
 EXECUTE stock_sector_stmt;
 DEALLOCATE PREPARE stock_sector_stmt;
+
+SET @stock_max_quantity_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'container_stock_items'
+      AND COLUMN_NAME = 'max_quantity'
+);
+SET @stock_max_quantity_sql := IF(
+    @stock_max_quantity_exists = 0,
+    'ALTER TABLE container_stock_items ADD COLUMN max_quantity INT NOT NULL DEFAULT 100 AFTER low_threshold',
+    'DO 0'
+);
+PREPARE stock_max_quantity_stmt FROM @stock_max_quantity_sql;
+EXECUTE stock_max_quantity_stmt;
+DEALLOCATE PREPARE stock_max_quantity_stmt;
+
 
 CREATE TABLE IF NOT EXISTS container_stock_movements (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -641,69 +720,69 @@ INSERT INTO container_stock_items (
     sector,
     quantity,
     low_threshold,
+    max_quantity,
     sort_order,
     active
 )
 VALUES
+    /*
+     * Orden:
+     * quantity, low_threshold, max_quantity, sort_order, active
+     */
+
     /* ==============================
        EXTERNO — BEBIDAS ALCOHÓLICAS
        ============================== */
 
-    ('daemong', 'Daemong', 'Bebidas alcohólicas', 'externo', 0, 4, 1, 1),
-    ('sernova_rojo', 'Vodka Sernova rojo', 'Bebidas alcohólicas', 'externo', 0, 4, 2, 1),
-    ('sernova_maracuya', 'Vodka Sernova maracuyá', 'Bebidas alcohólicas', 'externo', 0, 4, 3, 1),
-    ('sernova_verde', 'Vodka Sernova verde', 'Bebidas alcohólicas', 'externo', 0, 4, 4, 1),
-    ('fernet_chico', 'Fernet chico', 'Bebidas alcohólicas', 'externo', 0, 4, 5, 1),
-    ('fernet_grande', 'Fernet grande', 'Bebidas alcohólicas', 'externo', 0, 4, 6, 1),
-    ('vodka_barato', 'Vodka barato', 'Bebidas alcohólicas', 'externo', 0, 4, 7, 1),
-    ('gancia', 'Gancia', 'Bebidas alcohólicas', 'externo', 0, 4, 8, 1),
-    ('campari', 'Campari', 'Bebidas alcohólicas', 'externo', 0, 4, 9, 1),
-    ('malibu', 'Malibu', 'Bebidas alcohólicas', 'externo', 0, 4, 10, 1),
-    ('gin_gordon', 'Gin Gordon', 'Bebidas alcohólicas', 'externo', 0, 4, 11, 1),
+    ('daemong', 'Daemong', 'Bebidas alcohólicas', 'externo', 0, 2, 5, 1, 1),
+    ('sernova_rojo', 'Vodka Sernova rojo', 'Bebidas alcohólicas', 'externo', 0, 50, 400, 2, 1),
+    ('sernova_maracuya', 'Vodka Sernova maracuyá', 'Bebidas alcohólicas', 'externo', 0, 4, 100, 3, 1),
+    ('sernova_verde', 'Vodka Sernova verde', 'Bebidas alcohólicas', 'externo', 0, 4, 100, 4, 1),
+    ('fernet_chico', 'Fernet chico', 'Bebidas alcohólicas', 'externo', 0, 4, 100, 5, 1),
+    ('fernet_grande', 'Fernet grande', 'Bebidas alcohólicas', 'externo', 0, 4, 100, 6, 1),
+    ('vodka_barato', 'Vodka barato', 'Bebidas alcohólicas', 'externo', 0, 4, 100, 7, 1),
+    ('gancia', 'Gancia', 'Bebidas alcohólicas', 'externo', 0, 4, 100, 8, 1),
+    ('campari', 'Campari', 'Bebidas alcohólicas', 'externo', 0, 4, 100, 9, 1),
+    ('malibu', 'Malibu', 'Bebidas alcohólicas', 'externo', 0, 4, 100, 10, 1),
+    ('gin_gordon', 'Gin Gordon', 'Bebidas alcohólicas', 'externo', 0, 4, 100, 11, 1),
 
     /* ==============================
        EXTERNO — VINOS Y ESPUMANTES
        ============================== */
 
-    ('dilema_blanco', 'Dilema blanco', 'Vinos y espumantes', 'externo', 0, 4, 12, 1),
-    ('dilema_rosado', 'Dilema rosado', 'Vinos y espumantes', 'externo', 0, 4, 13, 1),
-    ('dilema_tinto', 'Dilema tinto', 'Vinos y espumantes', 'externo', 0, 4, 14, 1),
-    ('santa_julia_blanco', 'Santa Julia blanco', 'Vinos y espumantes', 'externo', 0, 4, 15, 1),
-    ('santa_julia_tinto', 'Santa Julia tinto', 'Vinos y espumantes', 'externo', 0, 4, 16, 1),
-    ('du', 'DU', 'Vinos y espumantes', 'externo', 0, 4, 17, 1),
-    ('baron_b', 'Baron B', 'Vinos y espumantes', 'externo', 0, 4, 18, 1),
-    ('mumm', 'Mumm', 'Vinos y espumantes', 'externo', 0, 4, 19, 1),
-    ('chandon', 'Chandon', 'Vinos y espumantes', 'externo', 0, 4, 20, 1),
+    ('dilema_blanco', 'Dilema blanco', 'Vinos y espumantes', 'externo', 0, 4, 100, 12, 1),
+    ('dilema_rosado', 'Dilema rosado', 'Vinos y espumantes', 'externo', 0, 4, 100, 13, 1),
+    ('dilema_tinto', 'Dilema tinto', 'Vinos y espumantes', 'externo', 0, 4, 100, 14, 1),
+    ('santa_julia_blanco', 'Santa Julia blanco', 'Vinos y espumantes', 'externo', 0, 4, 100, 15, 1),
+    ('santa_julia_tinto', 'Santa Julia tinto', 'Vinos y espumantes', 'externo', 0, 4, 100, 16, 1),
+    ('du', 'DU', 'Vinos y espumantes', 'externo', 0, 4, 100, 17, 1),
+    ('baron_b', 'Baron B', 'Vinos y espumantes', 'externo', 0, 4, 100, 18, 1),
+    ('mumm', 'Mumm', 'Vinos y espumantes', 'externo', 0, 4, 100, 19, 1),
+    ('chandon', 'Chandon', 'Vinos y espumantes', 'externo', 0, 4, 100, 20, 1),
 
     /* ==============================
        INTERNO — INSUMOS
        ============================== */
 
-    ('caja_vasos', 'Caja de vasos', 'Insumos', 'interno', 0, 4, 21, 1),
-    ('caja_fraperas', 'Caja de fráperas', 'Insumos', 'interno', 0, 4, 22, 1),
-    ('caja_sorbetes', 'Caja de sorbetes', 'Insumos', 'interno', 0, 4, 23, 1),
-    ('jugos', 'Jugos', 'Insumos', 'interno', 0, 4, 24, 1),
+    ('caja_vasos', 'Caja de vasos', 'Insumos', 'interno', 0, 2, 20, 21, 1),
+    ('caja_fraperas', 'Caja de fráperas', 'Insumos', 'interno', 0, 2, 20, 22, 1),
+    ('caja_sorbetes', 'Caja de sorbetes', 'Insumos', 'interno', 0, 2, 20, 23, 1),
+    ('jugos', 'Jugos', 'Insumos', 'interno', 0, 4, 100, 24, 1),
 
     /* ==============================
        INTERNO — GASEOSAS Y BEBIDAS
        ============================== */
 
-    ('coca_lata', 'Coca en lata', 'Gaseosas', 'interno', 0, 4, 25, 1),
-    ('sprite_lata', 'Sprite en lata', 'Gaseosas', 'interno', 0, 4, 26, 1),
-    ('coca_zero_lata', 'Coca Zero en lata', 'Gaseosas', 'interno', 0, 4, 27, 1),
-    ('speed', 'Speed', 'Gaseosas', 'interno', 0, 4, 28, 1),
-    ('agua', 'Agua', 'Gaseosas', 'interno', 0, 4, 29, 1),
-    ('sprite_botella', 'Sprite en botella', 'Gaseosas', 'interno', 0, 4, 30, 1),
-    ('coca_botella', 'Coca en botella', 'Gaseosas', 'interno', 0, 4, 31, 1),
-    ('tonica_botella', 'Tónica en botella', 'Gaseosas', 'interno', 0, 4, 32, 1)
-
+    ('coca_lata', 'Coca en lata', 'Gaseosas', 'interno', 0, 24, 200, 25, 1),
+    ('sprite_lata', 'Sprite en lata', 'Gaseosas', 'interno', 0, 24, 200, 26, 1),
+    ('coca_zero_lata', 'Coca Zero en lata', 'Gaseosas', 'interno', 0, 24, 200, 27, 1),
+    ('speed', 'Speed', 'Gaseosas', 'interno', 0, 30, 300, 28, 1),
+    ('agua', 'Agua', 'Gaseosas', 'interno', 0, 20, 200, 29, 1),
+    ('sprite_botella', 'Sprite en botella', 'Gaseosas', 'interno', 0, 5, 40, 30, 1),
+    ('coca_botella', 'Coca en botella', 'Gaseosas', 'interno', 0, 5, 40, 31, 1),
+    ('tonica_botella', 'Tónica en botella', 'Gaseosas', 'interno', 0, 5, 40, 32, 1)
 ON DUPLICATE KEY UPDATE
-    name = VALUES(name),
-    category = VALUES(category),
-    sector = VALUES(sector),
-    low_threshold = VALUES(low_threshold),
-    sort_order = VALUES(sort_order),
-    active = VALUES(active);
+    code = VALUES(code);
 
 /* =========================================================
     FIN DEL ARCHIVO

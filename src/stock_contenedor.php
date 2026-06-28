@@ -111,7 +111,8 @@ if (!function_exists('stock_validate_product')) {
         $category = trim((string) ($input['category'] ?? ''));
         $sector = strtolower(trim((string) ($input['sector'] ?? 'interno')));
         $quantity = (int) ($input['quantity'] ?? 0);
-        $lowThreshold = (int) ($input['lowThreshold'] ?? 4);
+        $minimum = (int) ($input['minimum'] ?? $input['lowThreshold'] ?? 4);
+        $maximum = (int) ($input['maximum'] ?? 100);
 
         if (stock_text_length($name) < 2 || stock_text_length($name) > 120) {
             stock_json(['ok' => false, 'error' => 'El nombre debe tener entre 2 y 120 caracteres.'], 422);
@@ -125,12 +126,16 @@ if (!function_exists('stock_validate_product')) {
             stock_json(['ok' => false, 'error' => 'El sector seleccionado no es válido.'], 422);
         }
 
-        if ($quantity < 0 || $quantity > 100000) {
-            stock_json(['ok' => false, 'error' => 'La cantidad debe estar entre 0 y 100000.'], 422);
+        if ($maximum < 1 || $maximum > 100000) {
+            stock_json(['ok' => false, 'error' => 'El stock máximo debe estar entre 1 y 100000.'], 422);
         }
 
-        if ($lowThreshold < 0 || $lowThreshold > 100000) {
-            stock_json(['ok' => false, 'error' => 'El límite de stock bajo debe estar entre 0 y 100000.'], 422);
+        if ($minimum < 0 || $minimum > $maximum) {
+            stock_json(['ok' => false, 'error' => 'El stock mínimo debe estar entre 0 y el máximo elegido.'], 422);
+        }
+
+        if ($quantity < 0 || $quantity > $maximum) {
+            stock_json(['ok' => false, 'error' => 'La cantidad debe estar entre 0 y el stock máximo.'], 422);
         }
 
         return [
@@ -138,7 +143,8 @@ if (!function_exists('stock_validate_product')) {
             'category' => $category,
             'sector' => $sector,
             'quantity' => $quantity,
-            'lowThreshold' => $lowThreshold,
+            'minimum' => $minimum,
+            'maximum' => $maximum,
         ];
     }
 }
@@ -176,6 +182,7 @@ CREATE TABLE IF NOT EXISTS container_stock_items (
     sector ENUM('interno', 'externo') NOT NULL DEFAULT 'interno',
     quantity INT NOT NULL DEFAULT 0,
     low_threshold INT NOT NULL DEFAULT 4,
+    max_quantity INT NOT NULL DEFAULT 100,
     sort_order INT NOT NULL DEFAULT 0,
     active TINYINT(1) NOT NULL DEFAULT 1,
     updated_by INT DEFAULT NULL,
@@ -204,6 +211,20 @@ SQL);
 
         if ((int) $sectorColumn->fetchColumn() === 0) {
             $pdo->exec("ALTER TABLE container_stock_items ADD COLUMN sector ENUM('interno', 'externo') NOT NULL DEFAULT 'interno' AFTER category");
+        }
+
+        $maxColumn = $pdo->prepare(<<<'SQL'
+SELECT COUNT(*)
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'container_stock_items'
+  AND COLUMN_NAME = 'max_quantity'
+SQL);
+        $maxColumn->execute();
+
+        if ((int) $maxColumn->fetchColumn() === 0) {
+            $pdo->exec("ALTER TABLE container_stock_items ADD COLUMN max_quantity INT NOT NULL DEFAULT 100 AFTER low_threshold");
+            $pdo->exec("UPDATE container_stock_items SET max_quantity = quantity WHERE quantity > max_quantity");
         }
 
         $pdo->exec(<<<'SQL'
@@ -243,6 +264,7 @@ SELECT
     i.sector,
     i.quantity,
     i.low_threshold,
+    i.max_quantity,
     i.updated_at,
     COALESCE(u.display_name, u.username, '') AS updated_by_name
 FROM container_stock_items i
@@ -255,12 +277,13 @@ SQL);
 
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $quantity = max(0, (int) $row['quantity']);
-            $threshold = max(0, (int) $row['low_threshold']);
+            $minimum = max(0, (int) $row['low_threshold']);
+            $maximum = max(1, (int) ($row['max_quantity'] ?? 100));
 
             $status = 'stock';
             if ($quantity === 0) {
                 $status = 'empty';
-            } elseif ($quantity <= $threshold) {
+            } elseif ($quantity <= $minimum) {
                 $status = 'low';
             }
 
@@ -271,7 +294,9 @@ SQL);
                 'category' => (string) $row['category'],
                 'sector' => (string) ($row['sector'] ?? 'interno'),
                 'quantity' => $quantity,
-                'lowThreshold' => $threshold,
+                'minimum' => $minimum,
+                'maximum' => $maximum,
+                'lowThreshold' => $minimum,
                 'status' => $status,
                 'updatedAt' => $row['updated_at'],
                 'updatedBy' => (string) ($row['updated_by_name'] ?? ''),
@@ -317,7 +342,6 @@ try {
                     'ok' => true,
                     'items' => $items,
                     'summary' => stock_summary($items),
-                    'lowLimit' => 4,
                 ]);
 
             case 'add':
@@ -354,9 +378,9 @@ SQL);
 
                 $insert = $pdo->prepare(<<<'SQL'
 INSERT INTO container_stock_items
-    (code, name, category, sector, quantity, low_threshold, sort_order, active, updated_by)
+    (code, name, category, sector, quantity, low_threshold, max_quantity, sort_order, active, updated_by)
 VALUES
-    (:code, :name, :category, :sector, :quantity, :low_threshold, :sort_order, 1, :updated_by)
+    (:code, :name, :category, :sector, :quantity, :minimum, :maximum, :sort_order, 1, :updated_by)
 SQL);
                 $insert->execute([
                     ':code' => $code,
@@ -364,7 +388,8 @@ SQL);
                     ':category' => $product['category'],
                     ':sector' => $product['sector'],
                     ':quantity' => $product['quantity'],
-                    ':low_threshold' => $product['lowThreshold'],
+                    ':minimum' => $product['minimum'],
+                    ':maximum' => $product['maximum'],
                     ':sort_order' => $nextOrder,
                     ':updated_by' => $userId > 0 ? $userId : null,
                 ]);
@@ -451,7 +476,8 @@ SET name = :name,
     category = :category,
     sector = :sector,
     quantity = :quantity,
-    low_threshold = :low_threshold,
+    low_threshold = :minimum,
+    max_quantity = :maximum,
     updated_by = :updated_by,
     updated_at = NOW()
 WHERE id = :id
@@ -461,7 +487,8 @@ SQL);
                     ':category' => $product['category'],
                     ':sector' => $product['sector'],
                     ':quantity' => $product['quantity'],
-                    ':low_threshold' => $product['lowThreshold'],
+                    ':minimum' => $product['minimum'],
+                    ':maximum' => $product['maximum'],
                     ':updated_by' => $userId > 0 ? $userId : null,
                     ':id' => $itemId,
                 ]);
@@ -538,7 +565,7 @@ SQL);
                 $pdo->beginTransaction();
 
                 $lock = $pdo->prepare(
-                    'SELECT quantity FROM container_stock_items WHERE id = :id AND active = 1 FOR UPDATE'
+                    'SELECT quantity, max_quantity FROM container_stock_items WHERE id = :id AND active = 1 FOR UPDATE'
                 );
                 $lock->execute([':id' => $itemId]);
                 $row = $lock->fetch(PDO::FETCH_ASSOC);
@@ -549,6 +576,7 @@ SQL);
                 }
 
                 $previous = max(0, (int) $row['quantity']);
+                $maximum = max(1, (int) ($row['max_quantity'] ?? 100));
 
                 if ($stockAction === 'adjust') {
                     $delta = (int) ($input['delta'] ?? 0);
@@ -557,12 +585,24 @@ SQL);
                         stock_json(['ok' => false, 'error' => 'Ajuste de cantidad inválido.'], 422);
                     }
                     $newQuantity = max(0, $previous + $delta);
+
+                    if ($newQuantity > $maximum) {
+                        $pdo->rollBack();
+                        stock_json([
+                            'ok' => false,
+                            'error' => 'No podés superar el stock máximo de ' . $maximum . ' unidades.',
+                        ], 422);
+                    }
+
                     $delta = $newQuantity - $previous;
                 } else {
                     $newQuantity = (int) ($input['quantity'] ?? -1);
-                    if ($newQuantity < 0 || $newQuantity > 100000) {
+                    if ($newQuantity < 0 || $newQuantity > $maximum) {
                         $pdo->rollBack();
-                        stock_json(['ok' => false, 'error' => 'La cantidad debe estar entre 0 y 100000.'], 422);
+                        stock_json([
+                            'ok' => false,
+                            'error' => 'La cantidad debe estar entre 0 y el stock máximo de ' . $maximum . '.',
+                        ], 422);
                     }
                     $delta = $newQuantity - $previous;
                 }
@@ -679,7 +719,7 @@ if (!function_exists('e')) {
       <div>
         <span class="stock-eyebrow">Inventario de la noche</span>
         <h2>Controlá lo que queda y detectá faltantes al instante.</h2>
-        <p>Se considera stock bajo cuando quedan 4 unidades o menos.</p>
+        <p>Cada artículo usa su propio stock mínimo y máximo.</p>
       </div>
 
       <div class="stock-hero-actions">
@@ -769,7 +809,7 @@ if (!function_exists('e')) {
 
       <div class="stock-filters" role="group" aria-label="Filtrar stock">
         <button type="button" class="stock-filter is-active" data-filter="all">Todos</button>
-        <button type="button" class="stock-filter" data-filter="low">Bajo ≤ 4</button>
+        <button type="button" class="stock-filter" data-filter="low">Bajo</button>
         <button type="button" class="stock-filter" data-filter="empty">Agotados</button>
         <button type="button" class="stock-filter" data-filter="stock">En stock</button>
       </div>
@@ -868,10 +908,16 @@ if (!function_exists('e')) {
           <input id="stockProductQuantity" name="quantity" type="number" min="0" max="100000" step="1" inputmode="numeric" value="0" required>
         </label>
 
-        <label class="stock-form-field stock-form-field-full">
-          <span>Avisar como stock bajo desde</span>
-          <input id="stockProductThreshold" name="lowThreshold" type="number" min="0" max="100000" step="1" inputmode="numeric" value="4" required>
-          <small>El artículo se marcará como bajo cuando tenga esta cantidad o menos.</small>
+        <label class="stock-form-field">
+          <span>Stock mínimo</span>
+          <input id="stockProductMinimum" name="minimum" type="number" min="0" max="100000" step="1" inputmode="numeric" value="4" required>
+          <small>Se marcará como bajo cuando llegue a esta cantidad o menos.</small>
+        </label>
+
+        <label class="stock-form-field">
+          <span>Stock máximo</span>
+          <input id="stockProductMaximum" name="maximum" type="number" min="1" max="100000" step="1" inputmode="numeric" value="100" required>
+          <small>No se podrá cargar una cantidad superior a este valor.</small>
         </label>
 
         <div class="stock-form-error" id="stockProductError" role="alert"></div>

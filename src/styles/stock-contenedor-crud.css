@@ -409,3 +409,95 @@ body[data-page="stock-contenedor"] select {
     display: none;
   }
 }
+
+/* Límites individuales de cada producto */
+.stock-limits {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 14px 0 8px;
+}
+
+.stock-limit-chip {
+  min-width: 0;
+  padding: 8px 7px;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  border: 1px solid var(--stock-line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  text-align: center;
+}
+
+.stock-limit-chip small {
+  color: var(--stock-muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.45px;
+  text-transform: uppercase;
+}
+
+.stock-limit-chip strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--stock-text);
+  font-size: 15px;
+  line-height: 1;
+  text-overflow: ellipsis;
+}
+
+.stock-limit-chip.is-min {
+  border-color: rgba(255, 178, 72, 0.25);
+  background: rgba(255, 178, 72, 0.07);
+}
+
+.stock-limit-chip.is-current {
+  border-color: rgba(176, 124, 255, 0.3);
+  background: rgba(176, 124, 255, 0.09);
+}
+
+.stock-limit-chip.is-max {
+  border-color: rgba(84, 207, 141, 0.24);
+  background: rgba(84, 207, 141, 0.07);
+}
+
+.stock-capacity {
+  height: 5px;
+  margin: 0 2px 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.stock-capacity > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(176, 124, 255, 0.85), rgba(240, 212, 141, 0.9));
+  transition: width 0.22s ease;
+}
+
+.stock-count-button:disabled,
+.stock-quantity-input:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.stock-select-item-side {
+  min-width: 82px;
+}
+
+.stock-select-item-side b {
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .stock-limit-chip {
+    padding-inline: 5px;
+  }
+
+  .stock-limit-chip strong {
+    font-size: 14px;
+  }
+}

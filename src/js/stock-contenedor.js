@@ -151,7 +151,10 @@ function stockVisibleItems() {
 function stockRenderItem(item) {
   const itemId = Number(item.id);
   const pending = stockState.pendingIds.has(itemId);
-  const quantity = Number(item.quantity || 0);
+  const quantity = Math.max(0, Number(item.quantity || 0));
+  const minimum = Math.max(0, Number(item.minimum ?? item.lowThreshold ?? 0));
+  const maximum = Math.max(1, Number(item.maximum ?? 100));
+  const percentage = Math.min(100, Math.round((quantity / maximum) * 100));
 
   return `
     <article class="stock-item ${pending ? 'is-saving' : ''}" data-item-id="${itemId}" data-status="${stockEscape(item.status)}">
@@ -163,6 +166,16 @@ function stockRenderItem(item) {
         <span class="stock-status is-${stockEscape(item.status)}">${stockEscape(stockStatusLabel(item.status))}</span>
       </div>
 
+      <div class="stock-limits" aria-label="Límites de stock">
+        <span class="stock-limit-chip is-min"><small>Mín.</small><strong>${minimum}</strong></span>
+        <span class="stock-limit-chip is-current"><small>Actual</small><strong>${quantity}</strong></span>
+        <span class="stock-limit-chip is-max"><small>Máx.</small><strong>${maximum}</strong></span>
+      </div>
+
+      <div class="stock-capacity" aria-hidden="true">
+        <span style="width:${percentage}%"></span>
+      </div>
+
       <div class="stock-counter">
         <button
           type="button"
@@ -170,19 +183,21 @@ function stockRenderItem(item) {
           data-stock-adjust="-1"
           data-item-id="${itemId}"
           aria-label="Restar una unidad de ${stockEscape(item.name)}"
+          ${quantity <= 0 || pending ? 'disabled' : ''}
         >−</button>
 
         <input
           type="number"
           class="stock-quantity-input"
           min="0"
-          max="100000"
+          max="${maximum}"
           step="1"
           inputmode="numeric"
           value="${quantity}"
           data-stock-input
           data-item-id="${itemId}"
-          aria-label="Cantidad de ${stockEscape(item.name)}"
+          aria-label="Cantidad de ${stockEscape(item.name)}. Máximo ${maximum}"
+          ${pending ? 'disabled' : ''}
         >
 
         <button
@@ -191,9 +206,9 @@ function stockRenderItem(item) {
           data-stock-adjust="1"
           data-item-id="${itemId}"
           aria-label="Sumar una unidad de ${stockEscape(item.name)}"
+          ${quantity >= maximum || pending ? 'disabled' : ''}
         >+</button>
       </div>
-
 
       <div class="stock-meta">${stockEscape(stockFormatUpdate(item))}</div>
     </article>
@@ -343,8 +358,8 @@ function stockRenderSelection() {
         <small>${stockEscape(item.category)} · ${item.sector === 'externo' ? 'Externo' : 'Interno'}</small>
       </span>
       <span class="stock-select-item-side">
-        <b>${Number(item.quantity || 0)}</b>
-        <small>unidades</small>
+        <b>${Number(item.quantity || 0)} / ${Number(item.maximum ?? 100)}</b>
+        <small>Mín. ${Number(item.minimum ?? item.lowThreshold ?? 0)}</small>
       </span>
       <span class="stock-select-arrow" aria-hidden="true">›</span>
     </button>
@@ -459,7 +474,8 @@ function stockOpenProduct(item = null) {
   document.getElementById('stockProductCategory').value = editing ? item.category : '';
   document.getElementById('stockProductSector').value = editing ? item.sector : stockState.sector;
   document.getElementById('stockProductQuantity').value = editing ? String(item.quantity) : '0';
-  document.getElementById('stockProductThreshold').value = editing ? String(item.lowThreshold ?? 4) : '4';
+  document.getElementById('stockProductMinimum').value = editing ? String(item.minimum ?? item.lowThreshold ?? 4) : '4';
+  document.getElementById('stockProductMaximum').value = editing ? String(item.maximum ?? 100) : '100';
 
   document.getElementById('stockProductEyebrow').textContent = editing ? 'EDITAR ARTÍCULO' : 'NUEVO ARTÍCULO';
   document.getElementById('stockProductTitle').textContent = editing ? 'Editar producto' : 'Añadir producto';
@@ -490,8 +506,19 @@ async function stockSubmitProduct(event) {
     category: document.getElementById('stockProductCategory').value.trim(),
     sector: document.getElementById('stockProductSector').value,
     quantity: Number(document.getElementById('stockProductQuantity').value),
-    lowThreshold: Number(document.getElementById('stockProductThreshold').value),
+    minimum: Number(document.getElementById('stockProductMinimum').value),
+    maximum: Number(document.getElementById('stockProductMaximum').value),
   };
+
+  if (payload.minimum > payload.maximum) {
+    stockSetProductError('El stock mínimo no puede ser mayor que el máximo.');
+    return;
+  }
+
+  if (payload.quantity > payload.maximum) {
+    stockSetProductError('La cantidad actual no puede superar el stock máximo.');
+    return;
+  }
 
   if (id > 0) payload.id = id;
 
@@ -555,7 +582,7 @@ async function stockConfirmDelete() {
 function stockBuildReport() {
   const lowItems = stockState.items
     .filter((item) => item.sector === stockState.sector)
-    .filter((item) => Number(item.quantity) <= Number(item.lowThreshold ?? 4))
+    .filter((item) => Number(item.quantity) <= Number(item.minimum ?? item.lowThreshold ?? 0))
     .sort((a, b) => Number(a.quantity) - Number(b.quantity) || a.name.localeCompare(b.name, 'es'));
 
   const now = new Date();
@@ -585,13 +612,13 @@ function stockBuildReport() {
 
   if (empty.length) {
     lines.push('🔴 AGOTADOS');
-    empty.forEach((item) => lines.push(`• ${item.name} — 0`));
+    empty.forEach((item) => lines.push(`• ${item.name} — 0 (mín. ${item.minimum ?? item.lowThreshold ?? 0} / máx. ${item.maximum ?? 100})`));
     lines.push('');
   }
 
   if (low.length) {
     lines.push('🟠 STOCK BAJO');
-    low.forEach((item) => lines.push(`• ${item.name} — quedan ${item.quantity}`));
+    low.forEach((item) => lines.push(`• ${item.name} — quedan ${item.quantity} (mín. ${item.minimum ?? item.lowThreshold ?? 0} / máx. ${item.maximum ?? 100})`));
     lines.push('');
   }
 
@@ -725,8 +752,11 @@ function stockBindEvents() {
     if (!input) return;
 
     const quantity = Number(input.value);
-    if (!Number.isInteger(quantity) || quantity < 0 || quantity > 100000) {
-      stockShowToast('La cantidad debe ser un número entero entre 0 y 100000.');
+    const item = stockFindItem(input.dataset.itemId);
+    const maximum = Math.max(1, Number(item?.maximum ?? 100));
+
+    if (!Number.isInteger(quantity) || quantity < 0 || quantity > maximum) {
+      stockShowToast(`La cantidad debe ser un número entero entre 0 y ${maximum}.`);
       stockRender();
       return;
     }
