@@ -202,19 +202,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $stmt = $pdo->query("
-    SELECT id, username, display_name, role, created_at
-    FROM users
+    SELECT
+      u.id, u.username, u.display_name, u.role, u.created_at,
+      (
+        SELECT dl.id
+        FROM door_lists dl
+        WHERE dl.user_id = u.id AND dl.is_birthday = 0
+        ORDER BY dl.id ASC
+        LIMIT 1
+      ) AS list_id
+    FROM users u
     ORDER BY
-      CASE role
+      CASE u.role
         WHEN 'admin' THEN 1
         WHEN 'puerta' THEN 2
         WHEN 'usuario' THEN 3
         ELSE 9
       END,
-      display_name ASC
+      u.display_name ASC
 ");
 
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// URL base para el link de registro público (registro_publico.php ?lista=ID).
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$scriptDir = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/'))), '/');
+$registroBaseUrl = $scheme . '://' . $host . $scriptDir . '/registro_publico.php';
 
 $flash = $_SESSION['flash_users'] ?? null;
 unset($_SESSION['flash_users']);
@@ -584,7 +598,7 @@ select {
 .user-table-head,
 .user-row {
   display: grid;
-  grid-template-columns: minmax(190px, 1.25fr) minmax(130px, .9fr) 110px minmax(135px, .8fr) 104px;
+  grid-template-columns: minmax(190px, 1.25fr) minmax(130px, .9fr) 110px minmax(135px, .8fr) 120px;
   gap: 10px;
   align-items: center;
 }
@@ -658,6 +672,12 @@ select {
   white-space: nowrap;
 }
 
+.action-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .edit-btn {
   min-height: 39px;
   border: 1px solid var(--border-strong);
@@ -671,6 +691,35 @@ select {
 
 .edit-btn:hover {
   border-color: var(--gold);
+}
+
+.link-btn {
+  min-height: 33px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: rgba(143, 76, 255, .12);
+  color: var(--gold-2);
+  font-size: 11.5px;
+  font-weight: 850;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 4px 8px;
+}
+
+.link-btn:hover {
+  border-color: var(--gold);
+}
+
+.link-btn.copied {
+  background: rgba(74, 222, 128, .14);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.no-list-tag {
+  font-size: 11px;
+  color: var(--muted-2);
+  text-align: center;
 }
 
 .empty {
@@ -1011,13 +1060,28 @@ select {
 
             <div class="user-date"><?= e((string)$user['created_at']) ?></div>
 
-            <button
-              type="button"
-              class="edit-btn"
-              data-edit-user="user-editor-<?= (int)$user['id'] ?>"
-            >
-              Editar
-            </button>
+            <div class="action-cell">
+              <button
+                type="button"
+                class="edit-btn"
+                data-edit-user="user-editor-<?= (int)$user['id'] ?>"
+              >
+                Editar
+              </button>
+
+              <?php if (!empty($user['list_id'])): ?>
+                <button
+                  type="button"
+                  class="link-btn"
+                  data-copy-link="<?= e($registroBaseUrl . '?lista=' . (int)$user['list_id']) ?>"
+                  title="Copiar link de registro público de <?= e((string)$user['display_name']) ?>"
+                >
+                  🔗 Copiar link
+                </button>
+              <?php else: ?>
+                <div class="no-list-tag">Sin lista propia</div>
+              <?php endif; ?>
+            </div>
           </div>
         <?php endforeach; ?>
       </div>
@@ -1209,6 +1273,49 @@ closeButtons.forEach(button => {
 });
 
 applyFilters();
+
+/* =========================
+   COPIAR LINK DE REGISTRO
+========================= */
+const copyLinkButtons = document.querySelectorAll('[data-copy-link]');
+
+async function copyLinkToClipboard(url, btn) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+    } else {
+      const textarea = document.createElement('textarea');
+      textarea.value = url;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+copyLinkButtons.forEach(button => {
+  button.addEventListener('click', async () => {
+    const url = button.dataset.copyLink;
+    if (!url) return;
+
+    const original = button.textContent;
+    const ok = await copyLinkToClipboard(url, button);
+
+    button.textContent = ok ? '✔ Copiado' : 'No se pudo copiar';
+    button.classList.toggle('copied', ok);
+
+    setTimeout(() => {
+      button.textContent = original;
+      button.classList.remove('copied');
+    }, 1600);
+  });
+});
 </script>
 
 
