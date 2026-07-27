@@ -3,150 +3,211 @@ session_start();
 include_once __DIR__ . '/const.php';
 
 if (!isset($_SESSION['user'])) {
-    header('Location: login.php');
-    exit;
+  header('Location: login.php');
+  exit;
 }
 
 $currentUser = $_SESSION['user'];
 
 if (($currentUser['role'] ?? '') !== 'admin') {
-    die('Acceso denegado');
+  die('Acceso denegado');
 }
 ?>
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= APP_NAME ?> Scanner QR</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><?= APP_NAME ?> Scanner QR</title>
 
-<link rel="stylesheet" href="styles/scanner.css">
-<link rel="stylesheet" href="styles.css">
-<script src="https://unpkg.com/html5-qrcode"></script>
+  <link rel="stylesheet" href="styles/scanner.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/html5-qrcode"></script>
 
 
-<link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
-<script src="js/theme.js?v=<?= time() ?>" defer></script>
+  <link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
+  <script src="js/theme.js?v=<?= time() ?>" defer></script>
 </head>
 
 <body>
 
-<div class="stars"></div>
+  <div class="stars"></div>
 
-<div class="topbar">
-  <div class="topbar-title" onclick="location.href='index.php'">Escanear QR 📷</div>
-  <button class="topbar-back" onclick="location.href='index.php'">← Menu</button>
-</div>
-
-<main class="scanner-page">
-  <div class="scanner-wrap">
-
-    <div class="scanner-header">
-      <div class="scanner-icon">▣</div>
-      <div class="scanner-title">Scanner de entrada</div>
-      <div class="scanner-subtitle">Apuntá la cámara al QR del invitado</div>
-    </div>
-
-    <section class="scanner-card">
-      <div class="reader-frame">
-        <div id="reader"></div>
-        <div class="scan-corners"></div>
-      </div>
-    </section>
-
-    <section class="result-card" id="qr-result">
-      <div class="status-pill status-wait">● Esperando QR</div>
-      <div class="qr-detail">
-        Cuando detecte un código, se verificará automáticamente.
-      </div>
-    </section>
-
+  <div class="topbar">
+    <div class="topbar-title" onclick="location.href='index.php'">Escanear QR 📷</div>
+    <button class="topbar-back" onclick="location.href='index.php'">← Menu</button>
   </div>
-</main>
 
-<script>
-let scanner = null;
-let lastToken = null;
-let isChecking = false;
+  <main class="scanner-page">
+    <div class="scanner-wrap">
 
-async function api(action, data = null) {
-  const options = { credentials: 'same-origin' };
+      <div class="scanner-header">
+        <div class="scanner-icon">▣</div>
+        <div class="scanner-title">Scanner de entrada</div>
+        <div class="scanner-subtitle">Apuntá la cámara al QR del invitado</div>
+      </div>
 
-  if (data !== null) {
-    options.method = 'POST';
-    options.headers = { 'Content-Type': 'application/json' };
-    options.body = JSON.stringify(data);
-  }
+      <section class="scanner-card">
+        <div class="reader-frame">
+          <div id="reader"></div>
+          <div class="scan-corners"></div>
+        </div>
+      </section>
 
-  const res = await fetch(`api.php?action=${encodeURIComponent(action)}`, options);
-  let json;
+      <section class="result-card" id="qr-result">
+        <div class="status-pill status-wait">● Esperando QR</div>
+        <div class="qr-detail">
+          Cuando detecte un código, se verificará automáticamente.
+        </div>
+      </section>
 
-  try {
-    json = await res.json();
-  } catch (e) {
-    throw new Error('Respuesta inválida del servidor.');
-  }
+    </div>
+  </main>
+  <script>
+    let scanner = null;
+    let lastToken = null;
+    let isChecking = false;
 
-  if (!res.ok || !json.ok) {
-    throw new Error(json.error || 'Error del servidor');
-  }
+    let autoAcceptTimer = null;
+    let autoAcceptSeconds = 10;
+    let autoAcceptToken = null;
 
-  return json;
-}
+    async function api(action, data = null) {
+      const options = {
+        credentials: 'same-origin'
+      };
 
-function esc(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
+      if (data !== null) {
+        options.method = 'POST';
+        options.headers = {
+          'Content-Type': 'application/json'
+        };
+        options.body = JSON.stringify(data);
+      }
 
-function extractToken(text) {
-  const value = String(text || '').trim();
+      const res = await fetch(`api.php?action=${encodeURIComponent(action)}`, options);
+      let json;
 
-  try {
-    const url = new URL(value);
-    return url.searchParams.get('token') || value;
-  } catch {
-    return value;
-  }
-}
+      try {
+        json = await res.json();
+      } catch (e) {
+        throw new Error('Respuesta inválida del servidor.');
+      }
 
-function renderWaiting() {
-  document.getElementById('qr-result').innerHTML = `
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || 'Error del servidor');
+      }
+
+      return json;
+    }
+
+    function esc(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function extractToken(text) {
+      const value = String(text || '').trim();
+
+      try {
+        const url = new URL(value);
+        return url.searchParams.get('token') || value;
+      } catch {
+        return value;
+      }
+    }
+
+    function clearAutoAcceptTimer() {
+      if (autoAcceptTimer) {
+        clearInterval(autoAcceptTimer);
+        autoAcceptTimer = null;
+      }
+      autoAcceptToken = null;
+    }
+
+    function renderWaiting() {
+      document.getElementById('qr-result').innerHTML = `
     <div class="status-pill status-wait">● Esperando QR</div>
     <div class="qr-detail">
       Cuando detecte un código, se verificará automáticamente.
     </div>
   `;
-}
+    }
 
-async function onScanSuccess(decodedText) {
-  if (isChecking) return;
+    function renderCountdown(seconds, token) {
+      document.getElementById('qr-result').innerHTML = `
+    <div class="status-pill status-checking">⟳ QR válido</div>
+    <div class="qr-person">Esperando confirmación</div>
 
-  const token = extractToken(decodedText);
+    <div class="qr-detail">
+      <b>Tiempo restante:</b> <span id="countdown">${seconds}</span> segundos<br>
+      Se confirmará automáticamente si no tocás el botón.
+    </div>
 
-  if (!token || token === lastToken) return;
+    <div class="scanner-actions">
+      <button class="scan-btn scan-btn-primary" onclick='confirmQR(${JSON.stringify(token)})'>
+        Confirmar entrada
+      </button>
 
-  lastToken = token;
-  isChecking = true;
+      <button class="scan-btn scan-btn-secondary" onclick="resetScanner()">
+        Escanear otro
+      </button>
+    </div>
+  `;
+    }
 
-  const result = document.getElementById('qr-result');
+    function startAutoAcceptCountdown(token) {
+      clearAutoAcceptTimer();
+      autoAcceptToken = token;
 
-  result.innerHTML = `
+      let seconds = autoAcceptSeconds;
+      renderCountdown(seconds, token);
+
+      autoAcceptTimer = setInterval(() => {
+        seconds -= 1;
+
+        const countdownEl = document.getElementById('countdown');
+        if (countdownEl) countdownEl.textContent = String(Math.max(seconds, 0));
+
+        if (seconds <= 0) {
+          clearAutoAcceptTimer();
+          confirmQR(token, true);
+        }
+      }, 1000);
+    }
+
+    async function onScanSuccess(decodedText) {
+      if (isChecking) return;
+
+      const token = extractToken(decodedText);
+
+      if (!token || token === lastToken) return;
+
+      lastToken = token;
+      isChecking = true;
+      clearAutoAcceptTimer();
+
+      const result = document.getElementById('qr-result');
+
+      result.innerHTML = `
     <div class="status-pill status-checking">⟳ Verificando QR</div>
     <div class="qr-detail">
       Consultando datos del invitado...
     </div>
   `;
 
-  try {
-    const data = await api('qr_check', { token });
-    const p = data.person;
+      try {
+        const data = await api('qr_check', {
+          token
+        });
+        const p = data.person;
 
-    result.innerHTML = `
+        result.innerHTML = `
       <div class="status-pill status-ok">✓ QR válido</div>
 
       <div class="qr-person">${esc(p.name)}</div>
@@ -158,7 +219,7 @@ async function onScanSuccess(decodedText) {
       </div>
 
       <div class="scanner-actions">
-        <button class="scan-btn scan-btn-primary" onclick="confirmQR('${esc(token)}')">
+        <button class="scan-btn scan-btn-primary" onclick='confirmQR(${JSON.stringify(token)})'>
           Confirmar entrada
         </button>
 
@@ -167,8 +228,10 @@ async function onScanSuccess(decodedText) {
         </button>
       </div>
     `;
-  } catch (error) {
-    result.innerHTML = `
+
+        startAutoAcceptCountdown(token);
+      } catch (error) {
+        result.innerHTML = `
       <div class="status-pill status-error">✕ QR inválido</div>
 
       <div class="qr-detail">
@@ -181,24 +244,27 @@ async function onScanSuccess(decodedText) {
         </button>
       </div>
     `;
-  } finally {
-    isChecking = false;
-  }
-}
+      } finally {
+        isChecking = false;
+      }
+    }
 
-async function confirmQR(token) {
-  const ok = confirm('¿Confirmar entrada?');
-  if (!ok) return;
+    async function confirmQR(token, auto = false) {
+      clearAutoAcceptTimer();
 
-  try {
-    const data = await api('qr_confirm', { token });
-    const p = data.person;
+      try {
+        const data = await api('qr_confirm', {
+          token
+        });
+        const p = data.person;
 
-    document.getElementById('qr-result').innerHTML = `
+        document.getElementById('qr-result').innerHTML = `
       <div class="confirmed-box">
         <div class="confirmed-icon">✓</div>
 
-        <div class="status-pill status-ok">Entrada confirmada</div>
+        <div class="status-pill status-ok">
+          ${auto ? 'Entrada confirmada automáticamente' : 'Entrada confirmada'}
+        </div>
 
         <div class="qr-person">${esc(p.name)}</div>
 
@@ -214,49 +280,50 @@ async function confirmQR(token) {
         </div>
       </div>
     `;
-  } catch (error) {
-    alert(error.message);
-  }
-}
+      } catch (error) {
+        alert(error.message);
+      }
+    }
 
-function resetScanner() {
-  lastToken = null;
-  renderWaiting();
-}
+    function resetScanner() {
+      lastToken = null;
+      clearAutoAcceptTimer();
+      renderWaiting();
+    }
 
-function startScanner() {
-  scanner = new Html5QrcodeScanner(
-    "reader",
-    {
-      fps: 10,
-      qrbox: {
-        width: 250,
-        height: 250
-      },
-      rememberLastUsedCamera: true
-    },
-    false
-  );
+    function startScanner() {
+      scanner = new Html5QrcodeScanner(
+        "reader", {
+          fps: 10,
+          qrbox: {
+            width: 250,
+            height: 250
+          },
+          rememberLastUsedCamera: true
+        },
+        false
+      );
 
-  scanner.render(onScanSuccess);
-}
+      scanner.render(onScanSuccess);
+    }
 
-startScanner();
-</script>
+    startScanner();
+  </script>
 
 
   <footer class="theme-footer" aria-label="Preferencias visuales">
-  <button type="button" class="theme-toggle" id="themeToggle" data-theme-toggle aria-label="Cambiar tema">
-    <span class="theme-toggle__icon" aria-hidden="true">◐</span>
-    <span class="theme-toggle__copy">
-      <span class="theme-toggle__eyebrow">Tema visual</span>
-      <span class="theme-toggle__label" data-theme-label>Cambiar tema</span>
-    </span>
-    <span class="theme-toggle__track" aria-hidden="true">
-      <span class="theme-toggle__thumb"></span>
-    </span>
-  </button>
-</footer>
+    <button type="button" class="theme-toggle" id="themeToggle" data-theme-toggle aria-label="Cambiar tema">
+      <span class="theme-toggle__icon" aria-hidden="true">◐</span>
+      <span class="theme-toggle__copy">
+        <span class="theme-toggle__eyebrow">Tema visual</span>
+        <span class="theme-toggle__label" data-theme-label>Cambiar tema</span>
+      </span>
+      <span class="theme-toggle__track" aria-hidden="true">
+        <span class="theme-toggle__thumb"></span>
+      </span>
+    </button>
+  </footer>
 
 </body>
+
 </html>
