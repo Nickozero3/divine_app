@@ -515,91 +515,91 @@ VALUES
     /* ==============================
        1. VASOS
        ============================== */
-    ('p1', 'Gancia', 13000, 'Vasos', '', 1, 1, 0, 1),
-    ('p2', 'Vodka Sernova', 14000, 'Vasos', 'Frutos rojos|Manzana verde|Marayuca|Coco con jugo o speed', 1, 2, 0, 1),
-    ('p3', 'Campari', 13000, 'Vasos', '', 1, 3, 0, 1),
-    ('p4', 'Gin Gordon | Blu | Heraclito', 14500, 'Vasos', '', 1, 4, 0, 1),
-    ('p21', 'Vodka Economico', 12500, 'Vasos', 'Uva,Sin gusto, Caramelo', 1, 5, 0, 1),
-    ('p22', 'Fernet', 14000, 'Vasos', '', 1, 6, 0, 1),
-    ('p23', 'Vodka Absolut', 22000, 'Vasos', 'Mandarina, WildBerry, Raspberry, original', 1, 7, 0, 1),
-    ('p24', 'Beefeater', 22000, 'Vasos', '', 1, 8, 0, 1),
-    ('p25', 'Malibu', 14500, 'Vasos', '', 1, 9, 0, 1),
-    ('p26', 'Jaggermeister', 22000, 'Vasos', 'Medida de jaggermeister con speed', 1, 10, 0, 1),
-    ('p35', 'Cuba libre', 16000, 'Vasos', '', 1, 11, 0, 1),
+    ('p1', 'Gancia', 0, 'Vasos', '', 1, 1, 0, 1),
+    ('p2', 'Vodka Sernova', 0, 'Vasos', 'Frutos rojos|Manzana verde|Marayuca|Coco con jugo o speed', 1, 2, 0, 1),
+    ('p3', 'Campari', 0, 'Vasos', '', 1, 3, 0, 1),
+    ('p4', 'Gin Gordon | Blu | Heraclito', 0, 'Vasos', '', 1, 4, 0, 1),
+    ('p21', 'Vodka Economico', 0, 'Vasos', 'Uva,Sin gusto, Caramelo', 1, 5, 0, 1),
+    ('p22', 'Fernet', 0, 'Vasos', '', 1, 6, 0, 1),
+    ('p23', 'Vodka Absolut', 0, 'Vasos', 'Mandarina, WildBerry, Raspberry, original', 1, 7, 0, 1),
+    ('p24', 'Beefeater', 0, 'Vasos', '', 1, 8, 0, 1),
+    ('p25', 'Malibu', 0, 'Vasos', '', 1, 9, 0, 1),
+    ('p26', 'Jaggermeister', 0, 'Vasos', 'Medida de jaggermeister con speed', 1, 10, 0, 1),
+    ('p35', 'Cuba libre', 0, 'Vasos', '', 1, 11, 0, 1),
 
     /* ==============================
        2. VINOS
        ============================== */
-    ('p20', 'Otro loco Tinto', 15000, 'Vinos', '', 2, 1, 0, 1),
-    ('p29', 'Dilema Blanco', 15000, 'Vinos', '', 2, 2, 0, 1),
-    ('p30', 'Dilema Rosado', 15000, 'Vinos', '', 2, 3, 0, 1),
-    ('p31', 'Dilema Tinto', 15000, 'Vinos', '', 2, 4, 0, 1),
-    ('p32', 'Santa julia', 21000, 'Vinos', '', 2, 5, 0, 1),
-    ('p39', 'Santa julia Tinto', 21000, 'Vinos', '', 2, 6, 0, 1),
+    ('p20', 'Otro loco Tinto', 0, 'Vinos', '', 2, 1, 0, 1),
+    ('p29', 'Dilema Blanco', 0, 'Vinos', '', 2, 2, 0, 1),
+    ('p30', 'Dilema Rosado', 0, 'Vinos', '', 2, 3, 0, 1),
+    ('p31', 'Dilema Tinto', 0, 'Vinos', '', 2, 4, 0, 1),
+    ('p32', 'Santa julia', 0, 'Vinos', '', 2, 5, 0, 1),
+    ('p39', 'Santa julia Tinto', 0, 'Vinos', '', 2, 6, 0, 1),
 
     /* ==============================
        3. CHAMPAGNES / ESPUMANTES
        ============================== */
-    ('p27', 'Mumm', 24000, 'Champagnes', '', 3, 1, 0, 1),
-    ('p28', 'Du', 16000, 'Champagnes', '', 3, 2, 0, 1),
-    ('p34', 'Chandon', 32000, 'Champagnes', 'Botella de chandon (Consultar disponibilidad entre rose,delice,normal)', 3, 3, 0, 1),
+    ('p27', 'Mumm', 0, 'Champagnes', '', 3, 1, 0, 1),
+    ('p28', 'Du', 0, 'Champagnes', '', 3, 2, 0, 1),
+    ('p34', 'Chandon', 0, 'Champagnes', 'Botella de chandon (Consultar disponibilidad entre rose,delice,normal)', 3, 3, 0, 1),
     ('p36', 'Baron B', 0, 'Champagnes', '', 3, 4, 0, 1),
 
     /* ==============================
        4. CERVEZAS
        ============================== */
-    ('p19', 'Heineken', 8000, 'Cervezas', 'Lata de Heineken', 4, 1, 0, 1),
-    ('p40', 'Imperial Golden', 8000, 'Cervezas', 'Lata de cerveza imperial rubia', 4, 2, 0, 1),
-    ('p45', 'Imperial Ipa', 8000, 'Cervezas', 'Lata de cerveza imperial ipa', 4, 3, 0, 1),
+    ('p19', 'Heineken', 0, 'Cervezas', 'Lata de Heineken', 4, 1, 0, 1),
+    ('p40', 'Imperial Golden', 0, 'Cervezas', 'Lata de cerveza imperial rubia', 4, 2, 0, 1),
+    ('p45', 'Imperial Ipa', 0, 'Cervezas', 'Lata de cerveza imperial ipa', 4, 3, 0, 1),
 
     /* ==============================
        5. SIN ALCOHOL
        ============================== */
-    ('p15', 'Lata de Gaseosa', 6000, 'Sin alcohol', 'Coca cola | Sprite', 5, 1, 0, 1),
-    ('p16', 'Speed', 6000, 'Sin alcohol', 'lata de speed', 5, 2, 0, 1),
-    ('p17', 'Agua', 5000, 'Sin alcohol', 'Botella de agua (natural o fria)', 5, 3, 0, 1),
+    ('p15', 'Lata de Gaseosa', 0, 'Sin alcohol', 'Coca cola | Sprite', 5, 1, 0, 1),
+    ('p16', 'Speed', 0, 'Sin alcohol', 'lata de speed', 5, 2, 0, 1),
+    ('p17', 'Agua', 0, 'Sin alcohol', 'Botella de agua (natural o fria)', 5, 3, 0, 1),
     ('p37', 'Cerveza Heineken Sin alcohol', 0, 'Sin alcohol', '', 5, 4, 0, 1),
     ('p38', 'Cerveza Imperial Sin alcohol', 0, 'Sin alcohol', '', 5, 5, 0, 1),
 
     /* ==============================
        6. COMBOS
        ============================== */
-    ('p8', 'Combo Sernova', 43000, 'Combos', '1 Sernova + 3 Speed', 6, 1, 0, 1),
-    ('p9', 'Combo Fernet', 41000, 'Combos', '1 Fernet + 4 cocas lata', 6, 2, 0, 1),
-    ('p10', 'Combo Smirnoff', 45000, 'Combos', '1 Smirnoff rojo/verde + 3 Speed', 6, 3, 0, 1),
-    ('p11', 'Combo Skyy', 47000, 'Combos', '1 Skyy + 3 Speed', 6, 4, 0, 1),
-    ('p12', 'Combo de Gin', 48000, 'Combos', '1 Gin Heráclito + 1 botella 1.5 de tónica', 6, 5, 0, 1),
-    ('p14', 'Combo Absolut', 75000, 'Combos', '1 Absolut + 3 Speed', 6, 6, 0, 1),
-    ('p18', 'Combo de Bombarder', 41000, 'Combos', 'Botella de bombarder de caramelo + 3 speeds', 6, 7, 0, 1),
-    ('p33', 'Combo Du', 28000, 'Combos', '1 botella de Du + 2 Speed', 6, 8, 0, 1),
+    ('p8', 'Combo Sernova', 0, 'Combos', '1 Sernova + 3 Speed', 6, 1, 0, 1),
+    ('p9', 'Combo Fernet', 0, 'Combos', '1 Fernet + 4 cocas lata', 6, 2, 0, 1),
+    ('p10', 'Combo Smirnoff', 0, 'Combos', '1 Smirnoff rojo/verde + 3 Speed', 6, 3, 0, 1),
+    ('p11', 'Combo Skyy', 0, 'Combos', '1 Skyy + 3 Speed', 6, 4, 0, 1),
+    ('p12', 'Combo de Gin', 0, 'Combos', '1 Gin Heráclito + 1 botella 1.5 de tónica', 6, 5, 0, 1),
+    ('p14', 'Combo Absolut', 0, 'Combos', '1 Absolut + 3 Speed', 6, 6, 0, 1),
+    ('p18', 'Combo de Bombarder', 0, 'Combos', 'Botella de bombarder de caramelo + 3 speeds', 6, 7, 0, 1),
+    ('p33', 'Combo Du', 0, 'Combos', '1 botella de Du + 2 Speed', 6, 8, 0, 1),
 
     /* ==============================
        7. SHOTS
        ============================== */
-    ('p41', 'Shot de Vodka', 6000, 'Shot', 'Medida de vodka', 7, 1, 0, 1),
-    ('p42', 'Shot de Ron', 6000, 'Shot', 'Medida de ron', 7, 2, 0, 1),
-    ('p43', 'Shot de Tekila', 6000, 'Shot', 'Medida de Tekila', 7, 3, 0, 1),
-    ('p44', 'Shot de Jagger', 8000, 'Shot', 'Medida de Jaggermeister', 7, 4, 0, 1),
+    ('p41', 'Shot de Vodka', 0, 'Shot', 'Medida de vodka', 7, 1, 0, 1),
+    ('p42', 'Shot de Ron', 0, 'Shot', 'Medida de ron', 7, 2, 0, 1),
+    ('p43', 'Shot de Tekila', 0, 'Shot', 'Medida de Tekila', 7, 3, 0, 1),
+    ('p44', 'Shot de Jagger', 0, 'Shot', 'Medida de Jaggermeister', 7, 4, 0, 1),
 
     /* ==============================
        8. KIOSKO
        ============================== */
-    ('p5', 'Chicles', 2000, 'Kiosko', '', 8, 1, 0, 1),
-    ('p6', 'Etiquetas cigarrillos', 6000, 'Kiosko', '', 8, 2, 0, 1),
-    ('p7', 'Papitas', 2500, 'Kiosko', '', 8, 3, 0, 1),
-    ('p46', 'Preservativos', 5000, 'Kiosko', '', 8, 4, 0, 1),
-    ('p47', 'Beldem', 2000, 'Kiosko', '', 8, 5, 0, 1),
-    ('p48', 'Topline 7', 2500, 'Kiosko', '', 8, 6, 0, 1),
-    ('p49', 'Quento', 4000, 'Kiosko', '', 8, 7, 0, 1),
-    ('p50', 'Saladix', 2500, 'Kiosko', '', 8, 8, 0, 1),
-    ('p51', 'Saladix Caja', 4000, 'Kiosko', '', 8, 9, 0, 1),
-    ('p52', 'Chocolate', 3000, 'Kiosko', '', 8, 10, 0, 1),
-    ('p53', 'Camel x10', 4500, 'Kiosko', '', 8, 11, 0, 1),
+    ('p5', 'Chicles', 0, 'Kiosko', '', 8, 1, 0, 1),
+    ('p6', 'Etiquetas cigarrillos', 0, 'Kiosko', '', 8, 2, 0, 1),
+    ('p7', 'Papitas', 0, 'Kiosko', '', 8, 3, 0, 1),
+    ('p46', 'Preservativos', 0, 'Kiosko', '', 8, 4, 0, 1),
+    ('p47', 'Beldem', 0, 'Kiosko', '', 8, 5, 0, 1),
+    ('p48', 'Topline 7', 0, 'Kiosko', '', 8, 6, 0, 1),
+    ('p49', 'Quento', 0, 'Kiosko', '', 8, 7, 0, 1),
+    ('p50', 'Saladix', 0, 'Kiosko', '', 8, 8, 0, 1),
+    ('p51', 'Saladix Caja', 0, 'Kiosko', '', 8, 9, 0, 1),
+    ('p52', 'Chocolate', 0, 'Kiosko', '', 8, 10, 0, 1),
+    ('p53', 'Camel x10', 0, 'Kiosko', '', 8, 11, 0, 1),
 
     /* ==============================
        9. EXTRAS
        ============================== */
-    ('p13', 'VIP', 5000, 'Extras', '', 9, 1, 0, 1)
+    ('p13', 'VIP', 0, 'Extras', '', 9, 1, 0, 1)
 ON DUPLICATE KEY UPDATE
     code = VALUES(code);
 

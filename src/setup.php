@@ -480,11 +480,10 @@ try {
     echo '<h2>3) Usuarios base</h2>';
 
     $users = [
+        ['username' => 'lopez', 'display_name' => 'Lopez', 'password' => 'lopez123', 'role' => 'admin'],
         ['username' => 'camila', 'display_name' => 'Camila', 'password' => 'camila123', 'role' => 'admin'],
         ['username' => 'nicolas', 'display_name' => 'Nicko', 'password' => 'nicolas123', 'role' => 'admin'],
-        ['username' => 'lopez', 'display_name' => 'Lopez', 'password' => 'lopez123', 'role' => 'admin'],
-        ['username' => 'publica', 'display_name' => 'Publica', 'password' => 'publica123', 'role' => 'usuario'],
-        ['username' => 'candelaria', 'display_name' => 'Candelaria', 'password' => 'candelaria123', 'role' => 'usuario'],
+        ['username' => 'publica', 'display_name' => 'Publica', 'password' => 'publica123', 'role' => 'usuario']
     ];
 
     $checkUser = $pdo->prepare(
