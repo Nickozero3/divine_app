@@ -503,7 +503,25 @@ try {
                 ];
             }, $lists);
 
-            ok(['lists' => $result]);
+            // La vista de "todas las listas" (admin/puerta) no necesita
+            // mostrar listas sin ninguna persona cargada; el dueño de la
+            // lista (RRPP) sigue viendo su propia lista aunque esté vacía,
+            // porque esa parte usa el otro branch (WHERE dl.user_id = ...).
+            $hiddenEmptyLists = [];
+
+            if ($isDoorManager) {
+                $hiddenEmptyLists = array_values(array_map(
+                    fn($list) => ['name' => $list['name'], 'ownerName' => $list['ownerName']],
+                    array_filter($result, fn($list) => count($list['people']) === 0)
+                ));
+
+                $result = array_values(array_filter(
+                    $result,
+                    fn($list) => count($list['people']) > 0
+                ));
+            }
+
+            ok(['lists' => $result, 'hiddenEmptyLists' => $hiddenEmptyLists]);
         }
 
         case 'list_add': {

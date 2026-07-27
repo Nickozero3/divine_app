@@ -1370,6 +1370,7 @@ document.addEventListener('keydown', (e) => {
 const PERSON_PRICE = 500;
 const BIRTHDAY_PERSON_PRICE = 1000;
 let doorLists = [];
+let hiddenEmptyDoorLists = [];
 let openQuickAddListId = null;
 let collapsedDoorLists = {};
 let lastChangedPersonId = null;
@@ -1450,13 +1451,15 @@ async function renderPuerta(forceRender = false) {
 
     const data = await api('door_lists');
     const newLists = Array.isArray(data.lists) ? data.lists : [];
-    const newSnapshot = makeDoorSnapshot(newLists);
+    const newHiddenEmpty = Array.isArray(data.hiddenEmptyLists) ? data.hiddenEmptyLists : [];
+    const newSnapshot = makeDoorSnapshot(newLists) + '|' + JSON.stringify(newHiddenEmpty);
 
     if (!forceRender && puertaYaRenderizada && newSnapshot === lastDoorSnapshot) {
       return;
     }
 
     doorLists = newLists;
+    hiddenEmptyDoorLists = newHiddenEmpty;
     lastDoorSnapshot = newSnapshot;
     puertaYaRenderizada = true;
 
@@ -1483,6 +1486,15 @@ function drawPuerta() {
   // Admin y puerta pueden ver/controlar todas las listas.
   const canManageDoor = isAdmin || isPuerta;
 
+  const hiddenNoticeHtml = (canManageDoor && hiddenEmptyDoorLists.length)
+    ? `
+      <div class="list-card" style="padding:12px 16px;color:var(--text2);font-size:13px;">
+        👁️‍🗨️ ${hiddenEmptyDoorLists.length} lista${hiddenEmptyDoorLists.length === 1 ? '' : 's'} oculta${hiddenEmptyDoorLists.length === 1 ? '' : 's'} por estar vacía${hiddenEmptyDoorLists.length === 1 ? '' : 's'} (sin personas cargadas):
+        <b style="color:var(--text);">${hiddenEmptyDoorLists.map(l => esc(l.ownerName ? `${l.name} (${l.ownerName})` : l.name)).join(', ')}</b>
+      </div>
+    `
+    : '';
+
   // Usuario común solo busca dentro de sus listas.
   const listTerm = canManageDoor ? normalizeText(searchInput ? searchInput.value : '') : '';
   const personTerm = normalizeText(personSearchInput ? personSearchInput.value : '');
@@ -1494,6 +1506,7 @@ function drawPuerta() {
 
   if (!visibleLists.length) {
     wrap.innerHTML = `
+      ${hiddenNoticeHtml}
       <div class="list-card">
         <div style="padding:18px 16px;color:var(--text2);">
           ${(listTerm || personTerm) ? 'No se encontraron resultados con esa búsqueda.' : 'Todavía no hay listas creadas.'}
@@ -1503,7 +1516,7 @@ function drawPuerta() {
     return;
   }
 
-  wrap.innerHTML = visibleLists.map(list => {
+  wrap.innerHTML = hiddenNoticeHtml + visibleLists.map(list => {
     const stats = getListStats(list);
     const pricePerPerson = getListPrice(list);
     const collapsed = personTerm ? false : !!collapsedDoorLists[list.id];

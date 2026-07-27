@@ -105,19 +105,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $newUserId = (int)$pdo->lastInsertId();
 
-            if ($role === 'usuario' && isset($_POST['create_list'])) {
-                $stmtList = $pdo->prepare("
-                    INSERT INTO door_lists 
-                    (user_id, name, is_birthday, price_per_person)
-                    VALUES 
-                    (:user_id, :name, 0, 500)
-                ");
+            // Toda persona nueva tiene su lista propia creada de forma
+            // obligatoria, para que su link de registro público funcione
+            // desde el primer momento (sin depender de un checkbox).
+            $stmtList = $pdo->prepare("
+                INSERT INTO door_lists 
+                (user_id, name, is_birthday, price_per_person)
+                VALUES 
+                (:user_id, :name, 0, 500)
+            ");
 
-                $stmtList->execute([
-                    ':user_id' => $newUserId,
-                    ':name' => $displayName,
-                ]);
-            }
+            $stmtList->execute([
+                ':user_id' => $newUserId,
+                ':name' => $displayName,
+            ]);
 
             redirectWithMessage('success', 'Usuario creado correctamente.');
         }
@@ -210,7 +211,13 @@ $stmt = $pdo->query("
         WHERE dl.user_id = u.id AND dl.is_birthday = 0
         ORDER BY dl.id ASC
         LIMIT 1
-      ) AS list_id
+      ) AS list_id,
+      (
+        SELECT COUNT(*)
+        FROM door_people dp
+        INNER JOIN door_lists dl2 ON dl2.id = dp.list_id
+        WHERE dl2.user_id = u.id
+      ) AS people_count
     FROM users u
     ORDER BY
       CASE u.role
@@ -223,6 +230,46 @@ $stmt = $pdo->query("
 ");
 
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+/*
+ * Toda persona tiene que tener su lista propia creada de forma
+ * obligatoria (para que el link de registro público siempre
+ * funcione). Si algún usuario todavía no tiene su lista normal
+ * (is_birthday = 0), se la crea acá mismo, una sola vez, con el
+ * mismo INSERT que ya usa el alta de usuarios.
+ */
+$stmtCreateList = $pdo->prepare("
+    INSERT INTO door_lists 
+    (user_id, name, is_birthday, price_per_person)
+    VALUES 
+    (:user_id, :name, 0, 500)
+");
+
+foreach ($users as &$userRow) {
+    if (empty($userRow['list_id'])) {
+        $stmtCreateList->execute([
+            ':user_id' => (int) $userRow['id'],
+            ':name' => (string) $userRow['display_name'],
+        ]);
+
+        $userRow['list_id'] = (int) $pdo->lastInsertId();
+        $userRow['people_count'] = 0;
+    }
+}
+unset($userRow);
+
+/*
+ * Los "puerta" no son promotores: si su lista está vacía (0
+ * personas cargadas), no se muestran en el directorio para no
+ * ensuciarlo con listas vacías. En cuanto tengan 1 o más personas
+ * cargadas, aparecen normalmente.
+ */
+$users = array_values(array_filter($users, function (array $u): bool {
+    if (($u['role'] ?? '') === 'puerta') {
+        return (int) ($u['people_count'] ?? 0) > 0;
+    }
+    return true;
+}));
 
 // URL base para el link de registro público (registro_publico.php ?lista=ID).
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -980,10 +1027,9 @@ select {
         <button class="btn" type="submit">Crear</button>
       </div>
 
-      <label class="check-row">
-        <input type="checkbox" name="create_list" value="1" checked>
-        Crear lista automática si el rol es Usuario
-      </label>
+      <p class="check-row" style="opacity:.75;">
+        ℹ️ Se crea automáticamente su lista propia (obligatorio, para que su link de registro funcione).
+      </p>
     </form>
   </div>
 

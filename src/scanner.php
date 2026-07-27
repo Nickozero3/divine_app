@@ -9,7 +9,9 @@ if (!isset($_SESSION['user'])) {
 
 $currentUser = $_SESSION['user'];
 
-if (($currentUser['role'] ?? '') !== 'admin') {
+$allowedScannerRoles = ['admin', 'puerta'];
+
+if (!in_array(strtolower(trim((string) ($currentUser['role'] ?? ''))), $allowedScannerRoles, true)) {
   die('Acceso denegado');
 }
 ?>
