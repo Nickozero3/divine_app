@@ -1,7 +1,9 @@
 <?php
+
 declare(strict_types=1);
 
 require_once __DIR__ . '/const.php';
+require_once __DIR__ . '/roles.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
@@ -15,13 +17,23 @@ if (!isset($_SESSION['user']) || !is_array($_SESSION['user'])) {
 $currentUser = $_SESSION['user'];
 $currentRole = strtolower(trim((string) ($currentUser['role'] ?? '')));
 
-$isAdmin  = $currentRole === 'admin';
-$isPuerta = $currentRole === 'puerta';
+$isAdmin = $currentRole === ROLE_ADMIN;
+$isPuerta = $currentRole === ROLE_PUERTA;
+$isKiosko = $currentRole === ROLE_KIOSKO;
 
-$canSeeAdmin    = $isAdmin;
-$canSeeScanner  = $isAdmin || $isPuerta;
-$canSeeKioskito = $isAdmin;
-$canManageDoor  = $isAdmin || $isPuerta;
+$canSeeAdmin = canAccess($currentRole, 'admin');
+
+$canSeeScanner = canAccess($currentRole, 'scanner');
+
+$canSeeKioskito = canAccess($currentRole, 'kiosko');
+
+$canManageDoor = canAccess($currentRole, 'door');
+
+$canSeeStock = canAccess($currentRole, 'stock');
+
+$canSeeGuardarropas = canAccess($currentRole, 'guardarropas');
+
+
 
 function e(string $value): string
 {

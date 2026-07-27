@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 session_start();
@@ -28,6 +29,20 @@ function current_role(): string
         '';
 
     return strtolower(trim((string) $role));
+}
+function is_kioskito(array $user): bool
+{
+    return ($user['role'] ?? '') === 'kioskito';
+}
+
+function is_scanner(array $user): bool
+{
+    return ($user['role'] ?? '') === 'scanner';
+}
+
+function is_guardarropas(array $user): bool
+{
+    return ($user['role'] ?? '') === 'guardarropas';
 }
 
 function require_role(array $allowedRoles): void
@@ -382,342 +397,342 @@ $input = read_input();
 try {
     switch ($action) {
         case 'me': {
-            ok(['user' => $user]);
-        }
+                ok(['user' => $user]);
+            }
 
-        /* =========================
+            /* =========================
            PRODUCTOS / KIOSKITO
         ========================= */
         case 'products_list': {
-            require_admin($user);
-            $stmt = $pdo->query('SELECT * FROM products WHERE active = 1 ORDER BY custom ASC, id ASC');
-            $products = array_map('product_row', $stmt->fetchAll());
-            ok(['products' => $products]);
-        }
+                require_admin($user);
+                $stmt = $pdo->query('SELECT * FROM products WHERE active = 1 ORDER BY custom ASC, id ASC');
+                $products = array_map('product_row', $stmt->fetchAll());
+                ok(['products' => $products]);
+            }
 
         case 'product_add': {
-            require_admin($user);
-            $name = trim((string) ($input['name'] ?? ''));
-            $price = max(0, (int) ($input['price'] ?? 0));
-            $cat = trim((string) ($input['cat'] ?? 'Otros')) ?: 'Otros';
-            $sub = trim((string) ($input['sub'] ?? ''));
+                require_admin($user);
+                $name = trim((string) ($input['name'] ?? ''));
+                $price = max(0, (int) ($input['price'] ?? 0));
+                $cat = trim((string) ($input['cat'] ?? 'Otros')) ?: 'Otros';
+                $sub = trim((string) ($input['sub'] ?? ''));
 
-            if ($name === '') {
-                fail('El nombre del producto es obligatorio.');
+                if ($name === '') {
+                    fail('El nombre del producto es obligatorio.');
+                }
+
+                $stmt = $pdo->prepare('INSERT INTO products (code, name, price, cat, sub, qty, custom, active) VALUES (NULL, :name, :price, :cat, :sub, 0, 1, 1)');
+                $stmt->execute([
+                    ':name' => $name,
+                    ':price' => $price,
+                    ':cat' => $cat,
+                    ':sub' => $sub,
+                ]);
+                ok(['id' => (int) $pdo->lastInsertId()]);
             }
-
-            $stmt = $pdo->prepare('INSERT INTO products (code, name, price, cat, sub, qty, custom, active) VALUES (NULL, :name, :price, :cat, :sub, 0, 1, 1)');
-            $stmt->execute([
-                ':name' => $name,
-                ':price' => $price,
-                ':cat' => $cat,
-                ':sub' => $sub,
-            ]);
-            ok(['id' => (int) $pdo->lastInsertId()]);
-        }
 
         case 'product_delete': {
-            require_admin($user);
-            $id = (int) ($input['id'] ?? 0);
-            if ($id <= 0) fail('Producto inválido.');
+                require_admin($user);
+                $id = (int) ($input['id'] ?? 0);
+                if ($id <= 0) fail('Producto inválido.');
 
-            $stmt = $pdo->prepare('DELETE FROM products WHERE id = :id AND custom = 1');
-            $stmt->execute([':id' => $id]);
+                $stmt = $pdo->prepare('DELETE FROM products WHERE id = :id AND custom = 1');
+                $stmt->execute([':id' => $id]);
 
-            if ($stmt->rowCount() === 0) {
-                fail('Solo se pueden eliminar productos creados manualmente.');
+                if ($stmt->rowCount() === 0) {
+                    fail('Solo se pueden eliminar productos creados manualmente.');
+                }
+                ok();
             }
-            ok();
-        }
 
         case 'product_qty': {
-            require_admin($user);
-            $id = (int) ($input['id'] ?? 0);
-            $delta = (int) ($input['delta'] ?? 0);
-            if ($id <= 0 || $delta === 0) fail('Datos inválidos.');
+                require_admin($user);
+                $id = (int) ($input['id'] ?? 0);
+                $delta = (int) ($input['delta'] ?? 0);
+                if ($id <= 0 || $delta === 0) fail('Datos inválidos.');
 
-            $stmt = $pdo->prepare('UPDATE products SET qty = GREATEST(0, qty + :delta) WHERE id = :id AND active = 1');
-            $stmt->execute([':delta' => $delta, ':id' => $id]);
-            ok();
-        }
+                $stmt = $pdo->prepare('UPDATE products SET qty = GREATEST(0, qty + :delta) WHERE id = :id AND active = 1');
+                $stmt->execute([':delta' => $delta, ':id' => $id]);
+                ok();
+            }
 
-        /* =========================
+            /* =========================
            PUERTA / LISTAS
         ========================= */
         case 'door_lists': {
-            $isDoorManager = is_door_manager($user);
+                $isDoorManager = is_door_manager($user);
 
-            if ($isDoorManager) {
-                $stmt = $pdo->query('
+                if ($isDoorManager) {
+                    $stmt = $pdo->query('
                     SELECT dl.*, u.display_name AS owner_name
                     FROM door_lists dl
                     INNER JOIN users u ON u.id = dl.user_id
                     ORDER BY dl.created_at DESC, dl.id DESC
                 ');
-                $lists = $stmt->fetchAll();
-            } else {
-                $stmt = $pdo->prepare('
+                    $lists = $stmt->fetchAll();
+                } else {
+                    $stmt = $pdo->prepare('
                     SELECT dl.*, u.display_name AS owner_name
                     FROM door_lists dl
                     INNER JOIN users u ON u.id = dl.user_id
                     WHERE dl.user_id = :user_id
                     ORDER BY dl.created_at DESC, dl.id DESC
                 ');
-                $stmt->execute([
-                    ':user_id' => (int) $user['id']
-                ]);
-                $lists = $stmt->fetchAll();
-            }
+                    $stmt->execute([
+                        ':user_id' => (int) $user['id']
+                    ]);
+                    $lists = $stmt->fetchAll();
+                }
 
-            $ids = array_map(fn($l) => (int) $l['id'], $lists);
-            $peopleByList = [];
+                $ids = array_map(fn($l) => (int) $l['id'], $lists);
+                $peopleByList = [];
 
-            if ($ids) {
-                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                if ($ids) {
+                    $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
-                $stmtPeople = $pdo->prepare("
+                    $stmtPeople = $pdo->prepare("
                     SELECT *
                     FROM door_people
                     WHERE list_id IN ($placeholders)
                     ORDER BY id ASC
                 ");
 
-                $stmtPeople->execute($ids);
+                    $stmtPeople->execute($ids);
 
-                foreach ($stmtPeople->fetchAll() as $person) {
-                    $peopleByList[(int) $person['list_id']][] = person_row($person);
+                    foreach ($stmtPeople->fetchAll() as $person) {
+                        $peopleByList[(int) $person['list_id']][] = person_row($person);
+                    }
                 }
+
+                $result = array_map(function ($list) use ($peopleByList) {
+                    $id = (int) $list['id'];
+
+                    return [
+                        'id' => $id,
+                        'userId' => (int) $list['user_id'],
+                        'ownerName' => $list['owner_name'] ?? '',
+                        'name' => $list['name'],
+                        'isBirthday' => (bool) $list['is_birthday'],
+                        'pricePerPerson' => (int) $list['price_per_person'],
+                        'people' => $peopleByList[$id] ?? [],
+                    ];
+                }, $lists);
+
+                // La vista de "todas las listas" (admin/puerta) no necesita
+                // mostrar listas sin ninguna persona cargada; el dueño de la
+                // lista (RRPP) sigue viendo su propia lista aunque esté vacía,
+                // porque esa parte usa el otro branch (WHERE dl.user_id = ...).
+                $hiddenEmptyLists = [];
+
+                if ($isDoorManager) {
+                    $hiddenEmptyLists = array_values(array_map(
+                        fn($list) => ['name' => $list['name'], 'ownerName' => $list['ownerName']],
+                        array_filter($result, fn($list) => count($list['people']) === 0)
+                    ));
+
+                    $result = array_values(array_filter(
+                        $result,
+                        fn($list) => count($list['people']) > 0
+                    ));
+                }
+
+                ok(['lists' => $result, 'hiddenEmptyLists' => $hiddenEmptyLists]);
             }
-
-            $result = array_map(function ($list) use ($peopleByList) {
-                $id = (int) $list['id'];
-
-                return [
-                    'id' => $id,
-                    'userId' => (int) $list['user_id'],
-                    'ownerName' => $list['owner_name'] ?? '',
-                    'name' => $list['name'],
-                    'isBirthday' => (bool) $list['is_birthday'],
-                    'pricePerPerson' => (int) $list['price_per_person'],
-                    'people' => $peopleByList[$id] ?? [],
-                ];
-            }, $lists);
-
-            // La vista de "todas las listas" (admin/puerta) no necesita
-            // mostrar listas sin ninguna persona cargada; el dueño de la
-            // lista (RRPP) sigue viendo su propia lista aunque esté vacía,
-            // porque esa parte usa el otro branch (WHERE dl.user_id = ...).
-            $hiddenEmptyLists = [];
-
-            if ($isDoorManager) {
-                $hiddenEmptyLists = array_values(array_map(
-                    fn($list) => ['name' => $list['name'], 'ownerName' => $list['ownerName']],
-                    array_filter($result, fn($list) => count($list['people']) === 0)
-                ));
-
-                $result = array_values(array_filter(
-                    $result,
-                    fn($list) => count($list['people']) > 0
-                ));
-            }
-
-            ok(['lists' => $result, 'hiddenEmptyLists' => $hiddenEmptyLists]);
-        }
 
         case 'list_add': {
-            $isBirthday = !empty($input['isBirthday']);
-            $pricePerPerson = $isBirthday ? 1000 : 500;
-            $baseName = trim((string) ($user['display_name'] ?? $user['username'] ?? 'Usuario'));
+                $isBirthday = !empty($input['isBirthday']);
+                $pricePerPerson = $isBirthday ? 1000 : 500;
+                $baseName = trim((string) ($user['display_name'] ?? $user['username'] ?? 'Usuario'));
 
-            if ($baseName === '') {
-                $baseName = 'Usuario';
-            }
+                if ($baseName === '') {
+                    $baseName = 'Usuario';
+                }
 
-            if ($isBirthday) {
-                $birthdayPrefix = $baseName . ' Cumpleaños ';
-                $stmtMax = $pdo->prepare("
+                if ($isBirthday) {
+                    $birthdayPrefix = $baseName . ' Cumpleaños ';
+                    $stmtMax = $pdo->prepare("
                     SELECT COALESCE(MAX(CAST(TRIM(SUBSTRING(name, CHAR_LENGTH(:prefix) + 1)) AS UNSIGNED)), 0)
                     FROM door_lists
                     WHERE user_id = :user_id
                       AND is_birthday = 1
                       AND name LIKE :name_like
                 ");
-                $stmtMax->execute([
-                    ':prefix' => $birthdayPrefix,
-                    ':user_id' => (int) $user['id'],
-                    ':name_like' => $birthdayPrefix . '%',
-                ]);
-                $nextNumber = ((int) $stmtMax->fetchColumn()) + 1;
-                $name = $birthdayPrefix . $nextNumber;
-            } else {
-                $name = $baseName;
-
-                $stmtExisting = $pdo->prepare('SELECT id FROM door_lists WHERE user_id = :user_id AND is_birthday = 0 ORDER BY id ASC LIMIT 1');
-                $stmtExisting->execute([':user_id' => (int) $user['id']]);
-                $existingId = $stmtExisting->fetchColumn();
-
-                if ($existingId) {
-                    $stmtRename = $pdo->prepare('UPDATE door_lists SET name = :name, price_per_person = 500 WHERE id = :id');
-                    $stmtRename->execute([':name' => $name, ':id' => (int) $existingId]);
-
-                    ok([
-                        'id' => (int) $existingId,
-                        'name' => $name,
-                        'existing' => true,
-                        'message' => 'Ya existe tu lista principal.',
+                    $stmtMax->execute([
+                        ':prefix' => $birthdayPrefix,
+                        ':user_id' => (int) $user['id'],
+                        ':name_like' => $birthdayPrefix . '%',
                     ]);
+                    $nextNumber = ((int) $stmtMax->fetchColumn()) + 1;
+                    $name = $birthdayPrefix . $nextNumber;
+                } else {
+                    $name = $baseName;
+
+                    $stmtExisting = $pdo->prepare('SELECT id FROM door_lists WHERE user_id = :user_id AND is_birthday = 0 ORDER BY id ASC LIMIT 1');
+                    $stmtExisting->execute([':user_id' => (int) $user['id']]);
+                    $existingId = $stmtExisting->fetchColumn();
+
+                    if ($existingId) {
+                        $stmtRename = $pdo->prepare('UPDATE door_lists SET name = :name, price_per_person = 500 WHERE id = :id');
+                        $stmtRename->execute([':name' => $name, ':id' => (int) $existingId]);
+
+                        ok([
+                            'id' => (int) $existingId,
+                            'name' => $name,
+                            'existing' => true,
+                            'message' => 'Ya existe tu lista principal.',
+                        ]);
+                    }
                 }
+
+                $stmt = $pdo->prepare('INSERT INTO door_lists (user_id, name, is_birthday, price_per_person) VALUES (:user_id, :name, :is_birthday, :price_per_person)');
+                $stmt->execute([
+                    ':user_id' => (int) $user['id'],
+                    ':name' => $name,
+                    ':is_birthday' => $isBirthday ? 1 : 0,
+                    ':price_per_person' => $pricePerPerson,
+                ]);
+
+                $listId = (int) $pdo->lastInsertId();
+                app_log(
+                    $pdo,
+                    (int) $user['id'],
+                    (string) ($user['username'] ?? ''),
+                    'list_create',
+                    'door_list',
+                    $listId,
+                    'Lista creada',
+                    [
+                        'list_id' => $listId,
+                        'list_name' => $name,
+                        'is_birthday' => $isBirthday,
+                        'price_per_person' => $pricePerPerson,
+                    ]
+                );
+
+                ok(['id' => $listId, 'name' => $name]);
             }
-
-            $stmt = $pdo->prepare('INSERT INTO door_lists (user_id, name, is_birthday, price_per_person) VALUES (:user_id, :name, :is_birthday, :price_per_person)');
-            $stmt->execute([
-                ':user_id' => (int) $user['id'],
-                ':name' => $name,
-                ':is_birthday' => $isBirthday ? 1 : 0,
-                ':price_per_person' => $pricePerPerson,
-            ]);
-
-            $listId = (int) $pdo->lastInsertId();
-            app_log(
-                $pdo,
-                (int) $user['id'],
-                (string) ($user['username'] ?? ''),
-                'list_create',
-                'door_list',
-                $listId,
-                'Lista creada',
-                [
-                    'list_id' => $listId,
-                    'list_name' => $name,
-                    'is_birthday' => $isBirthday,
-                    'price_per_person' => $pricePerPerson,
-                ]
-            );
-
-            ok(['id' => $listId, 'name' => $name]);
-        }
 
         case 'list_delete': {
-            $listId = (int) ($input['id'] ?? 0);
-            if ($listId <= 0) fail('Lista inválida.');
-            $list = current_user_can_access_list($pdo, $listId, $user);
+                $listId = (int) ($input['id'] ?? 0);
+                if ($listId <= 0) fail('Lista inválida.');
+                $list = current_user_can_access_list($pdo, $listId, $user);
 
-            app_log(
-                $pdo,
-                (int) $user['id'],
-                (string) ($user['username'] ?? ''),
-                'list_delete',
-                'door_list',
-                $listId,
-                'Lista eliminada',
-                [
-                    'deleted_list_id' => $listId,
-                    'deleted_list_name' => $list['name'] ?? '',
-                    'deleted_list_owner_user_id' => isset($list['user_id']) ? (int) $list['user_id'] : null,
-                    'deleted_list_owner_name' => $list['owner_name'] ?? '',
-                    'deleted_by_user_id' => (int) $user['id'],
-                    'deleted_by_username' => $user['username'] ?? '',
-                ]
-            );
+                app_log(
+                    $pdo,
+                    (int) $user['id'],
+                    (string) ($user['username'] ?? ''),
+                    'list_delete',
+                    'door_list',
+                    $listId,
+                    'Lista eliminada',
+                    [
+                        'deleted_list_id' => $listId,
+                        'deleted_list_name' => $list['name'] ?? '',
+                        'deleted_list_owner_user_id' => isset($list['user_id']) ? (int) $list['user_id'] : null,
+                        'deleted_list_owner_name' => $list['owner_name'] ?? '',
+                        'deleted_by_user_id' => (int) $user['id'],
+                        'deleted_by_username' => $user['username'] ?? '',
+                    ]
+                );
 
-            $stmt = $pdo->prepare('DELETE FROM door_lists WHERE id = :id');
-            $stmt->execute([':id' => $listId]);
-            ok();
-        }
+                $stmt = $pdo->prepare('DELETE FROM door_lists WHERE id = :id');
+                $stmt->execute([':id' => $listId]);
+                ok();
+            }
 
         case 'person_add': {
-            $listId = (int) ($input['listId'] ?? 0);
-            $name = trim((string) ($input['name'] ?? ''));
-            $note = trim((string) ($input['note'] ?? ''));
+                $listId = (int) ($input['listId'] ?? 0);
+                $name = trim((string) ($input['name'] ?? ''));
+                $note = trim((string) ($input['note'] ?? ''));
 
-            if ($listId <= 0) fail('Lista inválida.');
-            current_user_can_access_list($pdo, $listId, $user);
+                if ($listId <= 0) fail('Lista inválida.');
+                current_user_can_access_list($pdo, $listId, $user);
 
-            if ($name === '' || $note === '') {
-                fail('Completá nombre y dato/número.');
-            }
-
-            $stmt = $pdo->prepare('SELECT name, note FROM door_people WHERE list_id = :list_id');
-            $stmt->execute([':list_id' => $listId]);
-
-            foreach ($stmt->fetchAll() as $existing) {
-                if (
-                    normalize_text($existing['name']) === normalize_text($name) &&
-                    trim((string) $existing['note']) === $note
-                ) {
-                    fail('Esa persona ya está cargada en esta lista.');
+                if ($name === '' || $note === '') {
+                    fail('Completá nombre y dato/número.');
                 }
-            }
 
-            $stmt = $pdo->prepare('
+                $stmt = $pdo->prepare('SELECT name, note FROM door_people WHERE list_id = :list_id');
+                $stmt->execute([':list_id' => $listId]);
+
+                foreach ($stmt->fetchAll() as $existing) {
+                    if (
+                        normalize_text($existing['name']) === normalize_text($name) &&
+                        trim((string) $existing['note']) === $note
+                    ) {
+                        fail('Esa persona ya está cargada en esta lista.');
+                    }
+                }
+
+                $stmt = $pdo->prepare('
                 INSERT INTO door_people (list_id, name, note, status)
                 VALUES (:list_id, :name, :note, "no_vino")
             ');
 
-            $stmt->execute([
-                ':list_id' => $listId,
-                ':name' => $name,
-                ':note' => $note,
-            ]);
+                $stmt->execute([
+                    ':list_id' => $listId,
+                    ':name' => $name,
+                    ':note' => $note,
+                ]);
 
-            ok(['id' => (int) $pdo->lastInsertId()]);
-        }
+                ok(['id' => (int) $pdo->lastInsertId()]);
+            }
 
         case 'people_bulk': {
-            $listId = (int) ($input['listId'] ?? 0);
-            $people = $input['people'] ?? [];
+                $listId = (int) ($input['listId'] ?? 0);
+                $people = $input['people'] ?? [];
 
-            if ($listId <= 0) fail('Lista inválida.');
-            current_user_can_access_list($pdo, $listId, $user);
-            if (!is_array($people)) fail('Lista inválida.');
+                if ($listId <= 0) fail('Lista inválida.');
+                current_user_can_access_list($pdo, $listId, $user);
+                if (!is_array($people)) fail('Lista inválida.');
 
-            $stmt = $pdo->prepare('SELECT name, note FROM door_people WHERE list_id = :list_id');
-            $stmt->execute([':list_id' => $listId]);
-            $existingKeys = [];
-            foreach ($stmt->fetchAll() as $existing) {
-                $existingKeys[normalize_text($existing['name']) . '|' . trim((string) $existing['note'])] = true;
-            }
-
-            $insert = $pdo->prepare('INSERT INTO door_people (list_id, name, note, status) VALUES (:list_id, :name, :note, "no_vino")');
-            $added = 0;
-            $repeated = 0;
-            $ignored = 0;
-
-            $pdo->beginTransaction();
-            foreach ($people as $person) {
-                $name = trim((string) ($person['name'] ?? ''));
-                $note = trim((string) ($person['note'] ?? ''));
-                if ($name === '' || $note === '') {
-                    $ignored++;
-                    continue;
+                $stmt = $pdo->prepare('SELECT name, note FROM door_people WHERE list_id = :list_id');
+                $stmt->execute([':list_id' => $listId]);
+                $existingKeys = [];
+                foreach ($stmt->fetchAll() as $existing) {
+                    $existingKeys[normalize_text($existing['name']) . '|' . trim((string) $existing['note'])] = true;
                 }
 
-                $key = normalize_text($name) . '|' . $note;
-                if (isset($existingKeys[$key])) {
-                    $repeated++;
-                    continue;
+                $insert = $pdo->prepare('INSERT INTO door_people (list_id, name, note, status) VALUES (:list_id, :name, :note, "no_vino")');
+                $added = 0;
+                $repeated = 0;
+                $ignored = 0;
+
+                $pdo->beginTransaction();
+                foreach ($people as $person) {
+                    $name = trim((string) ($person['name'] ?? ''));
+                    $note = trim((string) ($person['note'] ?? ''));
+                    if ($name === '' || $note === '') {
+                        $ignored++;
+                        continue;
+                    }
+
+                    $key = normalize_text($name) . '|' . $note;
+                    if (isset($existingKeys[$key])) {
+                        $repeated++;
+                        continue;
+                    }
+
+                    $insert->execute([':list_id' => $listId, ':name' => $name, ':note' => $note]);
+                    $existingKeys[$key] = true;
+                    $added++;
                 }
+                $pdo->commit();
 
-                $insert->execute([':list_id' => $listId, ':name' => $name, ':note' => $note]);
-                $existingKeys[$key] = true;
-                $added++;
+                ok(['added' => $added, 'repeated' => $repeated, 'ignored' => $ignored]);
             }
-            $pdo->commit();
-
-            ok(['added' => $added, 'repeated' => $repeated, 'ignored' => $ignored]);
-        }
 
         case 'person_toggle_status': {
-            require_door_manager($user);
+                require_door_manager($user);
 
-            $listId = (int) ($input['listId'] ?? 0);
-            $personId = (int) ($input['personId'] ?? 0);
+                $listId = (int) ($input['listId'] ?? 0);
+                $personId = (int) ($input['personId'] ?? 0);
 
-            if ($listId <= 0 || $personId <= 0) {
-                fail('Datos inválidos.');
-            }
+                if ($listId <= 0 || $personId <= 0) {
+                    fail('Datos inválidos.');
+                }
 
-            $stmt = $pdo->prepare('
+                $stmt = $pdo->prepare('
                 SELECT status
                 FROM door_people
                 WHERE id = :person_id
@@ -725,53 +740,53 @@ try {
                 LIMIT 1
             ');
 
-            $stmt->execute([
-                ':person_id' => $personId,
-                ':list_id' => $listId
-            ]);
+                $stmt->execute([
+                    ':person_id' => $personId,
+                    ':list_id' => $listId
+                ]);
 
-            $person = $stmt->fetch();
+                $person = $stmt->fetch();
 
-            if (!$person) {
-                fail('Persona no encontrada.', 404);
-            }
+                if (!$person) {
+                    fail('Persona no encontrada.', 404);
+                }
 
-            $current = $person['status'];
+                $current = $person['status'];
 
-            $next = match ($current) {
-                'no_vino' => 'entro',
-                'entro' => 'se_fue',
-                default => 'no_vino',
-            };
+                $next = match ($current) {
+                    'no_vino' => 'entro',
+                    'entro' => 'se_fue',
+                    default => 'no_vino',
+                };
 
-            $stmt = $pdo->prepare('
+                $stmt = $pdo->prepare('
                 UPDATE door_people
                 SET status = :status
                 WHERE id = :person_id
                 AND list_id = :list_id
             ');
 
-            $stmt->execute([
-                ':status' => $next,
-                ':person_id' => $personId,
-                ':list_id' => $listId
-            ]);
+                $stmt->execute([
+                    ':status' => $next,
+                    ':person_id' => $personId,
+                    ':list_id' => $listId
+                ]);
 
-            ok(['status' => $next]);
-        }
-
-       case 'person_delete': {   
-            $listId = (int) ($input['listId'] ?? 0);
-            $personId = (int) ($input['personId'] ?? 0);
-
-            if ($listId <= 0 || $personId <= 0) {
-                fail('Datos inválidos.', 422);
+                ok(['status' => $next]);
             }
 
-            // Verifica que sea Admin o el dueño de la lista.
-            current_user_can_access_list($pdo, $listId, $user);
+        case 'person_delete': {
+                $listId = (int) ($input['listId'] ?? 0);
+                $personId = (int) ($input['personId'] ?? 0);
 
-            $stmtPerson = $pdo->prepare("
+                if ($listId <= 0 || $personId <= 0) {
+                    fail('Datos inválidos.', 422);
+                }
+
+                // Verifica que sea Admin o el dueño de la lista.
+                current_user_can_access_list($pdo, $listId, $user);
+
+                $stmtPerson = $pdo->prepare("
                 SELECT id, name, status
                 FROM door_people
                 WHERE id = :person_id
@@ -779,87 +794,87 @@ try {
                 LIMIT 1
             ");
 
-            $stmtPerson->execute([
-                ':person_id' => $personId,
-                ':list_id' => $listId,
-            ]);
+                $stmtPerson->execute([
+                    ':person_id' => $personId,
+                    ':list_id' => $listId,
+                ]);
 
-            $person = $stmtPerson->fetch(PDO::FETCH_ASSOC);
+                $person = $stmtPerson->fetch(PDO::FETCH_ASSOC);
 
-            if (!$person) {
-                fail('Persona no encontrada.', 404);
-            }
+                if (!$person) {
+                    fail('Persona no encontrada.', 404);
+                }
 
-            $role = strtolower(trim((string) ($user['role'] ?? '')));
-            $status = (string) ($person['status'] ?? 'no_vino');
+                $role = strtolower(trim((string) ($user['role'] ?? '')));
+                $status = (string) ($person['status'] ?? 'no_vino');
 
-            /*
+                /*
             * Una RRPP/Pública solamente puede borrar personas
             * que todavía no hayan ingresado.
             *
             * Admin sí puede borrar cualquiera.
             */
-            if ($role !== 'admin' && $status !== 'no_vino') {
-                fail(
-                    'No podés eliminar a esta persona porque ya ingresó al evento.',
-                    403
-                );
-            }
+                if ($role !== 'admin' && $status !== 'no_vino') {
+                    fail(
+                        'No podés eliminar a esta persona porque ya ingresó al evento.',
+                        403
+                    );
+                }
 
-            $stmtDelete = $pdo->prepare("
+                $stmtDelete = $pdo->prepare("
                 DELETE FROM door_people
                 WHERE id = :person_id
                 AND list_id = :list_id
             ");
 
-            $stmtDelete->execute([
-                ':person_id' => $personId,
-                ':list_id' => $listId,
-            ]);
+                $stmtDelete->execute([
+                    ':person_id' => $personId,
+                    ':list_id' => $listId,
+                ]);
 
-            ok([
-                'message' => 'Persona eliminada correctamente.',
-            ]);
-        }
+                ok([
+                    'message' => 'Persona eliminada correctamente.',
+                ]);
+            }
 
-        /* =========================
+            /* =========================
            USUARIOS
         ========================= */
         case 'users_list': {
-            require_admin($user);
+                require_admin($user);
 
-            $stmt = $pdo->query("
+                $stmt = $pdo->query("
                 SELECT id, username, display_name, role, created_at
                 FROM users
                 ORDER BY id ASC
             ");
 
-            ok([
-                'users' => $stmt->fetchAll(PDO::FETCH_ASSOC)
-            ]);
-        }
+                ok([
+                    'users' => $stmt->fetchAll(PDO::FETCH_ASSOC)
+                ]);
+            }
 
         case 'user_create': {
-            require_admin($user);
+                require_admin($user);
 
-            $username = trim((string) ($input['username'] ?? ''));
-            $displayName = trim((string) ($input['displayName'] ?? ''));
-            $password = (string) ($input['password'] ?? '');
-            $role = (string) ($input['role'] ?? 'usuario');
+                $username = trim((string) ($input['username'] ?? ''));
+                $displayName = trim((string) ($input['displayName'] ?? ''));
+                $password = (string) ($input['password'] ?? '');
+                $role = (string) ($input['role'] ?? 'usuario');
 
-            if ($username === '' || $displayName === '' || $password === '') {
-                fail('Faltan datos.', 422);
-            }
+                if ($username === '' || $displayName === '' || $password === '') {
+                    fail('Faltan datos.', 422);
+                }
 
-            if (!in_array($role, ['admin', 'usuario', 'puerta'], true)) {
-                fail('Rol inválido.', 422);
-            }
+                if (!in_array($role, ['admin', 'usuario', 'puerta'], true)) {
+                    fail('Rol inválido.', 422);
+                }
 
-            if (strlen($password) < 4) {
-                fail('La contraseña debe tener al menos 4 caracteres.', 422);
-            }
+                if (strlen($password) < 4) {
+                    fail('La contraseña debe tener al menos 4 caracteres.', 422);
+                }
 
-            $stmt = $pdo->prepare("
+                $stmt = $pdo->prepare("
                 INSERT INTO users (
                     username,
                     display_name,
@@ -873,43 +888,43 @@ try {
                 )
             ");
 
-            try {
-                $stmt->execute([
-                    ':username' => $username,
-                    ':display_name' => $displayName,
-                    ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
-                    ':role' => $role,
-                ]);
-            } catch (PDOException $e) {
-                fail('Ese usuario ya existe.', 409);
-            }
-
-            ok([
-                'message' => 'Usuario creado correctamente.'
-            ]);
-        }
-
-        case 'user_update': {
-            require_admin($user);
-
-            $id = (int) ($input['id'] ?? 0);
-            $password = (string) ($input['password'] ?? '');
-            $role = (string) ($input['role'] ?? 'usuario');
-
-            if ($id <= 0) {
-                fail('ID inválido.', 422);
-            }
-
-            if (!in_array($role, ['admin', 'usuario', 'puerta'], true)) {
-                fail('Rol inválido.', 422);
-            }
-
-            if ($password !== '') {
-                if (strlen($password) < 4) {
-                    fail('La contraseña debe tener al menos 4 caracteres.', 422);
+                try {
+                    $stmt->execute([
+                        ':username' => $username,
+                        ':display_name' => $displayName,
+                        ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                        ':role' => $role,
+                    ]);
+                } catch (PDOException $e) {
+                    fail('Ese usuario ya existe.', 409);
                 }
 
-                $stmt = $pdo->prepare("
+                ok([
+                    'message' => 'Usuario creado correctamente.'
+                ]);
+            }
+
+        case 'user_update': {
+                require_admin($user);
+
+                $id = (int) ($input['id'] ?? 0);
+                $password = (string) ($input['password'] ?? '');
+                $role = (string) ($input['role'] ?? 'usuario');
+
+                if ($id <= 0) {
+                    fail('ID inválido.', 422);
+                }
+
+                if (!in_array($role, ['admin', 'usuario', 'puerta'], true)) {
+                    fail('Rol inválido.', 422);
+                }
+
+                if ($password !== '') {
+                    if (strlen($password) < 4) {
+                        fail('La contraseña debe tener al menos 4 caracteres.', 422);
+                    }
+
+                    $stmt = $pdo->prepare("
                     UPDATE users
                     SET
                         role = :role,
@@ -917,222 +932,222 @@ try {
                     WHERE id = :id
                 ");
 
-                $stmt->execute([
-                    ':role' => $role,
-                    ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
-                    ':id' => $id,
-                ]);
-            } else {
-                $stmt = $pdo->prepare("
+                    $stmt->execute([
+                        ':role' => $role,
+                        ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                        ':id' => $id,
+                    ]);
+                } else {
+                    $stmt = $pdo->prepare("
                     UPDATE users
                     SET role = :role
                     WHERE id = :id
                 ");
 
-                $stmt->execute([
-                    ':role' => $role,
-                    ':id' => $id,
+                    $stmt->execute([
+                        ':role' => $role,
+                        ':id' => $id,
+                    ]);
+                }
+
+                ok([
+                    'message' => 'Usuario actualizado.'
                 ]);
             }
 
-            ok([
-                'message' => 'Usuario actualizado.'
-            ]);
-        }
-
-        /* =========================
+            /* =========================
            GUARDARROPAS
         ========================= */
         case 'guardarropas_list': {
-            $stmt = $pdo->query("
+                $stmt = $pdo->query("
                 SELECT *
                 FROM guardarropas
                 ORDER BY id DESC
             ");
 
-            $items = array_map(function (array $row): array {
-                return [
-                    'id'            => (int) $row['id'],
-                    'numero'        => (int) $row['numero'],
-                    'codigo'        => $row['codigo'],
-                    'nombre'        => $row['nombre'],
-                    'dni'           => $row['dni'],
-                    'telefono'      => $row['telefono'],
-                    'precio'        => (int) $row['precio'],
-                    'estado'        => $row['estado'],
-                    'hora_ingreso'  => $row['hora_ingreso'],
-                    'hora_retirado' => $row['hora_retirado'],
-                    'created_by'    => (int) $row['created_by'],
-                ];
-            }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+                $items = array_map(function (array $row): array {
+                    return [
+                        'id'            => (int) $row['id'],
+                        'numero'        => (int) $row['numero'],
+                        'codigo'        => $row['codigo'],
+                        'nombre'        => $row['nombre'],
+                        'dni'           => $row['dni'],
+                        'telefono'      => $row['telefono'],
+                        'precio'        => (int) $row['precio'],
+                        'estado'        => $row['estado'],
+                        'hora_ingreso'  => $row['hora_ingreso'],
+                        'hora_retirado' => $row['hora_retirado'],
+                        'created_by'    => (int) $row['created_by'],
+                    ];
+                }, $stmt->fetchAll(PDO::FETCH_ASSOC));
 
-            ok(['items' => $items]);
-        }
-
-        case 'guardarropas_add': {
-            require_admin($user);
-
-            $nombre   = trim((string) ($input['nombre']   ?? ''));
-            $dni      = trim((string) ($input['dni']      ?? ''));
-            $telefono = trim((string) ($input['telefono'] ?? ''));
-
-            if ($nombre === '') {
-                fail('El nombre es obligatorio.');
+                ok(['items' => $items]);
             }
 
-            $stmtMax = $pdo->query("SELECT COALESCE(MAX(numero), 0) FROM guardarropas");
-            $numero  = ((int) $stmtMax->fetchColumn()) + 1;
-            $codigo  = 'GR-' . str_pad((string) $numero, 3, '0', STR_PAD_LEFT);
+        case 'guardarropas_add': {
+                require_admin($user);
 
-            $stmt = $pdo->prepare("
+                $nombre   = trim((string) ($input['nombre']   ?? ''));
+                $dni      = trim((string) ($input['dni']      ?? ''));
+                $telefono = trim((string) ($input['telefono'] ?? ''));
+
+                if ($nombre === '') {
+                    fail('El nombre es obligatorio.');
+                }
+
+                $stmtMax = $pdo->query("SELECT COALESCE(MAX(numero), 0) FROM guardarropas");
+                $numero  = ((int) $stmtMax->fetchColumn()) + 1;
+                $codigo  = 'GR-' . str_pad((string) $numero, 3, '0', STR_PAD_LEFT);
+
+                $stmt = $pdo->prepare("
                 INSERT INTO guardarropas
                     (numero, codigo, nombre, dni, telefono, precio, estado, created_by)
                 VALUES
                     (:numero, :codigo, :nombre, :dni, :telefono, :precio, 'pendiente', :created_by)
             ");
 
-            $stmt->execute([
-                ':numero'     => $numero,
-                ':codigo'     => $codigo,
-                ':nombre'     => $nombre,
-                ':dni'        => $dni      !== '' ? $dni      : null,
-                ':telefono'   => $telefono !== '' ? $telefono : null,
-                ':precio'     => 2000,
-                ':created_by' => (int) $user['id'],
-            ]);
+                $stmt->execute([
+                    ':numero'     => $numero,
+                    ':codigo'     => $codigo,
+                    ':nombre'     => $nombre,
+                    ':dni'        => $dni      !== '' ? $dni      : null,
+                    ':telefono'   => $telefono !== '' ? $telefono : null,
+                    ':precio'     => 2000,
+                    ':created_by' => (int) $user['id'],
+                ]);
 
-            ok([
-                'id'     => (int) $pdo->lastInsertId(),
-                'numero' => $numero,
-                'codigo' => $codigo,
-            ]);
-        }
+                ok([
+                    'id'     => (int) $pdo->lastInsertId(),
+                    'numero' => $numero,
+                    'codigo' => $codigo,
+                ]);
+            }
 
         case 'guardarropas_entregar': {
-            require_admin($user);
+                require_admin($user);
 
-            $id = (int) ($input['id'] ?? 0);
-            if ($id <= 0) {
-                fail('ID inválido.');
-            }
+                $id = (int) ($input['id'] ?? 0);
+                if ($id <= 0) {
+                    fail('ID inválido.');
+                }
 
-            $stmtCheck = $pdo->prepare("SELECT estado FROM guardarropas WHERE id = :id LIMIT 1");
-            $stmtCheck->execute([':id' => $id]);
-            $row = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+                $stmtCheck = $pdo->prepare("SELECT estado FROM guardarropas WHERE id = :id LIMIT 1");
+                $stmtCheck->execute([':id' => $id]);
+                $row = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
-            if (!$row) {
-                fail('Prenda no encontrada.', 404);
-            }
-            if ($row['estado'] === 'retirado') {
-                fail('Esta prenda ya fue retirada.');
-            }
+                if (!$row) {
+                    fail('Prenda no encontrada.', 404);
+                }
+                if ($row['estado'] === 'retirado') {
+                    fail('Esta prenda ya fue retirada.');
+                }
 
-            $stmt = $pdo->prepare("
+                $stmt = $pdo->prepare("
                 UPDATE guardarropas
                 SET estado = 'retirado', hora_retirado = NOW()
                 WHERE id = :id
             ");
-            $stmt->execute([':id' => $id]);
+                $stmt->execute([':id' => $id]);
 
-            ok();
-        }
-        case 'products_reset': {
-            require_admin($user);
-
-            $pin = (string) ($input['pin'] ?? '');
-
-            if ($pin !== '1234') {
-                fail('PIN incorrecto.');
+                ok();
             }
+        case 'products_reset': {
+                require_admin($user);
 
-            $pdo->beginTransaction();
+                $pin = (string) ($input['pin'] ?? '');
 
-            // Borra historial de ventas
-            $pdo->exec('DELETE FROM kiosko_sales');
+                if ($pin !== '1234') {
+                    fail('PIN incorrecto.');
+                }
 
-            // Reinicia cantidades, pero conserva TODOS los productos
-            $pdo->exec('UPDATE products SET qty = 0');
+                $pdo->beginTransaction();
 
-            $pdo->commit();
+                // Borra historial de ventas
+                $pdo->exec('DELETE FROM kiosko_sales');
 
-            ok();
-        }
+                // Reinicia cantidades, pero conserva TODOS los productos
+                $pdo->exec('UPDATE products SET qty = 0');
+
+                $pdo->commit();
+
+                ok();
+            }
 
         case 'guardarropas_delete': {
-            require_admin($user);
+                require_admin($user);
 
-            $id = (int) ($input['id'] ?? 0);
+                $id = (int) ($input['id'] ?? 0);
 
-            if ($id <= 0) {
-                fail('ID inválido.');
-            }
+                if ($id <= 0) {
+                    fail('ID inválido.');
+                }
 
-            $stmt = $pdo->prepare("
+                $stmt = $pdo->prepare("
                 SELECT *
                 FROM guardarropas
                 WHERE id = :id
                 LIMIT 1
             ");
 
-            $stmt->execute([
-                ':id' => $id
-            ]);
+                $stmt->execute([
+                    ':id' => $id
+                ]);
 
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$row) {
-                fail('Guardarropas no encontrado.', 404);
-            }
+                if (!$row) {
+                    fail('Guardarropas no encontrado.', 404);
+                }
 
-            // Opcional: solo permitir borrar retirados
-            if ($row['estado'] !== 'retirado') {
-                fail('Solo se pueden eliminar guardarropas retirados.');
-            }
+                // Opcional: solo permitir borrar retirados
+                if ($row['estado'] !== 'retirado') {
+                    fail('Solo se pueden eliminar guardarropas retirados.');
+                }
 
-            app_log(
-                $pdo,
-                (int) $user['id'],
-                (string) ($user['username'] ?? ''),
-                'guardarropas_delete',
-                'guardarropas',
-                (int) $row['id'],
-                'Guardarropas eliminado manualmente',
-                [
-                    'codigo' => $row['codigo'],
-                    'numero' => (int) $row['numero'],
-                    'nombre' => $row['nombre'],
-                    'dni' => $row['dni'],
-                    'telefono' => $row['telefono'],
-                    'precio' => (int) $row['precio'],
-                    'estado' => $row['estado'],
-                ]
-            );
+                app_log(
+                    $pdo,
+                    (int) $user['id'],
+                    (string) ($user['username'] ?? ''),
+                    'guardarropas_delete',
+                    'guardarropas',
+                    (int) $row['id'],
+                    'Guardarropas eliminado manualmente',
+                    [
+                        'codigo' => $row['codigo'],
+                        'numero' => (int) $row['numero'],
+                        'nombre' => $row['nombre'],
+                        'dni' => $row['dni'],
+                        'telefono' => $row['telefono'],
+                        'precio' => (int) $row['precio'],
+                        'estado' => $row['estado'],
+                    ]
+                );
 
-            $stmtDelete = $pdo->prepare("
+                $stmtDelete = $pdo->prepare("
                 DELETE FROM guardarropas
                 WHERE id = :id
             ");
 
-            $stmtDelete->execute([
-                ':id' => $id
-            ]);
+                $stmtDelete->execute([
+                    ':id' => $id
+                ]);
 
-            ok();
-        }
-        case 'product_edit': {
-            require_admin($user);
-
-            $id    = (int) ($input['id'] ?? 0);
-            $name  = trim((string) ($input['name'] ?? ''));
-            $price = max(0, (int) ($input['price'] ?? 0));
-            $cat   = trim((string) ($input['cat'] ?? 'Otros')) ?: 'Otros';
-            $sub   = trim((string) ($input['sub'] ?? ''));
-
-            if ($id <= 0 || $name === '') {
-                fail('Datos inválidos.');
+                ok();
             }
+        case 'product_edit': {
+                require_admin($user);
 
-            $stmt = $pdo->prepare("
+                $id    = (int) ($input['id'] ?? 0);
+                $name  = trim((string) ($input['name'] ?? ''));
+                $price = max(0, (int) ($input['price'] ?? 0));
+                $cat   = trim((string) ($input['cat'] ?? 'Otros')) ?: 'Otros';
+                $sub   = trim((string) ($input['sub'] ?? ''));
+
+                if ($id <= 0 || $name === '') {
+                    fail('Datos inválidos.');
+                }
+
+                $stmt = $pdo->prepare("
                 UPDATE products
                 SET name = :name,
                     price = :price,
@@ -1141,63 +1156,63 @@ try {
                 WHERE id = :id
             ");
 
-            $stmt->execute([
-                ':name'  => $name,
-                ':price' => $price,
-                ':cat'   => $cat,
-                ':sub'   => $sub,
-                ':id'    => $id,
-            ]);
+                $stmt->execute([
+                    ':name'  => $name,
+                    ':price' => $price,
+                    ':cat'   => $cat,
+                    ':sub'   => $sub,
+                    ':id'    => $id,
+                ]);
 
-            ok();
-        }
-        /* =========================
+                ok();
+            }
+            /* =========================
            VENTAS / HISTORIAL
         ========================= */
         case 'sale_register': {
-            require_admin($user);
+                require_admin($user);
 
-            $items = $input['items'] ?? [];
-            $total = max(0, (int) ($input['total'] ?? 0));
-            $paymentMethod = normalize_payment_method((string) ($input['paymentMethod'] ?? 'efectivo'));
-            $clientSaleId = trim((string) ($input['clientSaleId'] ?? ''));
+                $items = $input['items'] ?? [];
+                $total = max(0, (int) ($input['total'] ?? 0));
+                $paymentMethod = normalize_payment_method((string) ($input['paymentMethod'] ?? 'efectivo'));
+                $clientSaleId = trim((string) ($input['clientSaleId'] ?? ''));
 
-            if (!is_array($items) || count($items) === 0) {
-                fail('No hay productos en la venta.');
-            }
+                if (!is_array($items) || count($items) === 0) {
+                    fail('No hay productos en la venta.');
+                }
 
-            if ($total <= 0 && $paymentMethod !== 'regalo') {
-                fail('Total inválido.');
-            }
+                if ($total <= 0 && $paymentMethod !== 'regalo') {
+                    fail('Total inválido.');
+                }
 
-            if ($clientSaleId === '') {
-                $clientSaleId = bin2hex(random_bytes(16));
-            }
+                if ($clientSaleId === '') {
+                    $clientSaleId = bin2hex(random_bytes(16));
+                }
 
-            $stmtExisting = $pdo->prepare("
+                $stmtExisting = $pdo->prepare("
                 SELECT id
                 FROM kiosko_sales
                 WHERE client_sale_id = :client_sale_id
                 LIMIT 1
             ");
 
-            $stmtExisting->execute([
-                ':client_sale_id' => $clientSaleId
-            ]);
-
-            $existingId = $stmtExisting->fetchColumn();
-
-            if ($existingId) {
-                ok([
-                    'id' => (int) $existingId,
-                    'duplicate' => true,
-                    'message' => 'Venta ya registrada previamente.'
+                $stmtExisting->execute([
+                    ':client_sale_id' => $clientSaleId
                 ]);
-            }
 
-            $pdo->beginTransaction();
+                $existingId = $stmtExisting->fetchColumn();
 
-            $stmt = $pdo->prepare("
+                if ($existingId) {
+                    ok([
+                        'id' => (int) $existingId,
+                        'duplicate' => true,
+                        'message' => 'Venta ya registrada previamente.'
+                    ]);
+                }
+
+                $pdo->beginTransaction();
+
+                $stmt = $pdo->prepare("
                 INSERT INTO kiosko_sales (
                     user_id,
                     items,
@@ -1213,55 +1228,55 @@ try {
                 )
             ");
 
-            $stmt->execute([
-                ':user_id' => (int) $user['id'],
-                ':items' => json_encode($items, JSON_UNESCAPED_UNICODE),
-                ':total' => $total,
-                ':payment_method' => $paymentMethod,
-                ':client_sale_id' => $clientSaleId,
-            ]);
+                $stmt->execute([
+                    ':user_id' => (int) $user['id'],
+                    ':items' => json_encode($items, JSON_UNESCAPED_UNICODE),
+                    ':total' => $total,
+                    ':payment_method' => $paymentMethod,
+                    ':client_sale_id' => $clientSaleId,
+                ]);
 
-            $saleId = (int) $pdo->lastInsertId();
+                $saleId = (int) $pdo->lastInsertId();
 
-            $updQty = $pdo->prepare("
+                $updQty = $pdo->prepare("
                 UPDATE products
                 SET qty = qty + :qty
                 WHERE id = :id AND active = 1
             ");
 
-            foreach ($items as $item) {
-                $productId = (int) ($item['id'] ?? 0);
-                $qty = (int) ($item['qty'] ?? 0);
+                foreach ($items as $item) {
+                    $productId = (int) ($item['id'] ?? 0);
+                    $qty = (int) ($item['qty'] ?? 0);
 
-                if ($productId > 0 && $qty > 0) {
-                    $updQty->execute([
-                        ':qty' => $qty,
-                        ':id' => $productId,
-                    ]);
+                    if ($productId > 0 && $qty > 0) {
+                        $updQty->execute([
+                            ':qty' => $qty,
+                            ':id' => $productId,
+                        ]);
+                    }
                 }
+
+                $pdo->commit();
+
+                ok([
+                    'id' => $saleId,
+                    'paymentMethod' => $paymentMethod,
+                    'paymentLabel' => payment_label($paymentMethod),
+                ]);
             }
-
-            $pdo->commit();
-
-            ok([
-                'id' => $saleId,
-                'paymentMethod' => $paymentMethod,
-                'paymentLabel' => payment_label($paymentMethod),
-            ]);
-        }
         case 'sales_history': {
-            require_admin($user);
+                require_admin($user);
 
-            // Mostrar solamente las ventas de la caja actualmente abierta.
-            // Los cierres ocultos del historial también cuentan como cierres válidos.
-            $stmtLast = $pdo->query("
+                // Mostrar solamente las ventas de la caja actualmente abierta.
+                // Los cierres ocultos del historial también cuentan como cierres válidos.
+                $stmtLast = $pdo->query("
                 SELECT COALESCE(MAX(to_sale_id), 0)
                 FROM kiosko_closings
             ");
 
-            $lastClosedSaleId = (int) $stmtLast->fetchColumn();
+                $lastClosedSaleId = (int) $stmtLast->fetchColumn();
 
-            $stmt = $pdo->prepare("
+                $stmt = $pdo->prepare("
                 SELECT id, items, total, payment_method, created_at
                 FROM kiosko_sales
                 WHERE id > :last_closed_sale_id
@@ -1269,72 +1284,72 @@ try {
                 LIMIT 100
             ");
 
-            $stmt->execute([
-                ':last_closed_sale_id' => $lastClosedSaleId,
-            ]);
+                $stmt->execute([
+                    ':last_closed_sale_id' => $lastClosedSaleId,
+                ]);
 
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $sales = array_map(function (array $row): array {
-                $paymentMethod = normalize_payment_method(
-                    (string) ($row['payment_method'] ?? 'efectivo')
-                );
+                $sales = array_map(function (array $row): array {
+                    $paymentMethod = normalize_payment_method(
+                        (string) ($row['payment_method'] ?? 'efectivo')
+                    );
 
-                return [
-                    'id' => (int) $row['id'],
-                    'items' => json_decode((string) $row['items'], true) ?: [],
-                    'total' => (int) $row['total'],
-                    'payment_method' => $paymentMethod,
-                    'payment_label' => payment_label($paymentMethod),
-                    'created_at' => $row['created_at'],
-                ];
-            }, $rows);
+                    return [
+                        'id' => (int) $row['id'],
+                        'items' => json_decode((string) $row['items'], true) ?: [],
+                        'total' => (int) $row['total'],
+                        'payment_method' => $paymentMethod,
+                        'payment_label' => payment_label($paymentMethod),
+                        'created_at' => $row['created_at'],
+                    ];
+                }, $rows);
 
-            ok([
-                'sales' => $sales,
-                'lastClosedSaleId' => $lastClosedSaleId,
-                'scope' => 'current_cash',
-            ]);
-        }
+                ok([
+                    'sales' => $sales,
+                    'lastClosedSaleId' => $lastClosedSaleId,
+                    'scope' => 'current_cash',
+                ]);
+            }
         case 'kiosko_summary': {
-            require_admin($user);
+                require_admin($user);
 
-            $stmtLast = $pdo->query("
+                $stmtLast = $pdo->query("
                 SELECT COALESCE(MAX(to_sale_id), 0)
                 FROM kiosko_closings
             ");
 
-            $lastClosedSaleId = (int) $stmtLast->fetchColumn();
+                $lastClosedSaleId = (int) $stmtLast->fetchColumn();
 
-            $summary = build_kiosko_summary($pdo, $lastClosedSaleId);
+                $summary = build_kiosko_summary($pdo, $lastClosedSaleId);
 
-            ok([
-                'lastClosedSaleId' => $lastClosedSaleId,
-                'summary' => $summary,
-            ]);
-        }
+                ok([
+                    'lastClosedSaleId' => $lastClosedSaleId,
+                    'summary' => $summary,
+                ]);
+            }
 
         case 'kiosko_close': {
-            require_admin($user);
+                require_admin($user);
 
-            $pdo->beginTransaction();
+                $pdo->beginTransaction();
 
-            $stmtLast = $pdo->query("
+                $stmtLast = $pdo->query("
                 SELECT COALESCE(MAX(to_sale_id), 0)
                 FROM kiosko_closings
                 FOR UPDATE
             ");
 
-            $lastClosedSaleId = (int) $stmtLast->fetchColumn();
-            $summary = build_kiosko_summary($pdo, $lastClosedSaleId);
+                $lastClosedSaleId = (int) $stmtLast->fetchColumn();
+                $summary = build_kiosko_summary($pdo, $lastClosedSaleId);
 
-            if ((int) $summary['sales_count'] <= 0) {
-                $pdo->rollBack();
-                fail('No hay ventas nuevas para cerrar.');
-            }
+                if ((int) $summary['sales_count'] <= 0) {
+                    $pdo->rollBack();
+                    fail('No hay ventas nuevas para cerrar.');
+                }
 
-            // La tabla real usa las columnas `total` e `items`.
-            $stmt = $pdo->prepare("
+                // La tabla real usa las columnas `total` e `items`.
+                $stmt = $pdo->prepare("
                 INSERT INTO kiosko_closings (
                     user_id,
                     from_sale_id,
@@ -1360,36 +1375,36 @@ try {
                 )
             ");
 
-            $stmt->execute([
-                ':user_id' => (int) $user['id'],
-                ':from_sale_id' => (int) $summary['from_sale_id'],
-                ':to_sale_id' => (int) $summary['to_sale_id'],
-                ':sales_count' => (int) $summary['sales_count'],
-                ':total' => (int) $summary['total_amount'],
-                ':efectivo_total' => (int) $summary['by_payment']['efectivo'],
-                ':transferencia_total' => (int) $summary['by_payment']['transferencia'],
-                ':tarjeta_total' => (int) $summary['by_payment']['tarjeta'],
-                ':regalo_total' => (int) $summary['by_payment']['regalo'],
-                ':items' => json_encode(
-                    $summary,
-                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-                ),
-            ]);
+                $stmt->execute([
+                    ':user_id' => (int) $user['id'],
+                    ':from_sale_id' => (int) $summary['from_sale_id'],
+                    ':to_sale_id' => (int) $summary['to_sale_id'],
+                    ':sales_count' => (int) $summary['sales_count'],
+                    ':total' => (int) $summary['total_amount'],
+                    ':efectivo_total' => (int) $summary['by_payment']['efectivo'],
+                    ':transferencia_total' => (int) $summary['by_payment']['transferencia'],
+                    ':tarjeta_total' => (int) $summary['by_payment']['tarjeta'],
+                    ':regalo_total' => (int) $summary['by_payment']['regalo'],
+                    ':items' => json_encode(
+                        $summary,
+                        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                    ),
+                ]);
 
-            $closingId = (int) $pdo->lastInsertId();
-            $pdo->commit();
+                $closingId = (int) $pdo->lastInsertId();
+                $pdo->commit();
 
-            ok([
-                'id' => $closingId,
-                'summary' => $summary,
-                'message' => 'Caja cerrada correctamente.'
-            ]);
-        }
+                ok([
+                    'id' => $closingId,
+                    'summary' => $summary,
+                    'message' => 'Caja cerrada correctamente.'
+                ]);
+            }
 
         case 'kiosko_closings_list': {
-            require_admin($user);
+                require_admin($user);
 
-            $columnCheck = $pdo->query("
+                $columnCheck = $pdo->query("
                 SELECT COUNT(*)
                 FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_SCHEMA = DATABASE()
@@ -1397,15 +1412,15 @@ try {
                   AND COLUMN_NAME = 'deleted_at'
             ");
 
-            if ((int) $columnCheck->fetchColumn() === 0) {
-                $pdo->exec("
+                if ((int) $columnCheck->fetchColumn() === 0) {
+                    $pdo->exec("
                     ALTER TABLE kiosko_closings
                     ADD COLUMN deleted_at DATETIME NULL,
                     ADD INDEX idx_kiosko_closings_deleted_at (deleted_at)
                 ");
-            }
+                }
 
-            $stmt = $pdo->query("
+                $stmt = $pdo->query("
                 SELECT
                     kc.id,
                     kc.user_id,
@@ -1428,72 +1443,72 @@ try {
                 LIMIT 200
             ");
 
-            $closings = [];
-            $historySummary = [
-                'closings' => 0,
-                'sales' => 0,
-                'total' => 0,
-                'efectivo' => 0,
-                'transferencia' => 0,
-                'tarjeta' => 0,
-                'regalo' => 0,
-            ];
-
-            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                $decoded = json_decode((string) ($row['items'] ?? ''), true);
-                $products = [];
-
-                if (is_array($decoded)) {
-                    if (isset($decoded['products']) && is_array($decoded['products'])) {
-                        $products = $decoded['products'];
-                    } elseif (array_is_list($decoded)) {
-                        $products = $decoded;
-                    }
-                }
-
-                $closing = [
-                    'id' => (int) $row['id'],
-                    'user_id' => isset($row['user_id']) ? (int) $row['user_id'] : null,
-                    'from_sale_id' => (int) ($row['from_sale_id'] ?? 0),
-                    'to_sale_id' => (int) ($row['to_sale_id'] ?? 0),
-                    'sales_count' => (int) ($row['sales_count'] ?? 0),
-                    'total' => (int) ($row['total'] ?? 0),
-                    'efectivo_total' => (int) ($row['efectivo_total'] ?? 0),
-                    'transferencia_total' => (int) ($row['transferencia_total'] ?? 0),
-                    'tarjeta_total' => (int) ($row['tarjeta_total'] ?? 0),
-                    'regalo_total' => (int) ($row['regalo_total'] ?? 0),
-                    'created_at' => $row['created_at'] ?? null,
-                    'closed_at' => $row['closed_at'] ?? null,
-                    'closed_by' => (string) ($row['closed_by'] ?? 'Administrador'),
-                    'products' => $products,
+                $closings = [];
+                $historySummary = [
+                    'closings' => 0,
+                    'sales' => 0,
+                    'total' => 0,
+                    'efectivo' => 0,
+                    'transferencia' => 0,
+                    'tarjeta' => 0,
+                    'regalo' => 0,
                 ];
 
-                $closings[] = $closing;
-                $historySummary['closings']++;
-                $historySummary['sales'] += $closing['sales_count'];
-                $historySummary['total'] += $closing['total'];
-                $historySummary['efectivo'] += $closing['efectivo_total'];
-                $historySummary['transferencia'] += $closing['transferencia_total'];
-                $historySummary['tarjeta'] += $closing['tarjeta_total'];
-                $historySummary['regalo'] += $closing['regalo_total'];
-            }
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $decoded = json_decode((string) ($row['items'] ?? ''), true);
+                    $products = [];
 
-            ok([
-                'closings' => $closings,
-                'summary' => $historySummary,
-            ]);
-        }
+                    if (is_array($decoded)) {
+                        if (isset($decoded['products']) && is_array($decoded['products'])) {
+                            $products = $decoded['products'];
+                        } elseif (array_is_list($decoded)) {
+                            $products = $decoded;
+                        }
+                    }
+
+                    $closing = [
+                        'id' => (int) $row['id'],
+                        'user_id' => isset($row['user_id']) ? (int) $row['user_id'] : null,
+                        'from_sale_id' => (int) ($row['from_sale_id'] ?? 0),
+                        'to_sale_id' => (int) ($row['to_sale_id'] ?? 0),
+                        'sales_count' => (int) ($row['sales_count'] ?? 0),
+                        'total' => (int) ($row['total'] ?? 0),
+                        'efectivo_total' => (int) ($row['efectivo_total'] ?? 0),
+                        'transferencia_total' => (int) ($row['transferencia_total'] ?? 0),
+                        'tarjeta_total' => (int) ($row['tarjeta_total'] ?? 0),
+                        'regalo_total' => (int) ($row['regalo_total'] ?? 0),
+                        'created_at' => $row['created_at'] ?? null,
+                        'closed_at' => $row['closed_at'] ?? null,
+                        'closed_by' => (string) ($row['closed_by'] ?? 'Administrador'),
+                        'products' => $products,
+                    ];
+
+                    $closings[] = $closing;
+                    $historySummary['closings']++;
+                    $historySummary['sales'] += $closing['sales_count'];
+                    $historySummary['total'] += $closing['total'];
+                    $historySummary['efectivo'] += $closing['efectivo_total'];
+                    $historySummary['transferencia'] += $closing['transferencia_total'];
+                    $historySummary['tarjeta'] += $closing['tarjeta_total'];
+                    $historySummary['regalo'] += $closing['regalo_total'];
+                }
+
+                ok([
+                    'closings' => $closings,
+                    'summary' => $historySummary,
+                ]);
+            }
 
         case 'kiosko_closing_delete': {
-            require_admin($user);
+                require_admin($user);
 
-            $closingId = (int) ($input['id'] ?? 0);
+                $closingId = (int) ($input['id'] ?? 0);
 
-            if ($closingId <= 0) {
-                fail('El cierre seleccionado no es válido.', 422);
-            }
+                if ($closingId <= 0) {
+                    fail('El cierre seleccionado no es válido.', 422);
+                }
 
-            $columnCheck = $pdo->query("
+                $columnCheck = $pdo->query("
                 SELECT COUNT(*)
                 FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_SCHEMA = DATABASE()
@@ -1501,46 +1516,46 @@ try {
                   AND COLUMN_NAME = 'deleted_at'
             ");
 
-            if ((int) $columnCheck->fetchColumn() === 0) {
-                $pdo->exec("
+                if ((int) $columnCheck->fetchColumn() === 0) {
+                    $pdo->exec("
                     ALTER TABLE kiosko_closings
                     ADD COLUMN deleted_at DATETIME NULL,
                     ADD INDEX idx_kiosko_closings_deleted_at (deleted_at)
                 ");
-            }
+                }
 
-            $stmt = $pdo->prepare("
+                $stmt = $pdo->prepare("
                 UPDATE kiosko_closings
                 SET deleted_at = NOW()
                 WHERE id = :id
                   AND deleted_at IS NULL
             ");
 
-            $stmt->execute([
-                ':id' => $closingId,
-            ]);
+                $stmt->execute([
+                    ':id' => $closingId,
+                ]);
 
-            if ($stmt->rowCount() === 0) {
-                fail('La caja ya fue eliminada del historial o no existe.', 404);
+                if ($stmt->rowCount() === 0) {
+                    fail('La caja ya fue eliminada del historial o no existe.', 404);
+                }
+
+                ok([
+                    'id' => $closingId,
+                    'message' => 'Caja eliminada del historial.',
+                ]);
             }
 
-            ok([
-                'id' => $closingId,
-                'message' => 'Caja eliminada del historial.',
-            ]);
-        }
 
-
-        /* =========================================================
+            /* =========================================================
            QR DE PUERTA
            - Admin ve todos los QR desde admin.php
            - Usuario común puede generar QR solo de sus propias listas
            - No se envían mails: solo se genera token para mostrar QR
         ========================================================= */
         case 'admin_qr_people': {
-            require_admin($user);
+                require_admin($user);
 
-            $stmt = $pdo->query("
+                $stmt = $pdo->query("
                 SELECT 
                     dp.id,
                     dp.name,
@@ -1557,17 +1572,17 @@ try {
                 ORDER BY dp.id DESC
             ");
 
-            ok(['people' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
-        }
-
-        case 'qr_generate': {
-            $personId = (int) ($input['personId'] ?? 0);
-
-            if ($personId <= 0) {
-                fail('Persona inválida.');
+                ok(['people' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
             }
 
-            $stmt = $pdo->prepare("
+        case 'qr_generate': {
+                $personId = (int) ($input['personId'] ?? 0);
+
+                if ($personId <= 0) {
+                    fail('Persona inválida.');
+                }
+
+                $stmt = $pdo->prepare("
                 SELECT 
                     dp.id,
                     dp.list_id,
@@ -1578,25 +1593,25 @@ try {
                 LIMIT 1
             ");
 
-            $stmt->execute([
-                ':id' => $personId
-            ]);
+                $stmt->execute([
+                    ':id' => $personId
+                ]);
 
-            $person = $stmt->fetch(PDO::FETCH_ASSOC);
+                $person = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$person) {
-                fail('Persona no encontrada.', 404);
-            }
+                if (!$person) {
+                    fail('Persona no encontrada.', 404);
+                }
 
-            // Admin puede generar cualquier QR.
-            // Usuario común solo puede generar QR de personas en sus propias listas.
-            if (($user['role'] ?? '') !== 'admin' && (int) $person['user_id'] !== (int) $user['id']) {
-                fail('No tenés permiso para generar este QR.', 403);
-            }
+                // Admin puede generar cualquier QR.
+                // Usuario común solo puede generar QR de personas en sus propias listas.
+                if (($user['role'] ?? '') !== 'admin' && (int) $person['user_id'] !== (int) $user['id']) {
+                    fail('No tenés permiso para generar este QR.', 403);
+                }
 
-            $token = bin2hex(random_bytes(24));
+                $token = bin2hex(random_bytes(24));
 
-            $stmt = $pdo->prepare("
+                $stmt = $pdo->prepare("
                 UPDATE door_people
                 SET qr_token = :token,
                     qr_enabled = 1,
@@ -1604,46 +1619,46 @@ try {
                 WHERE id = :id
             ");
 
-            $stmt->execute([
-                ':token' => $token,
-                ':id' => $personId
-            ]);
+                $stmt->execute([
+                    ':token' => $token,
+                    ':id' => $personId
+                ]);
 
-            ok([
-                'token' => $token
-            ]);
-        }
+                ok([
+                    'token' => $token
+                ]);
+            }
 
         case 'qr_disable': {
-            require_admin($user);
+                require_admin($user);
 
-            $personId = (int) ($input['personId'] ?? 0);
-            if ($personId <= 0) fail('Persona inválida.');
+                $personId = (int) ($input['personId'] ?? 0);
+                if ($personId <= 0) fail('Persona inválida.');
 
-            $stmt = $pdo->prepare("
+                $stmt = $pdo->prepare("
                 UPDATE door_people
                 SET qr_enabled = 0
                 WHERE id = :id
             ");
 
-            $stmt->execute([':id' => $personId]);
+                $stmt->execute([':id' => $personId]);
 
-            ok();
-        }
+                ok();
+            }
         case 'qr_check': {
-            require_door_manager($user);
+                require_door_manager($user);
 
-            if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-                fail('Método no permitido. El QR solo puede verificarse desde el escáner interno.', 405);
-            }
+                if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+                    fail('Método no permitido. El QR solo puede verificarse desde el escáner interno.', 405);
+                }
 
-            $token = trim((string) ($input['token'] ?? ''));
+                $token = trim((string) ($input['token'] ?? ''));
 
-            if ($token === '') {
-                fail('Token vacío.');
-            }
+                if ($token === '') {
+                    fail('Token vacío.');
+                }
 
-            $stmt = $pdo->prepare("
+                $stmt = $pdo->prepare("
                 SELECT 
                     dp.id,
                     dp.name,
@@ -1658,46 +1673,46 @@ try {
                 LIMIT 1
             ");
 
-            $stmt->execute([
-                ':token' => $token
-            ]);
+                $stmt->execute([
+                    ':token' => $token
+                ]);
 
-            $person = $stmt->fetch(PDO::FETCH_ASSOC);
+                $person = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$person) {
-                fail('QR no encontrado.');
+                if (!$person) {
+                    fail('QR no encontrado.');
+                }
+
+                if ((int) $person['qr_enabled'] !== 1) {
+                    fail('QR desactivado.');
+                }
+
+                if (!empty($person['qr_used_at'])) {
+                    fail('QR ya utilizado.');
+                }
+
+                ok([
+                    'person' => $person
+                ]);
             }
-
-            if ((int) $person['qr_enabled'] !== 1) {
-                fail('QR desactivado.');
-            }
-
-            if (!empty($person['qr_used_at'])) {
-                fail('QR ya utilizado.');
-            }
-
-            ok([
-                'person' => $person
-            ]);
-        }
 
         case 'qr_confirm': {
-            require_door_manager($user);
+                require_door_manager($user);
 
-            if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-                fail('Método no permitido. El QR solo puede confirmarse desde el escáner interno.', 405);
-            }
+                if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+                    fail('Método no permitido. El QR solo puede confirmarse desde el escáner interno.', 405);
+                }
 
-            $token = trim((string) ($input['token'] ?? ''));
+                $token = trim((string) ($input['token'] ?? ''));
 
-            if ($token === '') {
-                fail('Token vacío.');
-            }
+                if ($token === '') {
+                    fail('Token vacío.');
+                }
 
-            $pdo->beginTransaction();
+                $pdo->beginTransaction();
 
-            try {
-                $stmt = $pdo->prepare("
+                try {
+                    $stmt = $pdo->prepare("
                     SELECT 
                         dp.id,
                         dp.name,
@@ -1713,28 +1728,28 @@ try {
                     FOR UPDATE
                 ");
 
-                $stmt->execute([
-                    ':token' => $token
-                ]);
+                    $stmt->execute([
+                        ':token' => $token
+                    ]);
 
-                $person = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $person = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                if (!$person) {
-                    $pdo->rollBack();
-                    fail('QR no encontrado.');
-                }
+                    if (!$person) {
+                        $pdo->rollBack();
+                        fail('QR no encontrado.');
+                    }
 
-                if ((int) $person['qr_enabled'] !== 1) {
-                    $pdo->rollBack();
-                    fail('QR desactivado.');
-                }
+                    if ((int) $person['qr_enabled'] !== 1) {
+                        $pdo->rollBack();
+                        fail('QR desactivado.');
+                    }
 
-                if (!empty($person['qr_used_at'])) {
-                    $pdo->rollBack();
-                    fail('QR ya utilizado.');
-                }
+                    if (!empty($person['qr_used_at'])) {
+                        $pdo->rollBack();
+                        fail('QR ya utilizado.');
+                    }
 
-                $stmt = $pdo->prepare("
+                    $stmt = $pdo->prepare("
                     UPDATE door_people
                     SET status = 'entro',
                         qr_used_at = NOW()
@@ -1742,28 +1757,28 @@ try {
                     LIMIT 1
                 ");
 
-                $stmt->execute([
-                    ':id' => (int) $person['id']
-                ]);
+                    $stmt->execute([
+                        ':id' => (int) $person['id']
+                    ]);
 
-                $pdo->commit();
+                    $pdo->commit();
 
-                $person['status'] = 'entro';
-                $person['qr_used_at'] = date('Y-m-d H:i:s');
+                    $person['status'] = 'entro';
+                    $person['qr_used_at'] = date('Y-m-d H:i:s');
 
-                ok([
-                    'person' => $person
-                ]);
-            } catch (Throwable $e) {
-                if ($pdo->inTransaction()) {
-                    $pdo->rollBack();
+                    ok([
+                        'person' => $person
+                    ]);
+                } catch (Throwable $e) {
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+
+                    fail($e->getMessage(), 500);
                 }
-
-                fail($e->getMessage(), 500);
             }
-        }
 
-        // Endpoint default en caso de no entrar en ningún case
+            // Endpoint default en caso de no entrar en ningún case
         default:
             fail('Acción no válida.', 404);
     }

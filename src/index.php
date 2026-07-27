@@ -1,7 +1,9 @@
 <?php
+
 declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/roles.php';
 
 /**
  * Devuelve una versión estable del recurso basada en su última modificación.
@@ -9,11 +11,11 @@ require_once __DIR__ . '/auth.php';
  */
 function homeAssetVersion(string $relativePath): string
 {
-    $absolutePath = __DIR__ . '/' . ltrim($relativePath, '/');
+  $absolutePath = __DIR__ . '/' . ltrim($relativePath, '/');
 
-    return is_file($absolutePath)
-        ? (string) filemtime($absolutePath)
-        : (defined('APP_VERSION') ? (string) APP_VERSION : '1');
+  return is_file($absolutePath)
+    ? (string) filemtime($absolutePath)
+    : (defined('APP_VERSION') ? (string) APP_VERSION : '1');
 }
 
 /**
@@ -21,15 +23,15 @@ function homeAssetVersion(string $relativePath): string
  */
 function homeModuleIcon(string $icon): string
 {
-    return match ($icon) {
-        'admin' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m5 10V5m6 14v-7m5 7V3"/><path d="M2 21h20"/></svg>',
-        'scanner' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3m13 5h3a2 2 0 0 0 2-2v-3"/><path d="M7 12h10M9 9v6m6-6v6"/></svg>',
-        'kioskito' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.1 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L20 7H6"/><circle cx="10" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></svg>',
-        'door' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21h14M7 21V4.5A1.5 1.5 0 0 1 8.5 3H17v18"/><path d="M11 12h.01"/></svg>',
-        'menu' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
-        'stock' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="m3 7 9 4 9-4M3 7v10l9 4 9-4V7M12 11v10"/></svg>',
-        default => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
-    };
+  return match ($icon) {
+    'admin' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m5 10V5m6 14v-7m5 7V3"/><path d="M2 21h20"/></svg>',
+    'scanner' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3m13 5h3a2 2 0 0 0 2-2v-3"/><path d="M7 12h10M9 9v6m6-6v6"/></svg>',
+    'kioskito' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.1 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L20 7H6"/><circle cx="10" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></svg>',
+    'door' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21h14M7 21V4.5A1.5 1.5 0 0 1 8.5 3H17v18"/><path d="M11 12h.01"/></svg>',
+    'menu' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+    'stock' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="m3 7 9 4 9-4M3 7v10l9 4 9-4V7M12 11v10"/></svg>',
+    default => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  };
 }
 
 /*
@@ -40,9 +42,9 @@ function homeModuleIcon(string $icon): string
  * - kiosko: Kioskito, Guardarropas y carta.
  */
 $currentRole = strtolower(trim((string) (
-    $currentRole
-    ?? $currentUser['role']
-    ?? ''
+  $currentRole
+  ?? $currentUser['role']
+  ?? ''
 )));
 
 $isAdmin = $currentRole === 'admin';
@@ -50,85 +52,93 @@ $isPuerta = $currentRole === 'puerta';
 $isRrpp = $currentRole === 'usuario';
 $isKiosko = $currentRole === 'kiosko';
 
-$canSeeAdmin = $isAdmin;
-$canSeeScanner = $isAdmin || $isPuerta;
-$canSeeKioskito = $isAdmin || $isKiosko;
-$canSeeDoor = $isAdmin || $isPuerta || $isRrpp;
-$canSeeStock = $isAdmin;
+$canSeeAdmin = canAccess($currentRole, 'admin');
+
+$canSeeScanner = canAccess($currentRole, 'scanner');
+
+$canSeeKioskito = canAccess($currentRole, 'kiosko');
+
+$canSeeDoor = canAccess($currentRole, 'door');
+
+$canSeeStock = canAccess($currentRole, 'stock');
+
+$canSeeGuardarropas = canAccess($currentRole, 'guardarropas');
+
 
 $roleLabels = [
-    'admin' => 'Administrador',
-    'puerta' => 'Guardia / Puerta',
-    'usuario' => 'RRPP / Pública',
-    'kiosko' => 'Kioskito / Guardarropas',
+  'admin' => 'Administrador',
+  'puerta' => 'Guardia / Puerta',
+  'usuario' => 'RRPP / Pública',
+  'kiosko' => 'Kioskito / Guardarropas',
 ];
 
 $displayName = trim((string) ($currentUser['display_name'] ?? 'Usuario')) ?: 'Usuario';
 $roleLabel = $roleLabels[$currentRole] ?? 'Usuario';
 
 $modules = array_values(array_filter([
-    [
-        'visible' => $canSeeAdmin,
-        'href' => 'admin.php',
-        'icon' => 'admin',
-        'accent' => 'violet',
-        'eyebrow' => 'Gestión',
-        'title' => 'Administración',
-        'description' => 'Dashboard, códigos QR, usuarios y estadísticas generales.',
-    ],
-    [
-        'visible' => $canSeeScanner,
-        'href' => 'scanner.php',
-        'icon' => 'scanner',
-        'accent' => 'cyan',
-        'eyebrow' => 'Acceso',
-        'title' => 'Scanner',
-        'description' => 'Escaneá entradas y confirmá accesos de forma rápida.',
-    ],
-    [
-        'visible' => $canSeeKioskito,
-        'href' => 'kioskito.php',
-        'icon' => 'kioskito',
-        'accent' => 'amber',
-        'eyebrow' => 'Ventas y prendas',
-        'title' => 'Kioskito',
-        'description' => 'Registrá ventas, controlá la caja y gestioná el guardarropas desde el mismo módulo.',
-    ],
-    [
-        'visible' => $canSeeDoor,
-        'href' => 'listas.php',
-        'icon' => 'door',
-        'accent' => 'green',
-        'eyebrow' => 'Ingreso',
-        'title' => 'Listas en puerta',
-        'description' => $isRrpp
-            ? 'Gestioná tus listas, agregá invitados y compartí sus accesos.'
-            : 'Consultá listas, estados de ingreso y control de asistentes.',
-    ],
-    [
-        'visible' => $canSeeStock,
-        'href' => 'stock_contenedor.php',
-        'icon' => 'stock',
-        'accent' => 'rose',
-        'eyebrow' => 'Inventario',
-        'title' => 'Stock',
-        'description' => 'Controlá stock interno, externo y faltantes del contenedor.',
-    ],
-    [
-        'visible' => true,
-        'href' => 'menu.php',
-        'icon' => 'menu',
-        'accent' => 'blue',
-        'eyebrow' => 'Consulta',
-        'title' => 'Carta',
-        'description' => 'Consultá precios y productos disponibles en segundos.',
-    ],
+  [
+    'visible' => $canSeeAdmin,
+    'href' => 'admin.php',
+    'icon' => 'admin',
+    'accent' => 'violet',
+    'eyebrow' => 'Gestión',
+    'title' => 'Administración',
+    'description' => 'Dashboard, códigos QR, usuarios y estadísticas generales.',
+  ],
+  [
+    'visible' => $canSeeScanner,
+    'href' => 'scanner.php',
+    'icon' => 'scanner',
+    'accent' => 'cyan',
+    'eyebrow' => 'Acceso',
+    'title' => 'Scanner',
+    'description' => 'Escaneá entradas y confirmá accesos de forma rápida.',
+  ],
+  [
+    'visible' => $canSeeKioskito,
+    'href' => 'kioskito.php',
+    'icon' => 'kioskito',
+    'accent' => 'amber',
+    'eyebrow' => 'Ventas y prendas',
+    'title' => 'Kioskito',
+    'description' => 'Registrá ventas, controlá la caja y gestioná el guardarropas desde el mismo módulo.',
+  ],
+  [
+    'visible' => $canSeeDoor,
+    'href' => 'listas.php',
+    'icon' => 'door',
+    'accent' => 'green',
+    'eyebrow' => 'Ingreso',
+    'title' => 'Listas en puerta',
+    'description' => $isRrpp
+      ? 'Gestioná tus listas, agregá invitados y compartí sus accesos.'
+      : 'Consultá listas, estados de ingreso y control de asistentes.',
+  ],
+  [
+    'visible' => $canSeeStock,
+    'href' => 'stock_contenedor.php',
+    'icon' => 'stock',
+    'accent' => 'rose',
+    'eyebrow' => 'Inventario',
+    'title' => 'Stock',
+    'description' => 'Controlá stock interno, externo y faltantes del contenedor.',
+  ],
+  [
+    'visible' => true,
+    'href' => 'menu.php',
+    'icon' => 'menu',
+    'accent' => 'blue',
+    'eyebrow' => 'Consulta',
+    'title' => 'Carta',
+    'description' => 'Consultá precios y productos disponibles en segundos.',
+  ],
 ], static fn(array $module): bool => $module['visible']));
 
 $appVersion = defined('APP_VERSION') ? (string) APP_VERSION : '';
 ?>
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -145,6 +155,7 @@ $appVersion = defined('APP_VERSION') ? (string) APP_VERSION : '';
 
   <script src="js/theme.js?v=<?= e(homeAssetVersion('js/theme.js')) ?>" defer></script>
 </head>
+
 <body class="home-page" data-page="menu">
   <a class="home-skip-link" href="#main-content">Saltar al contenido</a>
 
@@ -177,8 +188,8 @@ $appVersion = defined('APP_VERSION') ? (string) APP_VERSION : '';
 
         <a class="home-logout" href="logout.php" aria-label="Cerrar sesión">
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M10 17l5-5-5-5M15 12H3"/>
-            <path d="M14 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-4"/>
+            <path d="M10 17l5-5-5-5M15 12H3" />
+            <path d="M14 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-4" />
           </svg>
           <span>Salir</span>
         </a>
@@ -231,8 +242,7 @@ $appVersion = defined('APP_VERSION') ? (string) APP_VERSION : '';
           <a
             class="home-module-card home-module-card--<?= e($module['accent']) ?>"
             href="<?= e($module['href']) ?>"
-            aria-label="Abrir <?= e($module['title']) ?>"
-          >
+            aria-label="Abrir <?= e($module['title']) ?>">
             <span class="home-module-card__glow" aria-hidden="true"></span>
 
             <span class="home-module-card__top">
@@ -240,7 +250,9 @@ $appVersion = defined('APP_VERSION') ? (string) APP_VERSION : '';
                 <?= homeModuleIcon($module['icon']) ?>
               </span>
               <span class="home-module-card__arrow" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                <svg viewBox="0 0 24 24">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
               </span>
             </span>
 
@@ -277,8 +289,7 @@ $appVersion = defined('APP_VERSION') ? (string) APP_VERSION : '';
         class="theme-toggle home-theme-toggle"
         id="themeToggle"
         data-theme-toggle
-        aria-label="Cambiar tema visual"
-      >
+        aria-label="Cambiar tema visual">
         <span class="theme-toggle__icon" aria-hidden="true">◐</span>
         <span class="theme-toggle__copy">
           <span class="theme-toggle__eyebrow">Tema visual</span>
@@ -291,4 +302,5 @@ $appVersion = defined('APP_VERSION') ? (string) APP_VERSION : '';
     </div>
   </footer>
 </body>
+
 </html>
