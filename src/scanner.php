@@ -69,9 +69,11 @@ if (($currentUser['role'] ?? '') !== 'admin') {
     let lastToken = null;
     let isChecking = false;
 
-    let autoAcceptTimer = null;
-    let autoAcceptSeconds = 10;
-    let autoAcceptToken = null;
+    let countdownTimer = null;
+    let countdownSeconds = 10;
+    let currentToken = null;
+    let currentPerson = null;
+    let alreadyFinished = false;
 
     async function api(action, data = null) {
       const options = {
@@ -87,11 +89,11 @@ if (($currentUser['role'] ?? '') !== 'admin') {
       }
 
       const res = await fetch(`api.php?action=${encodeURIComponent(action)}`, options);
-      let json;
 
+      let json;
       try {
         json = await res.json();
-      } catch (e) {
+      } catch {
         throw new Error('Respuesta inválida del servidor.');
       }
 
@@ -122,35 +124,47 @@ if (($currentUser['role'] ?? '') !== 'admin') {
       }
     }
 
-    function clearAutoAcceptTimer() {
-      if (autoAcceptTimer) {
-        clearInterval(autoAcceptTimer);
-        autoAcceptTimer = null;
-      }
-      autoAcceptToken = null;
-    }
-
     function renderWaiting() {
       document.getElementById('qr-result').innerHTML = `
     <div class="status-pill status-wait">● Esperando QR</div>
     <div class="qr-detail">
-      Cuando detecte un código, se verificará automáticamente.
+      Cuando detecte un código, se mostrarán los datos y correrá el tiempo de confirmación.
     </div>
   `;
     }
 
-    function renderCountdown(seconds, token) {
+    function stopCountdown() {
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+    }
+
+    function renderPersonCard(person, token) {
+      const nombre = person.name || person.nombre || 'Sin nombre';
+      const apellido = person.last_name || person.apellido || '';
+      const codigo = person.document_number || person.dni || person.code || person.numero || '';
+      const lista = person.list_name || person.lista || 'Sin lista';
+
       document.getElementById('qr-result').innerHTML = `
-    <div class="status-pill status-checking">⟳ QR válido</div>
-    <div class="qr-person">Esperando confirmación</div>
+    <div class="status-pill status-ok">✓ QR válido</div>
+
+    <div class="qr-person">
+      ${esc(nombre)} ${esc(apellido)}
+    </div>
 
     <div class="qr-detail">
-      <b>Tiempo restante:</b> <span id="countdown">${seconds}</span> segundos<br>
-      Se confirmará automáticamente si no tocás el botón.
+      ${codigo ? `<b>Código:</b> ${esc(codigo)}<br>` : ''}
+      <b>Lista:</b> ${esc(lista)}<br>
+      <b>Estado:</b> En espera de confirmación
+    </div>
+
+    <div class="status-pill status-checking" style="margin-top:12px;">
+      ⏳ Se confirmará automáticamente en <span id="countdownValue">10</span> segundos
     </div>
 
     <div class="scanner-actions">
-      <button class="scan-btn scan-btn-primary" onclick='confirmQR(${JSON.stringify(token)})'>
+      <button class="scan-btn scan-btn-primary" onclick='confirmQR(${JSON.stringify(token)}, false)'>
         Confirmar entrada
       </button>
 
@@ -161,83 +175,58 @@ if (($currentUser['role'] ?? '') !== 'admin') {
   `;
     }
 
-    function startAutoAcceptCountdown(token) {
-      clearAutoAcceptTimer();
-      autoAcceptToken = token;
+    function startCountdown(token) {
+      stopCountdown();
 
-      let seconds = autoAcceptSeconds;
-      renderCountdown(seconds, token);
+      currentToken = token;
+      countdownSeconds = 10;
+      alreadyFinished = false;
 
-      autoAcceptTimer = setInterval(() => {
-        seconds -= 1;
+      const tick = () => {
+        const el = document.getElementById('countdownValue');
+        if (el) el.textContent = String(countdownSeconds);
 
-        const countdownEl = document.getElementById('countdown');
-        if (countdownEl) countdownEl.textContent = String(Math.max(seconds, 0));
-
-        if (seconds <= 0) {
-          clearAutoAcceptTimer();
+        if (countdownSeconds <= 0) {
+          stopCountdown();
           confirmQR(token, true);
+          return;
         }
-      }, 1000);
+
+        countdownSeconds -= 1;
+      };
+
+      tick();
+      countdownTimer = setInterval(tick, 1000);
     }
 
     async function onScanSuccess(decodedText) {
       if (isChecking) return;
 
       const token = extractToken(decodedText);
-
       if (!token || token === lastToken) return;
 
       lastToken = token;
       isChecking = true;
-      clearAutoAcceptTimer();
+      stopCountdown();
 
       const result = document.getElementById('qr-result');
-
       result.innerHTML = `
     <div class="status-pill status-checking">⟳ Verificando QR</div>
-    <div class="qr-detail">
-      Consultando datos del invitado...
-    </div>
+    <div class="qr-detail">Consultando datos del invitado...</div>
   `;
 
       try {
         const data = await api('qr_check', {
           token
         });
-        const p = data.person;
+        currentPerson = data.person;
 
-        result.innerHTML = `
-      <div class="status-pill status-ok">✓ QR válido</div>
-
-      <div class="qr-person">${esc(p.name)}</div>
-
-      <div class="qr-detail">
-        <b>Lista:</b> ${esc(p.list_name)}<br>
-        <b>Estado:</b> ${esc(p.status)}<br>
-        <b>Dato:</b> ${esc(p.note || 'Sin dato')}
-      </div>
-
-      <div class="scanner-actions">
-        <button class="scan-btn scan-btn-primary" onclick='confirmQR(${JSON.stringify(token)})'>
-          Confirmar entrada
-        </button>
-
-        <button class="scan-btn scan-btn-secondary" onclick="resetScanner()">
-          Escanear otro
-        </button>
-      </div>
-    `;
-
-        startAutoAcceptCountdown(token);
+        renderPersonCard(currentPerson, token);
+        startCountdown(token);
       } catch (error) {
         result.innerHTML = `
       <div class="status-pill status-error">✕ QR inválido</div>
-
-      <div class="qr-detail">
-        ${esc(error.message)}
-      </div>
-
+      <div class="qr-detail">${esc(error.message)}</div>
       <div class="scanner-actions">
         <button class="scan-btn scan-btn-secondary" onclick="resetScanner()">
           Escanear otro
@@ -250,26 +239,35 @@ if (($currentUser['role'] ?? '') !== 'admin') {
     }
 
     async function confirmQR(token, auto = false) {
-      clearAutoAcceptTimer();
+      if (alreadyFinished) return;
+      alreadyFinished = true;
+
+      stopCountdown();
 
       try {
         const data = await api('qr_confirm', {
           token
         });
-        const p = data.person;
+        const p = data.person || currentPerson || {};
+        const nombre = p.name || p.nombre || 'Sin nombre';
+        const apellido = p.last_name || p.apellido || '';
+        const codigo = p.document_number || p.dni || p.code || p.numero || '';
+        const lista = p.list_name || p.lista || 'Sin lista';
 
         document.getElementById('qr-result').innerHTML = `
       <div class="confirmed-box">
         <div class="confirmed-icon">✓</div>
-
         <div class="status-pill status-ok">
           ${auto ? 'Entrada confirmada automáticamente' : 'Entrada confirmada'}
         </div>
 
-        <div class="qr-person">${esc(p.name)}</div>
+        <div class="qr-person">
+          ${esc(nombre)} ${esc(apellido)}
+        </div>
 
         <div class="qr-detail">
-          <b>Lista:</b> ${esc(p.list_name)}<br>
+          ${codigo ? `<b>Código:</b> ${esc(codigo)}<br>` : ''}
+          <b>Lista:</b> ${esc(lista)}<br>
           <b>Estado:</b> Marcado como ENTRO
         </div>
 
@@ -281,13 +279,17 @@ if (($currentUser['role'] ?? '') !== 'admin') {
       </div>
     `;
       } catch (error) {
+        alreadyFinished = false;
         alert(error.message);
       }
     }
 
     function resetScanner() {
       lastToken = null;
-      clearAutoAcceptTimer();
+      currentToken = null;
+      currentPerson = null;
+      alreadyFinished = false;
+      stopCountdown();
       renderWaiting();
     }
 
