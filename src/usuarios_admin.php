@@ -211,13 +211,7 @@ $stmt = $pdo->query("
         WHERE dl.user_id = u.id AND dl.is_birthday = 0
         ORDER BY dl.id ASC
         LIMIT 1
-      ) AS list_id,
-      (
-        SELECT COUNT(*)
-        FROM door_people dp
-        INNER JOIN door_lists dl2 ON dl2.id = dp.list_id
-        WHERE dl2.user_id = u.id
-      ) AS people_count
+      ) AS list_id
     FROM users u
     ORDER BY
       CASE u.role
@@ -253,23 +247,9 @@ foreach ($users as &$userRow) {
         ]);
 
         $userRow['list_id'] = (int) $pdo->lastInsertId();
-        $userRow['people_count'] = 0;
     }
 }
 unset($userRow);
-
-/*
- * Los "puerta" no son promotores: si su lista está vacía (0
- * personas cargadas), no se muestran en el directorio para no
- * ensuciarlo con listas vacías. En cuanto tengan 1 o más personas
- * cargadas, aparecen normalmente.
- */
-$users = array_values(array_filter($users, function (array $u): bool {
-    if (($u['role'] ?? '') === 'puerta') {
-        return (int) ($u['people_count'] ?? 0) > 0;
-    }
-    return true;
-}));
 
 // URL base para el link de registro público (registro_publico.php ?lista=ID).
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
