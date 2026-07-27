@@ -522,9 +522,9 @@ async function renderKioskito() {
                 </div>
 
                 ${product.sub
-                  ? `<div class="product-sub">${esc(product.sub)}</div>`
-                  : ''
-                }
+          ? `<div class="product-sub">${esc(product.sub)}</div>`
+          : ''
+        }
 
               </div>
             `).join('')}
@@ -1023,14 +1023,14 @@ Ventas de la caja actual</div>
         </div>
 
         ${sales.map(sale => {
-          const items = Array.isArray(sale.items) ? sale.items : [];
+      const items = Array.isArray(sale.items) ? sale.items : [];
 
-          const hora = new Date(sale.created_at).toLocaleTimeString('es-AR', {
-            hour: '2-digit',
-            minute: '2-digit'
-          });
+      const hora = new Date(sale.created_at).toLocaleTimeString('es-AR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
 
-          return `
+      return `
             <div class="list-card" style="margin:0 0 8px;">
               <div class="list-header">
 
@@ -1055,7 +1055,7 @@ Ventas de la caja actual</div>
               </div>
             </div>
           `;
-        }).join('')}
+    }).join('')}
       </div>
     `;
   } catch (error) {
@@ -1541,7 +1541,7 @@ function drawPuerta() {
       if (!personTerm) return true;
 
       return normalizeText(person.name).includes(personTerm) ||
-             normalizeText(person.note || '').includes(personTerm);
+        normalizeText(person.note || '').includes(personTerm);
     });
 
     return `
@@ -1604,22 +1604,22 @@ function drawPuerta() {
 
         <div class="person-list">
             ${filteredPeople.length
-              ? filteredPeople.map(person => {
-                  /*
-                  * Admin puede eliminar cualquier persona.
-                  * RRPP/Pública solamente cuando todavía está en no_vino.
-                  * Puerta no puede eliminar porque canEditThisList será false.
-                  */
-                  const canDeletePerson =
-                    canEditThisList &&
-                    (isAdmin || person.status === 'no_vino');
+        ? filteredPeople.map(person => {
+          /*
+          * Admin puede eliminar cualquier persona.
+          * RRPP/Pública solamente cuando todavía está en no_vino.
+          * Puerta no puede eliminar porque canEditThisList será false.
+          */
+          const canDeletePerson =
+            canEditThisList &&
+            (isAdmin || person.status === 'no_vino');
 
-                  return `
+          return `
                     <div
                       class="person-row ${esc(person.status)} ${canManageDoor ? 'person-row-clickable' : ''} ${lastChangedPersonId === Number(person.id) ? `status-${esc(person.status)}` : ''}"
                       ${canManageDoor
-                        ? `onclick="togglePersonStatus(${Number(list.id)}, ${Number(person.id)})"`
-                        : ''}
+              ? `onclick="togglePersonStatus(${Number(list.id)}, ${Number(person.id)})"`
+              : ''}
                     >
                       <div class="person-info">
                         <div class="person-name">${esc(person.name)}</div>
@@ -1656,13 +1656,13 @@ function drawPuerta() {
                       </div>
                     </div>
                   `;
-                }).join('')
-              : `
+        }).join('')
+        : `
                 <div style="padding:8px 4px;color:var(--text2);">
                   Sin personas en esta lista.
                 </div>
               `
-            }
+      }
           </div>
         ${canEditThisList ? `
           <div class="quick-add-panel ${openQuickAddListId === Number(list.id) ? '' : 'hidden'}" data-list-id="${Number(list.id)}">
@@ -2131,14 +2131,14 @@ function startLiveApp() {
     const pegandoLista = !!document.querySelector(".bulk-input:focus");
 
     if (
-        puertaActiva &&
-        !liveIsLoadingPuerta &&
-        !estaEscribiendo &&
-        !modalAbierto &&
-        !panelQuickAbierto &&
-        !pegandoLista &&
-        Date.now() > statusAnimationUntil
-      ) {
+      puertaActiva &&
+      !liveIsLoadingPuerta &&
+      !estaEscribiendo &&
+      !modalAbierto &&
+      !panelQuickAbierto &&
+      !pegandoLista &&
+      Date.now() > statusAnimationUntil
+    ) {
       liveIsLoadingPuerta = true;
 
       try {
@@ -2246,8 +2246,8 @@ function abrirGuardarropas() {
 }
 
 async function crearGuardarropas() {
-  const nombre   = document.getElementById("gr-name")?.value.trim()  || "";
-  const dni      = document.getElementById("gr-dni")?.value.trim()   || "";
+  const nombre = document.getElementById("gr-name")?.value.trim() || "";
+  const dni = document.getElementById("gr-dni")?.value.trim() || "";
   const telefono = document.getElementById("gr-phone")?.value.trim() || "";
 
   if (!nombre) {
@@ -2296,19 +2296,19 @@ async function renderGuardarropas() {
   if (!list) return;
 
   try {
-    const data  = await api("guardarropas_list");
+    const data = await api("guardarropas_list");
     const items = data.items || [];
 
-    const search    = normalizeText(document.getElementById("gr-search")?.value || "");
-    const activos   = items.filter(x => x.estado === "pendiente").length;
+    const search = normalizeText(document.getElementById("gr-search")?.value || "");
+    const activos = items.filter(x => x.estado === "pendiente").length;
     const retirados = items.filter(x => x.estado === "retirado").length;
-    const total     = items.reduce((acc, item) => acc + Number(item.precio || 0), 0);
+    const total = items.reduce((acc, item) => acc + Number(item.precio || 0), 0);
 
-    const grTotal     = document.getElementById("gr-total");
-    const grActivos   = document.getElementById("gr-activos");
+    const grTotal = document.getElementById("gr-total");
+    const grActivos = document.getElementById("gr-activos");
     const grRetirados = document.getElementById("gr-retirados");
-    if (grTotal)     grTotal.textContent     = fmt(total);
-    if (grActivos)   grActivos.textContent   = activos;
+    if (grTotal) grTotal.textContent = fmt(total);
+    if (grActivos) grActivos.textContent = activos;
     if (grRetirados) grRetirados.textContent = retirados;
 
     const filtrados = items.filter(item => {
@@ -2337,9 +2337,9 @@ async function renderGuardarropas() {
             ${esc(item.codigo)}
             <span style="font-size:12px;color:var(--text2);font-family:'DM Sans',sans-serif;display:block;margin-top:4px;">
               ${esc(item.nombre)}
-              ${item.dni      ? " · DNI "  + esc(item.dni)      : ""}
-              ${item.telefono ? " · Tel "  + esc(item.telefono) : ""}
-              · ${new Date(item.hora_ingreso).toLocaleTimeString("es-AR", { hour:"2-digit", minute:"2-digit" })}
+              ${item.dni ? " · DNI " + esc(item.dni) : ""}
+              ${item.telefono ? " · Tel " + esc(item.telefono) : ""}
+              · ${new Date(item.hora_ingreso).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
             </span>
           </div>
 
@@ -2366,15 +2366,14 @@ async function renderGuardarropas() {
           </div>
 
           ${item.estado === "pendiente"
-            ? `<button class="btn-action btn-add" style="max-width:150px;" onclick="entregarGuardarropas(${Number(item.id)})">Entregar</button>`
-            : `<div style="color:var(--text2);font-size:12px;">Retirado · ${
-                item.hora_retirado
-                  ? new Date(item.hora_retirado).toLocaleTimeString("es-AR", { hour:"2-digit", minute:"2-digit" })
-                  : ""
-              }</div>`
-          }
+        ? `<button class="btn-action btn-add" style="max-width:150px;" onclick="entregarGuardarropas(${Number(item.id)})">Entregar</button>`
+        : `<div style="color:var(--text2);font-size:12px;">Retirado · ${item.hora_retirado
+          ? new Date(item.hora_retirado).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
+          : ""
+        }</div>`
+      }
           ${item.estado === 'retirado'
-          ? `
+        ? `
               <button
                   class="btn-delete"
                   onclick="eliminarGuardarropas(${item.id})"
@@ -2382,7 +2381,7 @@ async function renderGuardarropas() {
                   Eliminar
               </button>
           `
-          : ''
+        : ''
       }
         </div>
       </div>
@@ -2484,7 +2483,8 @@ async function generarImagenQR({ token, personName, personNote, listName, expire
 
   ctx.fillStyle = '#777';
   ctx.font = '22px Arial';
-  ctx.fillText(location.host, 450, 1080);
+  // Texto adicional opcional 
+  ctx.fillText('Veni a disfrutar', 450, 1080);
 
   // La imagen se crea SIEMPRE
   canvas.toBlob(async blob => {
