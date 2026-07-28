@@ -1048,6 +1048,7 @@ foreach ($users as $user) {
             <button type="button" class="filter-chip" data-role="admin">Admin</button>
             <button type="button" class="filter-chip" data-role="puerta">Puerta</button>
             <button type="button" class="filter-chip" data-role="usuario">Usuario</button>
+            <button type="button" class="filter-chip" data-role="kiosko">Kioskito</button>
           </div>
         </div>
 

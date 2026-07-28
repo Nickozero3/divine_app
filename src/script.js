@@ -10,6 +10,27 @@ function esc(str) {
     .replace(/'/g, '&#039;');
 }
 
+let doorView = localStorage.getItem("doorView") || "mine";
+function setDoorView(view) {
+
+  doorView = view;
+
+  localStorage.setItem("doorView", view);
+
+  document.getElementById("door-view-mine")?.classList.toggle(
+    "active",
+    view === "mine"
+  );
+
+  document.getElementById("door-view-all")?.classList.toggle(
+    "active",
+    view === "all"
+  );
+
+  renderPuerta(true);
+
+}
+
 // Read environment-like variables exposed to the frontend.
 // It supports window.__ENV__ or window.ENV as injection points.
 function getenv(key, defaultValue = '') {
@@ -220,43 +241,42 @@ window.addEventListener('unhandledrejection', (event) => {
   showAppBroken('Error async no controlado', event.reason || 'Promesa rechazada');
 });
 
-async function api(action, data = null) {
-  const options = { credentials: 'same-origin' };
+async function api(action, data = null, params = {}) {
+
+  const query = new URLSearchParams({
+    action,
+    ...params
+  });
+
+  const options = {
+    credentials: 'same-origin'
+  };
 
   if (data !== null) {
     options.method = 'POST';
-    options.headers = { 'Content-Type': 'application/json' };
+    options.headers = {
+      'Content-Type': 'application/json'
+    };
     options.body = JSON.stringify(data);
   }
 
-  let res;
-  let text;
+  const res = await fetch(
+    `api.php?${query.toString()}`,
+    options
+  );
 
-  try {
-    res = await fetch(`api.php?action=${encodeURIComponent(action)}`, options);
-    text = await res.text();
-  } catch (error) {
-    throw new Error(`No se pudo conectar con api.php en la acción "${action}". ${getErrorMessage(error)}`);
-  }
+  const text = await res.text();
 
   let json;
 
   try {
     json = JSON.parse(text);
   } catch {
-    throw new Error(
-      `api.php no devolvió JSON válido en la acción "${action}".\n\n` +
-      `HTTP: ${res.status}\n\n` +
-      `Respuesta recibida:\n${text.slice(0, 800)}`
-    );
+    throw new Error(text);
   }
 
   if (!res.ok || !json.ok) {
-    throw new Error(
-      `Error en api.php?action=${action}\n\n` +
-      `${json.error || 'Error del servidor'}\n\n` +
-      `HTTP: ${res.status}`
-    );
+    throw new Error(json.error || 'Error');
   }
 
   return json;
@@ -1449,7 +1469,13 @@ async function renderPuerta(forceRender = false) {
       `;
     }
 
-    const data = await api('door_lists');
+    const data = await api(
+      'door_lists',
+      null,
+      {
+        mine: doorView === 'mine' ? 1 : 0
+      }
+    );
     const newLists = Array.isArray(data.lists) ? data.lists : [];
     const newHiddenEmpty = Array.isArray(data.hiddenEmptyLists) ? data.hiddenEmptyLists : [];
     const newSnapshot = makeDoorSnapshot(newLists) + '|' + JSON.stringify(newHiddenEmpty);
@@ -2557,6 +2583,7 @@ async function generarImagenQR({ token, personName, personNote, listName, expire
 ===================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
+  setDoorView(doorView);
   const currentPage = document.body.dataset.page || '';
 
   // No se aplica dentro del propio index.

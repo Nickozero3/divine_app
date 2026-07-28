@@ -1,9 +1,11 @@
 <?php
+
 declare(strict_types=1);
 require_once __DIR__ . '/auth.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -12,10 +14,15 @@ require_once __DIR__ . '/auth.php';
   <link rel="stylesheet" href="styles.css?v=<?= time() ?>">
   <link rel="icon" type="image/x-icon" href="./favicon.ico">
 
-<link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
-<script src="js/theme.js?v=<?= time() ?>" defer></script>
+  <link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
+  <script src="js/theme.js?v=<?= time() ?>" defer></script>
 </head>
-<style> body {min-height: 100vh;}</style>
+<style>
+  body {
+    min-height: 100vh;
+  }
+</style>
+
 <body data-page="listas">
   <div class="stars"></div>
 
@@ -29,15 +36,34 @@ require_once __DIR__ . '/auth.php';
     </div>
 
     <div class="lists-wrap">
-      <div style="padding:0 0 12px;display:flex;flex-direction:column;gap:10px;">
+
+      <?php if ($canManageDoor): ?>
+        <div class="door-view-selector">
+          <button
+            id="door-view-mine"
+            class="door-view-btn active"
+            onclick="setDoorView('mine')">
+            👤 Mi lista
+          </button>
+
+          <button
+            id="door-view-all"
+            class="door-view-btn"
+            onclick="setDoorView('all')">
+            📋 Todas
+          </button>
+        </div>
+      <?php endif; ?>
+
+      <div style="padding:12px 0;display:flex;flex-direction:column;gap:10px;">
+
         <?php if ($canManageDoor): ?>
           <input
             id="list-search"
             type="text"
             placeholder="Buscar por lista o usuario..."
             oninput="drawPuerta()"
-            style="width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--text);outline:none;font-size:14px;"
-          >
+            style="width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--text);outline:none;font-size:14px;">
         <?php endif; ?>
 
         <input
@@ -45,8 +71,7 @@ require_once __DIR__ . '/auth.php';
           type="text"
           placeholder="<?= $canManageDoor ? 'Buscar por nombre en todas las listas...' : 'Buscar nombre dentro de tu lista...' ?>"
           oninput="drawPuerta()"
-          style="width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--text);outline:none;font-size:14px;"
-        >
+          style="width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--text);outline:none;font-size:14px;">
       </div>
 
       <div id="p-lists"></div>
@@ -80,24 +105,25 @@ require_once __DIR__ . '/auth.php';
       </div>
     </div>
   </div>
-<script>
+  <script>
     window.DIVINE_USER = <?= divineUserPayload($currentUser, $currentRole, $isAdmin, $isPuerta, $canManageDoor) ?>;
   </script>
   <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
   <script src="script.js?v=<?= time() ?>"></script>
 
   <footer class="theme-footer" aria-label="Preferencias visuales">
-  <button type="button" class="theme-toggle" id="themeToggle" data-theme-toggle aria-label="Cambiar tema">
-    <span class="theme-toggle__icon" aria-hidden="true">◐</span>
-    <span class="theme-toggle__copy">
-      <span class="theme-toggle__eyebrow">Tema visual</span>
-      <span class="theme-toggle__label" data-theme-label>Cambiar tema</span>
-    </span>
-    <span class="theme-toggle__track" aria-hidden="true">
-      <span class="theme-toggle__thumb"></span>
-    </span>
-  </button>
-</footer>
+    <button type="button" class="theme-toggle" id="themeToggle" data-theme-toggle aria-label="Cambiar tema">
+      <span class="theme-toggle__icon" aria-hidden="true">◐</span>
+      <span class="theme-toggle__copy">
+        <span class="theme-toggle__eyebrow">Tema visual</span>
+        <span class="theme-toggle__label" data-theme-label>Cambiar tema</span>
+      </span>
+      <span class="theme-toggle__track" aria-hidden="true">
+        <span class="theme-toggle__thumb"></span>
+      </span>
+    </button>
+  </footer>
 
 </body>
+
 </html>

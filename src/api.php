@@ -393,6 +393,14 @@ try_remember_login($pdo);
 $user = require_login($pdo);
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 $input = read_input();
+function require_admin_or_kiosko(array $user): void
+{
+    $role = strtolower(trim((string) ($user['role'] ?? '')));
+
+    if (!in_array($role, ['admin', 'kiosko', 'kioskito'], true)) {
+        fail('No tenés permiso para realizar esta acción.', 403);
+    }
+}
 
 try {
     switch ($action) {
@@ -404,7 +412,7 @@ try {
            PRODUCTOS / KIOSKITO
         ========================= */
         case 'products_list': {
-                require_admin($user);
+                require_admin_or_kiosko($user);
                 $stmt = $pdo->query('SELECT * FROM products WHERE active = 1 ORDER BY custom ASC, id ASC');
                 $products = array_map('product_row', $stmt->fetchAll());
                 ok(['products' => $products]);
@@ -460,83 +468,132 @@ try {
            PUERTA / LISTAS
         ========================= */
         case 'door_lists': {
-                $isDoorManager = is_door_manager($user);
+
+                $forceMine = !empty($_GET['mine']);
+
+                // Si el admin eligió "Mi lista", se comporta como un usuario normal.
+                $isDoorManager = is_door_manager($user) && !$forceMine;
 
                 if ($isDoorManager) {
-                    $stmt = $pdo->query('
-                    SELECT dl.*, u.display_name AS owner_name
-                    FROM door_lists dl
-                    INNER JOIN users u ON u.id = dl.user_id
-                    ORDER BY dl.created_at DESC, dl.id DESC
-                ');
-                    $lists = $stmt->fetchAll();
+
+                    $stmt = $pdo->query("
+            SELECT
+                dl.*,
+                u.display_name AS owner_name
+            FROM door_lists dl
+            INNER JOIN users u
+                ON u.id = dl.user_id
+            ORDER BY
+                dl.created_at DESC,
+                dl.id DESC
+        ");
+
+                    $lists = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 } else {
-                    $stmt = $pdo->prepare('
-                    SELECT dl.*, u.display_name AS owner_name
-                    FROM door_lists dl
-                    INNER JOIN users u ON u.id = dl.user_id
-                    WHERE dl.user_id = :user_id
-                    ORDER BY dl.created_at DESC, dl.id DESC
-                ');
+
+                    $stmt = $pdo->prepare("
+            SELECT
+                dl.*,
+                u.display_name AS owner_name
+            FROM door_lists dl
+            INNER JOIN users u
+                ON u.id = dl.user_id
+            WHERE
+                dl.user_id = :user_id
+            ORDER BY
+                dl.created_at DESC,
+                dl.id DESC
+        ");
+
                     $stmt->execute([
-                        ':user_id' => (int) $user['id']
+                        ':user_id' => (int)$user['id']
                     ]);
-                    $lists = $stmt->fetchAll();
+
+                    $lists = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 }
 
-                $ids = array_map(fn($l) => (int) $l['id'], $lists);
+                $ids = array_map(
+                    fn($list) => (int)$list['id'],
+                    $lists
+                );
+
                 $peopleByList = [];
 
                 if ($ids) {
+
                     $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
                     $stmtPeople = $pdo->prepare("
-                    SELECT *
-                    FROM door_people
-                    WHERE list_id IN ($placeholders)
-                    ORDER BY id ASC
-                ");
+            SELECT *
+            FROM door_people
+            WHERE list_id IN ($placeholders)
+            ORDER BY id ASC
+        ");
 
                     $stmtPeople->execute($ids);
 
-                    foreach ($stmtPeople->fetchAll() as $person) {
-                        $peopleByList[(int) $person['list_id']][] = person_row($person);
+                    foreach ($stmtPeople->fetchAll(PDO::FETCH_ASSOC) as $person) {
+                        $peopleByList[(int)$person['list_id']][] = person_row($person);
                     }
                 }
 
                 $result = array_map(function ($list) use ($peopleByList) {
-                    $id = (int) $list['id'];
+
+                    $id = (int)$list['id'];
 
                     return [
                         'id' => $id,
-                        'userId' => (int) $list['user_id'],
+                        'userId' => (int)$list['user_id'],
                         'ownerName' => $list['owner_name'] ?? '',
                         'name' => $list['name'],
-                        'isBirthday' => (bool) $list['is_birthday'],
-                        'pricePerPerson' => (int) $list['price_per_person'],
+                        'isBirthday' => (bool)$list['is_birthday'],
+                        'pricePerPerson' => (int)$list['price_per_person'],
                         'people' => $peopleByList[$id] ?? [],
                     ];
                 }, $lists);
 
-                // La vista de "todas las listas" (admin/puerta) no necesita
-                // mostrar listas sin ninguna persona cargada; el dueño de la
-                // lista (RRPP) sigue viendo su propia lista aunque esté vacía,
-                // porque esa parte usa el otro branch (WHERE dl.user_id = ...).
                 $hiddenEmptyLists = [];
 
+                // Solo ocultamos listas vacías cuando el admin está viendo TODAS.
                 if ($isDoorManager) {
-                    $hiddenEmptyLists = array_values(array_map(
-                        fn($list) => ['name' => $list['name'], 'ownerName' => $list['ownerName']],
-                        array_filter($result, fn($list) => count($list['people']) === 0)
-                    ));
 
-                    $result = array_values(array_filter(
-                        $result,
-                        fn($list) => count($list['people']) > 0
-                    ));
+                    $filtered = [];
+
+                    foreach ($result as $list) {
+
+                        $peopleCount = count($list['people']);
+
+                        if ($peopleCount > 0) {
+                            $filtered[] = $list;
+                            continue;
+                        }
+
+                        // Mantener cumpleaños aunque esté vacío.
+                        if ($list['isBirthday']) {
+                            $filtered[] = $list;
+                            continue;
+                        }
+
+                        // Mantener mi propia lista principal aunque esté vacía.
+                        if ((int)$list['userId'] === (int)$user['id']) {
+                            $filtered[] = $list;
+                            continue;
+                        }
+
+                        // Ocultar únicamente listas principales vacías de otros usuarios.
+                        $hiddenEmptyLists[] = [
+                            'name' => $list['name'],
+                            'ownerName' => $list['ownerName']
+                        ];
+                    }
+
+                    $result = $filtered;
                 }
 
-                ok(['lists' => $result, 'hiddenEmptyLists' => $hiddenEmptyLists]);
+                ok([
+                    'lists' => $result,
+                    'hiddenEmptyLists' => $hiddenEmptyLists
+                ]);
             }
 
         case 'list_add': {
@@ -613,9 +670,39 @@ try {
             }
 
         case 'list_delete': {
+
                 $listId = (int) ($input['id'] ?? 0);
-                if ($listId <= 0) fail('Lista inválida.');
+
+                if ($listId <= 0) {
+                    fail('Lista inválida.');
+                }
+
                 $list = current_user_can_access_list($pdo, $listId, $user);
+
+                // ======================================================
+                // Si es la lista principal NO se elimina.
+                // Solamente se vacían las personas.
+                // ======================================================
+                if (!(bool)$list['is_birthday']) {
+
+                    $stmt = $pdo->prepare("
+            DELETE FROM door_people
+            WHERE list_id = :id
+        ");
+
+                    $stmt->execute([
+                        ':id' => $listId
+                    ]);
+
+                    ok([
+                        'cleared' => true,
+                        'message' => 'La lista fue vaciada correctamente.'
+                    ]);
+                }
+
+                // ======================================================
+                // Las listas de cumpleaños sí se eliminan completamente.
+                // ======================================================
 
                 app_log(
                     $pdo,
@@ -635,9 +722,43 @@ try {
                     ]
                 );
 
-                $stmt = $pdo->prepare('DELETE FROM door_lists WHERE id = :id');
-                $stmt->execute([':id' => $listId]);
-                ok();
+                $pdo->beginTransaction();
+
+                try {
+
+                    $stmt = $pdo->prepare("
+            DELETE FROM door_people
+            WHERE list_id = :id
+        ");
+
+                    $stmt->execute([
+                        ':id' => $listId
+                    ]);
+
+                    $stmt = $pdo->prepare("
+            DELETE FROM door_lists
+            WHERE id = :id
+        ");
+
+                    $stmt->execute([
+                        ':id' => $listId
+                    ]);
+
+                    if ($stmt->rowCount() === 0) {
+                        throw new RuntimeException('No se pudo eliminar la lista.');
+                    }
+
+                    $pdo->commit();
+
+                    ok();
+                } catch (Throwable $e) {
+
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+
+                    fail($e->getMessage());
+                }
             }
 
         case 'person_add': {
@@ -985,7 +1106,7 @@ try {
             }
 
         case 'guardarropas_add': {
-                require_admin($user);
+                require_admin_or_kiosko($user);
 
                 $nombre   = trim((string) ($input['nombre']   ?? ''));
                 $dni      = trim((string) ($input['dni']      ?? ''));
@@ -1024,7 +1145,7 @@ try {
             }
 
         case 'guardarropas_entregar': {
-                require_admin($user);
+                require_admin_or_kiosko($user);
 
                 $id = (int) ($input['id'] ?? 0);
                 if ($id <= 0) {
@@ -1074,7 +1195,7 @@ try {
             }
 
         case 'guardarropas_delete': {
-                require_admin($user);
+                require_admin_or_kiosko($user);
 
                 $id = (int) ($input['id'] ?? 0);
 
@@ -1170,7 +1291,7 @@ try {
            VENTAS / HISTORIAL
         ========================= */
         case 'sale_register': {
-                require_admin($user);
+                require_admin_or_kiosko($user);
 
                 $items = $input['items'] ?? [];
                 $total = max(0, (int) ($input['total'] ?? 0));
@@ -1265,7 +1386,7 @@ try {
                 ]);
             }
         case 'sales_history': {
-                require_admin($user);
+                require_admin_or_kiosko($user);
 
                 // Mostrar solamente las ventas de la caja actualmente abierta.
                 // Los cierres ocultos del historial también cuentan como cierres válidos.
@@ -1312,7 +1433,7 @@ try {
                 ]);
             }
         case 'kiosko_summary': {
-                require_admin($user);
+                require_admin_or_kiosko($user);
 
                 $stmtLast = $pdo->query("
                 SELECT COALESCE(MAX(to_sale_id), 0)
@@ -1330,7 +1451,7 @@ try {
             }
 
         case 'kiosko_close': {
-                require_admin($user);
+                require_admin_or_kiosko($user);
 
                 $pdo->beginTransaction();
 
