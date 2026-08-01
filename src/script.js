@@ -2602,6 +2602,81 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.replace('index.php');
   });
 });
+
+let qrScanner = null;
+
+function openScanner() {
+
+  document.getElementById("scanner-modal").style.display = "flex";
+
+  if (qrScanner) {
+    return;
+  }
+
+  qrScanner = new Html5Qrcode("reader");
+
+  qrScanner.start(
+
+    {
+      facingMode: "environment"
+    },
+
+    {
+      fps: 10,
+      qrbox: 250
+    },
+
+    onQrSuccess,
+
+    () => { }
+
+  );
+
+}
+
+async function onQrSuccess(text) {
+
+  try {
+
+    const data = await api(
+      "qr_confirm",
+      {
+        token: text
+      }
+    );
+
+    alert(data.message);
+
+    closeScanner();
+
+    renderPuerta(true);
+
+  } catch (e) {
+
+    alert(e.message);
+
+  }
+
+}
+
+function closeScanner() {
+
+  document.getElementById("scanner-modal").style.display = "none";
+
+  if (qrScanner) {
+
+    qrScanner.stop()
+      .then(() => {
+
+        qrScanner.clear();
+
+        qrScanner = null;
+
+      });
+
+  }
+
+}
 /* =========================
    INIT DE LA APP
 ========================= */
