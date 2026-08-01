@@ -3046,3 +3046,124 @@ body.theme-red ::-webkit-scrollbar-thumb {
   color: #111;
   border-color: var(--gold);
 }
+
+.door-actions {
+  display: flex;
+
+  gap: 12px;
+
+  margin-bottom: 15px;
+}
+
+.door-action-btn {
+  flex: 1;
+
+  height: 46px;
+
+  border: none;
+
+  border-radius: 14px;
+
+  background: linear-gradient(180deg, #6b4cff, #5535e7);
+
+  color: white;
+
+  font-size: 15px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.door-action-btn:hover {
+  transform: translateY(-2px);
+}
+
+/* ==========================================
+   PUERTA - Toolbar buscadores + QR
+========================================== */
+
+.door-toolbar {
+  display: grid;
+  grid-template-columns: 1fr 90px;
+  grid-template-rows: auto auto;
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 16px;
+}
+
+.door-searches {
+  display: contents;
+}
+
+/* Primer buscador */
+#list-search {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+/* Segundo buscador */
+#person-search {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+/* Botón QR */
+.door-scanner-btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+
+  width: 100%;
+  height: 100%;
+
+  border-radius: 18px;
+  border: 1px solid rgba(176, 124, 255, 0.18);
+
+  background: linear-gradient(
+    135deg,
+    rgba(142, 91, 255, 0.18),
+    rgba(240, 212, 141, 0.16)
+  );
+
+  cursor: pointer;
+  transition: 0.18s;
+}
+
+.door-scanner-btn:hover {
+  transform: translateY(-2px);
+}
+
+.door-scanner-btn:active {
+  transform: scale(0.96);
+}
+
+/* Inputs */
+
+#list-search,
+#person-search {
+  width: 100%;
+  height: 48px;
+
+  border-radius: 14px;
+  border: 1px solid var(--border);
+
+  background: var(--bg3);
+  color: var(--text);
+
+  padding: 0 16px;
+  font-size: 14px;
+  outline: none;
+}
+
+#list-search::placeholder,
+#person-search::placeholder {
+  color: var(--text2);
+}

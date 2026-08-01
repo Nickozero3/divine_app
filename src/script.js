@@ -2638,22 +2638,178 @@ async function onQrSuccess(text) {
 
   try {
 
-    const data = await api(
-      "qr_confirm",
-      {
-        token: text
+    let token = text;
+
+    // Si el QR es una URL, obtener solo el token.
+    try {
+
+      const url = new URL(text);
+
+      const t = url.searchParams.get("token");
+
+      if (t) {
+        token = t;
       }
-    );
 
-    alert(data.message);
+    } catch (_) {
+      // El QR ya contiene solo el token.
+    }
 
-    closeScanner();
+    const data = await api("qr_check", {
+      token
+    });
 
-    renderPuerta(true);
+    window.currentQrToken = token;
+    window.currentQrPerson = data.person;
+
+    document.getElementById("qr-result").innerHTML = `
+      <div class="status-pill status-ok">
+        🟢 QR válido
+      </div>
+
+      <div class="qr-detail" style="margin-top:14px">
+
+        <div style="font-size:22px;font-weight:800">
+          ${esc(data.person.name)}
+        </div>
+
+        <div style="margin-top:6px;color:var(--text2)">
+          📋 ${esc(data.person.list_name)}
+        </div>
+
+        ${data.person.note ? `
+          <div style="margin-top:4px;color:var(--text2)">
+            📝 ${esc(data.person.note)}
+          </div>
+        ` : ""}
+
+      </div>
+
+      <div style="
+        display:flex;
+        gap:12px;
+        margin-top:22px;
+      ">
+
+        <button
+          class="btn-modal btn-cancel"
+          style="flex:1"
+          onclick="closeScanner()">
+
+          Cancelar
+
+        </button>
+
+        <button
+          class="btn-modal btn-confirm"
+          style="flex:1"
+          onclick="confirmQrEntry()">
+
+          ✅ Confirmar ingreso
+
+        </button>
+
+      </div>
+    `;
 
   } catch (e) {
 
-    alert(e.message);
+    document.getElementById("qr-result").innerHTML = `
+      <div class="status-pill status-error">
+        🔴 QR inválido
+      </div>
+
+      <div class="qr-detail" style="margin-top:14px">
+        ${esc(e.message)}
+      </div>
+    `;
+
+  }
+
+}
+async function confirmQrEntry() {
+
+  try {
+
+    const data = await api(
+      "qr_confirm",
+      {
+        token: window.currentQrToken
+      }
+    );
+
+    const person = window.currentQrPerson || {};
+
+    document.getElementById("qr-result").innerHTML = `
+
+      <div class="status-pill status-ok">
+
+        ✅ Ingreso registrado
+
+      </div>
+
+      <div class="qr-detail">
+
+        <div style="
+          font-size:22px;
+          font-weight:800;
+          margin-top:10px;
+        ">
+
+          ${esc(person.name || "")}
+
+        </div>
+
+        <div style="
+          color:var(--text2);
+          margin-top:8px;
+        ">
+
+          ${esc(data.message)}
+
+        </div>
+
+      </div>
+
+    `;
+
+    setTimeout(() => {
+
+      closeScanner();
+
+      renderPuerta(true);
+
+    }, 1200);
+
+  } catch (e) {
+
+    document.getElementById("qr-result").innerHTML = `
+
+      <div class="status-pill status-error">
+
+        🔴 Error
+
+      </div>
+
+      <div class="qr-detail">
+
+        ${esc(e.message)}
+
+      </div>
+
+      <div style="margin-top:20px">
+
+        <button
+          class="btn-modal btn-confirm"
+          onclick="confirmQrEntry()">
+
+          Reintentar
+
+        </button>
+
+      </div>
+
+    `;
 
   }
 
@@ -2677,6 +2833,7 @@ function closeScanner() {
   }
 
 }
+
 /* =========================
    INIT DE LA APP
 ========================= */
