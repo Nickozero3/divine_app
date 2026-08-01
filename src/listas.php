@@ -22,10 +22,7 @@ require_once __DIR__ . '/auth.php';
 
   <title><?= e(APP_NAME) ?> · Puerta</title>
 
-  <link
-    rel="stylesheet"
-    href="styles.css?v=<?= time() ?>">
-
+  <link rel="stylesheet" href="styles.css?v=1">
   <link
     rel="stylesheet"
     href="styles/theme.css?v=<?= time() ?>">
@@ -356,10 +353,10 @@ require_once __DIR__ . '/auth.php';
   <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 
   <!-- Lector QR -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://unpkg.com/html5-qrcode" defer></script>
 
   <!-- Script principal -->
-  <script src="script.js?v=<?= time() ?>"></script>
+  <script src="script.js?v=1" defer></script>
 
 
   <footer class="theme-footer" aria-label="Preferencias visuales">
