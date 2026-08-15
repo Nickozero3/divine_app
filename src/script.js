@@ -12,6 +12,8 @@ function esc(str) {
 
 let doorView = localStorage.getItem("doorView") || "mine";
 
+let doorStatusFilter = localStorage.getItem('doorStatusFilter') || 'all';
+
 function setDoorView(view) {
 
   doorView = view;
@@ -1482,6 +1484,48 @@ function nextDoorStatus(status) {
   return 'no_vino';
 }
 
+function setDoorStatusFilter(filter) {
+  const allowed = ['all', 'no_vino', 'entro', 'se_fue'];
+  doorStatusFilter = allowed.includes(filter) ? filter : 'all';
+  localStorage.setItem('doorStatusFilter', doorStatusFilter);
+
+  document.querySelectorAll('[data-door-status-filter]').forEach(btn => {
+    const active = btn.dataset.doorStatusFilter === doorStatusFilter;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  drawPuerta();
+}
+
+function updateDoorStatusFilterCounts(lists) {
+  const people = (lists || []).flatMap(list => Array.isArray(list.people) ? list.people : []);
+  const counts = {
+    all: people.length,
+    no_vino: people.filter(p => p.status === 'no_vino').length,
+    entro: people.filter(p => p.status === 'entro').length,
+    se_fue: people.filter(p => p.status === 'se_fue').length
+  };
+
+  const map = {
+    'door-filter-all': counts.all,
+    'door-filter-no-vino': counts.no_vino,
+    'door-filter-entro': counts.entro,
+    'door-filter-se-fue': counts.se_fue
+  };
+
+  Object.entries(map).forEach(([id,value]) => {
+    const el=document.getElementById(id);
+    if(el) el.textContent=String(value);
+  });
+
+  document.querySelectorAll('[data-door-status-filter]').forEach(btn => {
+    const active = btn.dataset.doorStatusFilter === doorStatusFilter;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+}
+
 async function renderPuerta(forceRender = false) {
   const wrap = document.getElementById('p-lists');
   if (!wrap) return;
@@ -1557,6 +1601,8 @@ function drawPuerta() {
   const listTerm = canManageDoor ? normalizeText(searchInput ? searchInput.value : '') : '';
   const personTerm = normalizeText(personSearchInput ? personSearchInput.value : '');
 
+  updateDoorStatusFilterCounts(doorLists);
+
   const visibleLists = doorLists.filter(list =>
     listMatchesSearch(list, listTerm) &&
     personMatchesSearch(list, personTerm)
@@ -1565,8 +1611,8 @@ function drawPuerta() {
   if (!visibleLists.length) {
     // Distinguimos "no hay listas todavía" de "no hay resultados para esta búsqueda"
     // para que el mensaje sea preciso.
-    const emptyMessage = (listTerm || personTerm)
-      ? 'No se encontraron listas o personas con esa búsqueda.'
+    const emptyMessage = (listTerm || personTerm || doorStatusFilter !== 'all')
+      ? 'No se encontraron personas con los filtros actuales.'
       : 'Todavía no hay listas creadas.';
 
     wrap.innerHTML = `
@@ -1619,10 +1665,15 @@ function drawPuerta() {
     };
 
     const filteredPeople = (list.people || []).filter(person => {
-      if (!personTerm) return true;
-
-      return normalizeText(person.name).includes(personTerm) ||
+      const matchesSearch = !personTerm ||
+        normalizeText(person.name).includes(personTerm) ||
         normalizeText(person.note || '').includes(personTerm);
+
+      const matchesStatus =
+        doorStatusFilter === 'all' ||
+        person.status === doorStatusFilter;
+
+      return matchesSearch && matchesStatus;
     });
 
     return `
@@ -2180,6 +2231,48 @@ async function procesarListaPorLista(listId, btn = null) {
   }
 }
 
+function puertaFeedback(type = 'ok') {
+  // Vibración corta: pensada para teléfonos usados en la puerta.
+  try {
+    if (navigator.vibrate) {
+      navigator.vibrate(
+        type === 'ok' ? 35 :
+        type === 'warning' ? [45, 35, 45] :
+        [90]
+      );
+    }
+  } catch (_) {}
+
+  // Sonido local, sin archivos externos.
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.value =
+      type === 'ok' ? 880 :
+      type === 'warning' ? 520 :
+      240;
+
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.045, ctx.currentTime + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.105);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.11);
+
+    osc.onended = () => {
+      try { ctx.close(); } catch (_) {}
+    };
+  } catch (_) {}
+}
+
 async function togglePersonStatus(listId, personId) {
   listId = Number(listId);
   personId = Number(personId);
@@ -2224,6 +2317,8 @@ async function togglePersonStatus(listId, personId) {
       personId
     });
 
+    puertaFeedback(person.status === 'se_fue' ? 'warning' : 'ok');
+
     // Confirmamos con el servidor en segundo plano (sin bloquear la UI)
     // para traer cualquier otro cambio concurrente de otro dispositivo.
     renderPuerta(true).catch(error => console.error('Error sincronizando puerta:', error));
@@ -2243,6 +2338,7 @@ async function togglePersonStatus(listId, personId) {
     statusAnimationTimer = null;
     statusAnimationUntil = 0;
     drawPuerta();
+    puertaFeedback('error');
     showError(error);
   }
 }
@@ -2848,6 +2944,7 @@ async function onQrSuccess(text) {
 
     window.currentQrToken = token;
     window.currentQrPerson = data.person;
+    puertaFeedback('ok');
 
     document.getElementById("qr-result").innerHTML = `
       <div class="status-pill status-ok">
@@ -2901,6 +2998,8 @@ async function onQrSuccess(text) {
 
   } catch (e) {
 
+    puertaFeedback('error');
+
     document.getElementById("qr-result").innerHTML = `
       <div class="status-pill status-error">
         🔴 QR inválido
@@ -2926,6 +3025,8 @@ async function confirmQrEntry() {
     );
 
     const person = window.currentQrPerson || {};
+
+    puertaFeedback('ok');
 
     document.getElementById("qr-result").innerHTML = `
 
@@ -2969,6 +3070,8 @@ async function confirmQrEntry() {
     }, 1200);
 
   } catch (e) {
+
+    puertaFeedback('error');
 
     document.getElementById("qr-result").innerHTML = `
 

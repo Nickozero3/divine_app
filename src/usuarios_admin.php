@@ -45,9 +45,25 @@ function redirectWithMessage(string $type, string $message): void
 function normalizeUsername(string $username): string
 {
   $username = trim($username);
+  $username = preg_replace('/\s+/', '', $username) ?? '';
   $username = mb_strtolower($username, 'UTF-8');
 
+  // Permite usuarios normales y correos electrónicos completos.
+  if (str_contains($username, '@')) {
+    return $username;
+  }
+
   return preg_replace('/[^a-z0-9_.-]/i', '', $username) ?? '';
+}
+
+function isEmailUsername(string $username): bool
+{
+  return filter_var($username, FILTER_VALIDATE_EMAIL) !== false;
+}
+
+function usernameLabel(string $username): string
+{
+  return isEmailUsername($username) ? $username : '@' . $username;
 }
 
 $roles = [
@@ -86,6 +102,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       if ($username === '' || mb_strlen($username) < 3) {
         redirectWithMessage('error', 'El usuario debe tener al menos 3 caracteres.');
+      }
+
+      if (str_contains($username, '@') && !isEmailUsername($username)) {
+        redirectWithMessage('error', 'Si usás un email como usuario, ingresalo completo. Ejemplo: nicolasochoa@gmail.com');
       }
 
       if ($displayName === '') {
@@ -134,6 +154,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       redirectWithMessage('success', 'Usuario creado correctamente.');
     }
 
+    if ($action === 'delete_user') {
+      $id = (int)($_POST['id'] ?? 0);
+
+      if ($id <= 0) {
+        redirectWithMessage('error', 'Usuario inválido.');
+      }
+
+      if ($id === $currentUserId) {
+        redirectWithMessage('error', 'No podés eliminar tu propio usuario mientras estás conectado.');
+      }
+
+      $stmtTarget = $pdo->prepare("SELECT id, username, display_name, role FROM users WHERE id = :id LIMIT 1");
+      $stmtTarget->execute([':id' => $id]);
+      $targetUser = $stmtTarget->fetch(PDO::FETCH_ASSOC);
+
+      if (!$targetUser) {
+        redirectWithMessage('error', 'El usuario ya no existe.');
+      }
+
+      if (($targetUser['role'] ?? '') === 'admin') {
+        $adminCount = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
+        if ($adminCount <= 1) {
+          redirectWithMessage('error', 'No podés eliminar al último administrador.');
+        }
+      }
+
+      $pdo->beginTransaction();
+      try {
+        $stmtTokens = $pdo->prepare("DELETE FROM user_remember_tokens WHERE user_id = :id");
+        $stmtTokens->execute([':id' => $id]);
+
+        // Conservamos los registros de auditoría, pero sin apuntar al usuario eliminado.
+        $stmtLogs = $pdo->prepare("UPDATE app_logs SET user_id = NULL WHERE user_id = :id");
+        $stmtLogs->execute([':id' => $id]);
+
+        // door_lists y kiosko_sales usan ON DELETE CASCADE en el esquema actual.
+        $stmtDelete = $pdo->prepare("DELETE FROM users WHERE id = :id LIMIT 1");
+        $stmtDelete->execute([':id' => $id]);
+
+        if ($stmtDelete->rowCount() !== 1) {
+          throw new RuntimeException('No se pudo eliminar el usuario.');
+        }
+        $pdo->commit();
+      } catch (Throwable $deleteError) {
+        if ($pdo->inTransaction()) {
+          $pdo->rollBack();
+        }
+        throw $deleteError;
+      }
+
+      redirectWithMessage('success', 'Se eliminó "' . (string)$targetUser['display_name'] . '" correctamente.');
+    }
+
     if ($action === 'update_user') {
       $id = (int)($_POST['id'] ?? 0);
       $username = normalizeUsername((string)($_POST['username'] ?? ''));
@@ -147,6 +220,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       if ($username === '' || mb_strlen($username) < 3) {
         redirectWithMessage('error', 'El usuario debe tener al menos 3 caracteres.');
+      }
+
+      if (str_contains($username, '@') && !isEmailUsername($username)) {
+        redirectWithMessage('error', 'Si usás un email como usuario, ingresalo completo. Ejemplo: nicolasochoa@gmail.com');
       }
 
       if ($displayName === '') {
@@ -277,6 +354,7 @@ $roleCounts = [
   'admin' => 0,
   'puerta' => 0,
   'usuario' => 0,
+  'kiosko' => 0,
 ];
 
 foreach ($users as $user) {
@@ -470,7 +548,7 @@ foreach ($users as $user) {
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 10px;
       margin-bottom: 16px;
     }
@@ -776,6 +854,39 @@ foreach ($users as $user) {
       text-align: center;
     }
 
+    .delete-user-btn {
+      min-height: 33px;
+      border: 1px solid rgba(251, 113, 133, .24);
+      border-radius: 13px;
+      background: rgba(251, 113, 133, .08);
+      color: #ff9aac;
+      font-size: 11.5px;
+      font-weight: 900;
+      cursor: pointer;
+      padding: 5px 8px;
+      transition: transform .14s ease, background .14s ease, border-color .14s ease;
+    }
+    .delete-user-btn:hover { background: rgba(251, 113, 133, .15); border-color: rgba(251, 113, 133, .48); }
+    .delete-user-btn:active { transform: scale(.97); }
+    .delete-user-btn--large { min-height: 42px; padding: 9px 13px; font-size: 12px; }
+    .danger-zone { margin-top: 14px; padding: 13px; display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid rgba(251,113,133,.18); border-radius:16px; background:linear-gradient(135deg,rgba(251,113,133,.07),rgba(255,255,255,.02)); }
+    .danger-zone strong { display:block; color:#ff9aac; font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
+    .danger-zone span { display:block; margin-top:4px; color:var(--muted-2); font-size:11px; line-height:1.35; }
+    body.modal-open { overflow:hidden; }
+    .delete-modal { position:fixed; inset:0; z-index:9999; display:none; place-items:center; padding:18px; }
+    .delete-modal.is-open { display:grid; }
+    .delete-modal__backdrop { position:absolute; inset:0; background:rgba(0,0,0,.72); backdrop-filter:blur(8px); }
+    .delete-modal__card { position:relative; width:min(460px,100%); padding:22px; border:1px solid rgba(251,113,133,.22); border-radius:24px; background:radial-gradient(circle at 100% 0%,rgba(251,113,133,.12),transparent 42%),linear-gradient(160deg,rgba(30,16,38,.98),rgba(10,6,14,.99)); box-shadow:0 30px 90px rgba(0,0,0,.58); animation:deleteModalIn .16s ease-out; }
+    .delete-modal__icon { width:48px; height:48px; display:grid; place-items:center; border-radius:15px; background:rgba(251,113,133,.10); border:1px solid rgba(251,113,133,.18); font-size:22px; margin-bottom:15px; }
+    .delete-modal__eyebrow { color:#ff9aac; font-size:9px; font-weight:950; letter-spacing:.13em; }
+    .delete-modal__copy h2 { margin:5px 0 8px; font-size:22px; color:var(--text); }
+    .delete-modal__copy p { margin:0; color:var(--muted); font-size:13px; line-height:1.5; }
+    .delete-modal__copy strong { color:var(--text); }
+    .delete-modal__copy span { color:var(--gold-2); }
+    .delete-modal__actions { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:20px; }
+    .delete-confirm-btn { min-height:46px; border:0; border-radius:14px; background:linear-gradient(135deg,#b91c3b,#ef476f); color:#fff; font-weight:950; cursor:pointer; box-shadow:0 10px 24px rgba(239,71,111,.18); }
+    @keyframes deleteModalIn { from { opacity:0; transform:translateY(7px) scale(.985); } to { opacity:1; transform:translateY(0) scale(1); } }
+
     .empty {
       color: var(--muted);
       border: 1px dashed var(--border);
@@ -822,7 +933,7 @@ foreach ($users as $user) {
 
     @media (max-width: 980px) {
       .stats {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
       }
 
       .form-grid,
@@ -943,6 +1054,10 @@ foreach ($users as $user) {
       .editor-actions .btn {
         width: 100%;
       }
+
+      .danger-zone { align-items: stretch; flex-direction: column; }
+      .delete-user-btn--large { width: 100%; }
+      .delete-modal__actions { grid-template-columns: 1fr; }
     }
   </style>
 
@@ -965,7 +1080,7 @@ foreach ($users as $user) {
   <div class="wrap">
 
     <h1 class="page-title">Gestión de usuarios</h1>
-    <p class="page-subtitle">Creá usuarios, filtrá por rol y editá solo el perfil seleccionado.</p>
+    <p class="page-subtitle">Administrá accesos, roles y cuentas desde un solo lugar.</p>
 
     <?php if ($flash): ?>
       <div class="flash <?= e((string)$flash['type']) ?>">
@@ -993,6 +1108,11 @@ foreach ($users as $user) {
         <div class="stat-number"><?= (int)$roleCounts['usuario'] ?></div>
         <div class="stat-label">Usuarios</div>
       </div>
+
+      <div class="stat">
+        <div class="stat-number"><?= (int)$roleCounts['kiosko'] ?></div>
+        <div class="stat-label">Kioskito</div>
+      </div>
     </div>
 
     <div class="card">
@@ -1009,7 +1129,7 @@ foreach ($users as $user) {
         <div class="form-grid">
           <div class="field">
             <label>Usuario</label>
-            <input type="text" name="username" placeholder="ej: darwin" required autocomplete="off">
+            <input type="text" name="username" placeholder="ej: darwin o nicolasochoa@gmail.com" required autocomplete="off">
           </div>
 
           <div class="field">
@@ -1105,7 +1225,7 @@ foreach ($users as $user) {
                 <div class="user-sub">ID #<?= (int)$user['id'] ?></div>
               </div>
 
-              <div class="user-username">@<?= e((string)$user['username']) ?></div>
+              <div class="user-username"><?= e(usernameLabel((string)$user['username'])) ?></div>
 
               <div>
                 <span class="badge"><?= e($roleLabel) ?></span>
@@ -1132,6 +1252,17 @@ foreach ($users as $user) {
                 <?php else: ?>
                   <div class="no-list-tag">Sin lista propia</div>
                 <?php endif; ?>
+
+                <?php if ((int)$user['id'] !== $currentUserId): ?>
+                  <button
+                    type="button"
+                    class="delete-user-btn"
+                    data-delete-user="<?= (int)$user['id'] ?>"
+                    data-delete-name="<?= e((string)$user['display_name']) ?>"
+                    data-delete-username="<?= e((string)$user['username']) ?>">
+                    🗑 Eliminar
+                  </button>
+                <?php endif; ?>
               </div>
             </div>
           <?php endforeach; ?>
@@ -1156,7 +1287,7 @@ foreach ($users as $user) {
               <div>
                 <div class="user-name"><?= e((string)$user['display_name']) ?></div>
                 <div class="user-sub">
-                  Usuario: @<?= e((string)$user['username']) ?> · Creado: <?= e((string)$user['created_at']) ?>
+                  Usuario: <?= e(usernameLabel((string)$user['username'])) ?> · Creado: <?= e((string)$user['created_at']) ?>
                 </div>
               </div>
 
@@ -1211,12 +1342,47 @@ foreach ($users as $user) {
 
               <button class="btn" type="submit">Guardar cambios</button>
             </form>
+
+            <?php if ((int)$user['id'] !== $currentUserId): ?>
+              <div class="danger-zone">
+                <div>
+                  <strong>Zona peligrosa</strong>
+                  <span>Eliminar esta cuenta también puede eliminar sus listas y ventas asociadas.</span>
+                </div>
+                <button
+                  type="button"
+                  class="delete-user-btn delete-user-btn--large"
+                  data-delete-user="<?= (int)$user['id'] ?>"
+                  data-delete-name="<?= e((string)$user['display_name']) ?>"
+                  data-delete-username="<?= e((string)$user['username']) ?>">
+                  🗑 Eliminar usuario
+                </button>
+              </div>
+            <?php endif; ?>
           </div>
         <?php endforeach; ?>
 
       <?php endif; ?>
     </div>
 
+  </div>
+
+  <div class="delete-modal" id="deleteUserModal" aria-hidden="true">
+    <div class="delete-modal__backdrop" data-close-delete-user></div>
+    <section class="delete-modal__card" role="dialog" aria-modal="true" aria-labelledby="deleteUserTitle">
+      <div class="delete-modal__icon">🗑️</div>
+      <div class="delete-modal__copy">
+        <span class="delete-modal__eyebrow">ELIMINAR USUARIO</span>
+        <h2 id="deleteUserTitle">¿Eliminar esta cuenta?</h2>
+        <p id="deleteUserDescription"></p>
+      </div>
+      <form method="POST" class="delete-modal__actions">
+        <input type="hidden" name="action" value="delete_user">
+        <input type="hidden" name="id" id="deleteUserId" value="">
+        <button type="button" class="btn secondary" data-close-delete-user>Cancelar</button>
+        <button type="submit" class="delete-confirm-btn">Sí, eliminar</button>
+      </form>
+    </section>
   </div>
 
   <script>
@@ -1321,6 +1487,61 @@ foreach ($users as $user) {
     });
 
     applyFilters();
+
+    /* =========================
+       ELIMINAR USUARIO
+    ========================= */
+    const deleteUserModal = document.getElementById('deleteUserModal');
+    const deleteUserId = document.getElementById('deleteUserId');
+    const deleteUserDescription = document.getElementById('deleteUserDescription');
+    const deleteUserButtons = document.querySelectorAll('[data-delete-user]');
+    const closeDeleteUserButtons = document.querySelectorAll('[data-close-delete-user]');
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function closeDeleteUserModal() {
+      if (!deleteUserModal) return;
+      deleteUserModal.classList.remove('is-open');
+      deleteUserModal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+    }
+
+    function openDeleteUserModal(button) {
+      if (!deleteUserModal || !deleteUserId || !deleteUserDescription) return;
+
+      const id = button.dataset.deleteUser || '';
+      const name = button.dataset.deleteName || 'este usuario';
+      const username = button.dataset.deleteUsername || '';
+
+      deleteUserId.value = id;
+      deleteUserDescription.innerHTML =
+        `Vas a eliminar <strong>${escapeHtml(name)}</strong>` +
+        (username ? ` (<span>${escapeHtml(username)}</span>)` : '') +
+        `. Esta acción es permanente y puede eliminar sus listas y ventas asociadas.`;
+
+      deleteUserModal.classList.add('is-open');
+      deleteUserModal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+    }
+
+    deleteUserButtons.forEach(button => {
+      button.addEventListener('click', () => openDeleteUserModal(button));
+    });
+
+    closeDeleteUserButtons.forEach(button => {
+      button.addEventListener('click', closeDeleteUserModal);
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeDeleteUserModal();
+    });
 
     /* =========================
        COPIAR LINK DE REGISTRO

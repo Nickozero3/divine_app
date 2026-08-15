@@ -982,7 +982,13 @@ try {
                     fail('Faltan datos.', 422);
                 }
 
-                if (!in_array($role, ['admin', 'usuario', 'puerta'], true)) {
+                $username = preg_replace('/\s+/', '', $username) ?? $username;
+                $username = mb_strtolower($username, 'UTF-8');
+                if (str_contains($username, '@') && filter_var($username, FILTER_VALIDATE_EMAIL) === false) {
+                    fail('Si usás un email como usuario, ingresalo completo. Ejemplo: nicolasochoa@gmail.com', 422);
+                }
+
+                if (!in_array($role, ['admin', 'usuario', 'puerta', 'kiosko'], true)) {
                     fail('Rol inválido.', 422);
                 }
 
@@ -1031,7 +1037,7 @@ try {
                     fail('ID inválido.', 422);
                 }
 
-                if (!in_array($role, ['admin', 'usuario', 'puerta'], true)) {
+                if (!in_array($role, ['admin', 'usuario', 'puerta', 'kiosko'], true)) {
                     fail('Rol inválido.', 422);
                 }
 

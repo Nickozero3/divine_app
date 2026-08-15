@@ -311,6 +311,29 @@ if (($currentUser['role'] ?? '') !== 'admin') {
   background: rgba(255, 70, 70, .2);
 }
 
+/* ===== ADMIN DASHBOARD UIX 2026 ===== */
+.admin-wrap { width:min(1180px,calc(100% - 28px)); padding:22px 0 48px; }
+.admin-title { font-size:clamp(30px,4vw,42px); letter-spacing:-.8px; margin:6px 0 5px; text-shadow:0 10px 35px rgba(0,0,0,.28); }
+.admin-wrap::before { content:"CENTRO DE CONTROL"; display:inline-block; margin-bottom:4px; color:var(--gold-2); font-size:9px; font-weight:950; letter-spacing:.16em; opacity:.85; }
+.admin-card { position:relative; padding:18px; border-radius:22px; background:radial-gradient(circle at 100% 0%,rgba(143,76,255,.11),transparent 36%),linear-gradient(150deg,rgba(29,17,41,.96),rgba(13,8,18,.94)); border-color:rgba(255,255,255,.075); box-shadow:0 18px 50px rgba(0,0,0,.22); }
+.admin-card > .section-title { margin-bottom:15px; font-size:15px; letter-spacing:.04em; }
+.admin-links-grid { grid-template-columns:repeat(4,minmax(0,1fr)); gap:11px; }
+.admin-link-card { position:relative; min-height:128px; padding:16px; border-radius:18px; background:rgba(255,255,255,.035); border-color:rgba(255,255,255,.07); transition:transform .14s ease,border-color .14s ease,background .14s ease; }
+.admin-link-card::after { content:"↗"; position:absolute; right:13px; top:11px; color:var(--text2); font-size:14px; }
+.admin-link-card:hover { transform:translateY(-2px); border-color:rgba(244,217,142,.28); background:rgba(255,255,255,.055); }
+.admin-link-title { padding-right:22px; font-size:15px; }
+.admin-link-sub { max-width:28ch; margin-top:9px; font-size:11px; line-height:1.45; }
+.admin-night-counters { grid-template-columns:repeat(4,minmax(0,1fr)); gap:11px; }
+.admin-counter-card { min-height:112px; padding:15px; flex-direction:column; align-items:flex-start; justify-content:space-between; border-radius:18px; background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.018)); }
+.admin-counter-card:nth-child(2) { border-color:rgba(143,76,255,.25); }
+.admin-counter-card:nth-child(3) { border-color:rgba(74,222,128,.20); }
+.admin-counter-card:nth-child(4) { border-color:rgba(244,217,142,.22); }
+.admin-num { font-size:clamp(22px,3vw,30px); line-height:1; }
+.admin-label { font-size:10px; }
+.door-counter-stack { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media(max-width:900px) { .admin-links-grid,.admin-night-counters { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:650px) { .admin-wrap { width:calc(100% - 18px); padding:16px 0 38px; } .admin-links-grid,.admin-night-counters,.door-counter-stack { grid-template-columns:1fr; } .admin-card { padding:14px; border-radius:19px; } }
+
 @media(max-width:650px) {
   .admin-links-grid {
     grid-template-columns: 1fr;
