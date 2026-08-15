@@ -11,6 +11,7 @@ function esc(str) {
 }
 
 let doorView = localStorage.getItem("doorView") || "mine";
+
 function setDoorView(view) {
 
   doorView = view;
@@ -54,6 +55,16 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+// Debounce genérico: agrupa llamadas seguidas (ej. tipeo en un buscador)
+// en una sola ejecución, evitando recalcular/rerenderizar en cada tecla.
+function debounce(fn, wait = 150) {
+  let timer = null;
+  return function debounced(...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), wait);
+  };
 }
 
 /* =========================
@@ -372,6 +383,8 @@ function goTo(page) {
 const CARD_SURCHARGE_PERCENT = 10;
 
 let products = [];
+let productsLoadedAt = 0;
+const PRODUCTS_CACHE_TTL_MS = 30_000;
 let cart = {};
 let editingProductId = null;
 let editProductsMode = false;
@@ -469,13 +482,19 @@ function toggleProductCat(cat) {
    📦 Render de productos
    ------------------------------------------------------------ */
 
-async function renderKioskito() {
+async function renderKioskito(refreshProducts = true) {
   const wrap = document.getElementById('k-categories');
   if (!wrap) return;
 
   try {
-    const data = await api('products_list');
-    products = data.products || [];
+    const needsProductsRefresh = refreshProducts || !products.length ||
+      (Date.now() - productsLoadedAt) > PRODUCTS_CACHE_TTL_MS;
+
+    if (needsProductsRefresh) {
+      const data = await api('products_list');
+      products = data.products || [];
+      productsLoadedAt = Date.now();
+    }
 
     const grouped = {};
 
@@ -1454,6 +1473,15 @@ function statusLabel(status) {
   return 'No vino';
 }
 
+// Mismo ciclo que aplica el backend en person_toggle_status (api.php):
+// no_vino -> entro -> se_fue -> no_vino. Se usa para poder mostrar/actualizar
+// el próximo estado en el cliente sin esperar la respuesta del servidor.
+function nextDoorStatus(status) {
+  if (status === 'no_vino') return 'entro';
+  if (status === 'entro') return 'se_fue';
+  return 'no_vino';
+}
+
 async function renderPuerta(forceRender = false) {
   const wrap = document.getElementById('p-lists');
   if (!wrap) return;
@@ -1503,6 +1531,10 @@ function drawPuerta() {
 
   if (!wrap) return;
 
+  // Guardamos la posición de scroll para restaurarla después de reescribir
+  // el HTML: evita que la puerta "salte" arriba con cada actualización en vivo.
+  const previousScrollTop = wrap.scrollTop;
+
   const user = window.DIVINE_USER || {};
   const role = normalizeText(user.role || '');
 
@@ -1514,7 +1546,7 @@ function drawPuerta() {
 
   const hiddenNoticeHtml = (canManageDoor && hiddenEmptyDoorLists.length)
     ? `
-      <div class="list-card" style="padding:12px 16px;color:var(--text2);font-size:13px;">
+      <div class="list-card list-notice">
         👁️‍🗨️ ${hiddenEmptyDoorLists.length} lista${hiddenEmptyDoorLists.length === 1 ? '' : 's'} oculta${hiddenEmptyDoorLists.length === 1 ? '' : 's'} por estar vacía${hiddenEmptyDoorLists.length === 1 ? '' : 's'} (sin personas cargadas):
         <b style="color:var(--text);">${hiddenEmptyDoorLists.map(l => esc(l.ownerName ? `${l.name} (${l.ownerName})` : l.name)).join(', ')}</b>
       </div>
@@ -1531,14 +1563,21 @@ function drawPuerta() {
   );
 
   if (!visibleLists.length) {
+    // Distinguimos "no hay listas todavía" de "no hay resultados para esta búsqueda"
+    // para que el mensaje sea preciso.
+    const emptyMessage = (listTerm || personTerm)
+      ? 'No se encontraron listas o personas con esa búsqueda.'
+      : 'Todavía no hay listas creadas.';
+
     wrap.innerHTML = `
       ${hiddenNoticeHtml}
       <div class="list-card">
-        <div style="padding:18px 16px;color:var(--text2);">
-          ${(listTerm || personTerm) ? 'No se encontraron resultados con esa búsqueda.' : 'Todavía no hay listas creadas.'}
+        <div class="list-empty-msg">
+          ${emptyMessage}
         </div>
       </div>
     `;
+    wrap.scrollTop = previousScrollTop;
     return;
   }
 
@@ -1557,12 +1596,14 @@ function drawPuerta() {
     const canEditThisList = isAdmin || Number(list.userId) === Number(user.id);
 
     const statusControl = person => {
-      const text = `${statusLabel(person.status)}${person.status === 'entro' ? ` · $${pricePerPerson.toLocaleString('es-AR')}` : ''}`;
+      const text = `${statusLabel(person.status)}${person.status === 'entro' ? ` · ${fmt(pricePerPerson)}` : ''}`;
+      const nextLabel = statusLabel(nextDoorStatus(person.status));
 
       return canManageDoor
         ? `
           <button
             class="btn-status ${esc(person.status)}"
+            aria-label="${esc(person.name)}: ${esc(statusLabel(person.status))}. Tocar para pasar a ${esc(nextLabel)}."
             onclick="event.stopPropagation(); togglePersonStatus(${Number(list.id)}, ${Number(person.id)})">
             ${text}
           </button>
@@ -1570,6 +1611,7 @@ function drawPuerta() {
         : `
           <button
             class="btn-status ${esc(person.status)} btn-status-readonly"
+            aria-label="${esc(person.name)}: ${esc(statusLabel(person.status))}"
             disabled>
             ${text}
           </button>
@@ -1587,32 +1629,41 @@ function drawPuerta() {
       <div class="list-card ${collapsed ? 'collapsed' : ''}">
 
         <div class="list-header">
-          <div class="list-name-txt" onclick="toggleCollapseList(${Number(list.id)})">
-            <span class="list-collapse-icon">${collapsed ? '▸' : '▾'}</span>
+          <div
+            class="list-name-txt"
+            role="button"
+            tabindex="0"
+            aria-expanded="${collapsed ? 'false' : 'true'}"
+            aria-label="${collapsed ? 'Expandir' : 'Colapsar'} lista ${esc(list.name)}"
+            onclick="toggleCollapseList(${Number(list.id)})"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCollapseList(${Number(list.id)});}">
+            <span class="list-collapse-icon" aria-hidden="true">${collapsed ? '▸' : '▾'}</span>
             ${esc(list.name)}
             ${list.isBirthday ? `<span class="list-badge badge-orange" style="margin-left:8px;">Cumpleaños</span>` : ''}
             ${owner}
 
-            <span style="font-size:12px;color:var(--text2);display:block;margin-top:4px;">
-              ${stats.entered} (${stats.collected.toLocaleString('es-AR')} ARS) · $${pricePerPerson.toLocaleString('es-AR')} c/u
+            <span class="list-subinfo">
+              ${stats.entered} (${fmt(stats.collected)}) · ${fmt(pricePerPerson)} c/u
             </span>
           </div>
 
           ${canEditThisList ? `
             <button
               class="btn-add-person btn-quick-add"
+              aria-label="Agregar persona a ${esc(list.name)}"
               onclick="event.stopPropagation(); toggleQuickAdd(${Number(list.id)});">
               ＋
             </button>
           ` : ''}
 
           <div class="list-badge badge-green">
-            $${stats.collected.toLocaleString('es-AR')}
+            ${fmt(stats.collected)}
           </div>
 
           ${canEditThisList ? `
             <button
               class="list-delete"
+              aria-label="Eliminar lista ${esc(list.name)}"
               onclick="event.stopPropagation(); deleteList(${Number(list.id)}, this)">
               ✕
             </button>
@@ -1657,7 +1708,7 @@ function drawPuerta() {
                     <div
                       class="person-row ${esc(person.status)} ${canManageDoor ? 'person-row-clickable' : ''} ${lastChangedPersonId === Number(person.id) ? `status-${esc(person.status)}` : ''}"
                       ${canManageDoor
-              ? `onclick="togglePersonStatus(${Number(list.id)}, ${Number(person.id)})"`
+              ? `role="button" tabindex="0" aria-label="${esc(person.name)}, ${esc(statusLabel(person.status))}. Tocar para cambiar estado." onclick="togglePersonStatus(${Number(list.id)}, ${Number(person.id)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();togglePersonStatus(${Number(list.id)}, ${Number(person.id)});}"`
               : ''}
                     >
                       <div class="person-info">
@@ -1671,13 +1722,8 @@ function drawPuerta() {
                         ${canEditThisList ? `
                           <button
                             class="qr-send-btn"
-                            onclick='event.stopPropagation(); enviarQRPersona(
-                              ${Number(person.id)},
-                              ${JSON.stringify(person.name)},
-                              ${JSON.stringify(person.note || '')},
-                              ${JSON.stringify(list.name)},
-                              ${JSON.stringify(person.qr_token || '')}
-                            )'>
+                            aria-label="Enviar QR a ${esc(person.name)}"
+                            onclick="event.stopPropagation(); enviarQRPersonaById(${Number(list.id)}, ${Number(person.id)})">
                             📤 Enviar QR
                           </button>
                         ` : ''}
@@ -1685,6 +1731,7 @@ function drawPuerta() {
                         ${canDeletePerson ? `
                           <button
                             class="btn-del-person"
+                            aria-label="Eliminar a ${esc(person.name)}"
                             onclick="event.stopPropagation(); deletePerson(
                               ${Number(list.id)},
                               ${Number(person.id)}
@@ -1697,8 +1744,8 @@ function drawPuerta() {
                   `;
         }).join('')
         : `
-                <div style="padding:8px 4px;color:var(--text2);">
-                  Sin personas en esta lista.
+                <div class="list-empty-msg list-empty-msg-inline">
+                  ${personTerm ? 'Sin coincidencias en esta lista.' : 'Sin personas en esta lista.'}
                 </div>
               `
       }
@@ -1706,7 +1753,7 @@ function drawPuerta() {
         ${canEditThisList ? `
           <div class="quick-add-panel ${openQuickAddListId === Number(list.id) ? '' : 'hidden'}" data-list-id="${Number(list.id)}">
 
-            <div style="padding:12px 14px;border-top:1px solid rgba(240,212,141,.08);display:flex;gap:8px;">
+            <div class="quick-add-tabs">
               <button
                 class="btn-action quick-tab active"
                 data-mode="manual"
@@ -1722,18 +1769,18 @@ function drawPuerta() {
               </button>
             </div>
 
-            <div class="quick-manual" data-list-id="${Number(list.id)}" style="padding:0 14px 14px;display:flex;gap:8px;">
+            <div class="quick-manual" data-list-id="${Number(list.id)}">
               <input
                 id="person-name-${Number(list.id)}"
                 placeholder="Nombre"
-                style="flex:1;min-width:0;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px;"
-              >
+                aria-label="Nombre de la persona a agregar"
+                class="quick-manual-name">
 
               <input
                 id="person-note-${Number(list.id)}"
                 placeholder="Dato"
-                style="width:90px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px;"
-              >
+                aria-label="Dato o número de la persona a agregar"
+                class="quick-manual-note">
 
               <button
                 class="btn-add-person"
@@ -1742,16 +1789,17 @@ function drawPuerta() {
               </button>
             </div>
 
-            <div class="quick-bulk hidden" data-list-id="${Number(list.id)}" style="padding:0 14px 14px;">
+            <div class="quick-bulk hidden" data-list-id="${Number(list.id)}">
               <textarea
                 class="bulk-input"
                 data-list-id="${Number(list.id)}"
                 placeholder="Pegar lista:&#10;Juan 123&#10;Pedro 456"
-                style="width:100%;min-height:110px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:12px;padding:12px;resize:vertical;"></textarea>
+                oninput="renderBulkPreview(${Number(list.id)})"></textarea>
+
+              <div class="bulk-preview hidden" id="bulk-preview-${Number(list.id)}"></div>
 
               <button
-                class="btn-action btn-add"
-                style="margin-top:8px;width:100%;"
+                class="btn-action btn-add btn-add-full"
                 onclick="procesarListaPorLista(${Number(list.id)}, this)">
                 Procesar lista
               </button>
@@ -1763,7 +1811,13 @@ function drawPuerta() {
       </div>
     `;
   }).join('');
+
+  wrap.scrollTop = previousScrollTop;
 }
+
+// Versión "debounced" de drawPuerta para usar en los buscadores: evita
+// recalcular y reescribir todo el HTML en cada tecla que se tipea.
+const debouncedDrawPuerta = debounce(drawPuerta, 180);
 
 function parseBulkText(rawText) {
   const lines = String(rawText || '').trim().split(/\r?\n/);
@@ -1796,6 +1850,53 @@ function parseBulkText(rawText) {
 }
 
 
+
+// Muestra una vista previa de lo que se va a cargar antes de tocar "Procesar
+// lista", para que el usuario pueda detectar líneas mal formateadas o nombres
+// repetidos sin tener que enviarlo primero y enterarse después por el alert.
+function renderBulkPreview(listId) {
+  listId = Number(listId);
+
+  const textarea = document.querySelector(`.bulk-input[data-list-id="${listId}"]`);
+  const preview = document.getElementById(`bulk-preview-${listId}`);
+
+  if (!textarea || !preview) return;
+
+  const rawText = textarea.value || '';
+
+  if (!rawText.trim()) {
+    preview.classList.add('hidden');
+    preview.innerHTML = '';
+    return;
+  }
+
+  const { people, ignored } = parseBulkText(rawText);
+
+  const list = doorLists.find(l => Number(l.id) === listId);
+  const existingNames = new Set(
+    ((list && list.people) || []).map(p => normalizeText(p.name))
+  );
+
+  const rows = people.map(person => {
+    const isDuplicate = existingNames.has(normalizeText(person.name));
+    return `
+      <div class="bulk-preview-row ${isDuplicate ? 'bulk-preview-dup' : ''}">
+        <span class="bulk-preview-name">${esc(person.name)}</span>
+        <span class="bulk-preview-note">${esc(person.note)}</span>
+        ${isDuplicate ? '<span class="bulk-preview-tag">¿repetido?</span>' : ''}
+      </div>
+    `;
+  }).join('');
+
+  preview.classList.remove('hidden');
+  preview.innerHTML = `
+    <div class="bulk-preview-summary">
+      ${people.length} persona${people.length === 1 ? '' : 's'} detectada${people.length === 1 ? '' : 's'}
+      ${ignored ? ` · ${ignored} línea${ignored === 1 ? '' : 's'} ignorada${ignored === 1 ? '' : 's'} (formato inválido)` : ''}
+    </div>
+    ${rows}
+  `;
+}
 
 function toggleCollapseList(listId) {
   collapsedDoorLists[listId] = !collapsedDoorLists[listId];
@@ -2057,6 +2158,7 @@ async function procesarListaPorLista(listId, btn = null) {
     });
 
     textarea.value = '';
+    renderBulkPreview(listId);
 
     openQuickAddListId = null;
 
@@ -2091,23 +2193,40 @@ async function togglePersonStatus(listId, personId) {
 
   lockAction(key, 900);
 
+  const list = doorLists.find(l => Number(l.id) === listId);
+  const person = list && (list.people || []).find(p => Number(p.id) === personId);
+
+  if (!person) {
+    console.warn('[DIVINE APP] Persona no encontrada en memoria:', personId);
+    return;
+  }
+
+  // Actualización optimista: cambiamos el estado en memoria y repintamos
+  // de inmediato, sin esperar la respuesta del servidor. Así la puerta se
+  // siente instantánea aunque la red esté lenta. Si el pedido falla,
+  // revertimos el estado y avisamos.
+  const previousStatus = person.status;
+
+  if (statusAnimationTimer) {
+    clearTimeout(statusAnimationTimer);
+    statusAnimationTimer = null;
+  }
+
+  person.status = nextDoorStatus(previousStatus);
+  lastChangedPersonId = personId;
+  statusAnimationUntil = Date.now() + 1100;
+
+  drawPuerta();
+
   try {
-    if (statusAnimationTimer) {
-      clearTimeout(statusAnimationTimer);
-      statusAnimationTimer = null;
-    }
-
-    lastChangedPersonId = null;
-
     await api('person_toggle_status', {
       listId,
       personId
     });
 
-    lastChangedPersonId = personId;
-    statusAnimationUntil = Date.now() + 1100;
-
-    await renderPuerta(true);
+    // Confirmamos con el servidor en segundo plano (sin bloquear la UI)
+    // para traer cualquier otro cambio concurrente de otro dispositivo.
+    renderPuerta(true).catch(error => console.error('Error sincronizando puerta:', error));
 
     statusAnimationTimer = setTimeout(() => {
       if (lastChangedPersonId === personId) {
@@ -2118,9 +2237,12 @@ async function togglePersonStatus(listId, personId) {
     }, 760);
 
   } catch (error) {
+    // Revertimos el cambio optimista porque el servidor lo rechazó.
+    person.status = previousStatus;
     lastChangedPersonId = null;
     statusAnimationTimer = null;
     statusAnimationUntil = 0;
+    drawPuerta();
     showError(error);
   }
 }
@@ -2159,6 +2281,8 @@ function startLiveApp() {
   }
 
   liveTimer = setInterval(async () => {
+    if (document.hidden) return;
+
     const currentPage = document.body.dataset.page || '';
     const puertaActiva = currentPage === 'listas' || document.getElementById("page-puerta")?.classList.contains("active");
     const kioskitoActivo = currentPage === 'kioskito' || document.getElementById("page-kioskito")?.classList.contains("active");
@@ -2198,17 +2322,28 @@ function startLiveApp() {
       liveIsLoadingKioskito = true;
 
       try {
-        await renderKioskito();
-        await renderGuardarropas();
-        await renderKioskoSummary();
+        await Promise.all([
+          renderKioskito(false),
+          renderGuardarropas(),
+          renderKioskoSummary(),
+        ]);
       } catch (e) {
         console.error("Error actualizando kioskito:", e);
       } finally {
         liveIsLoadingKioskito = false;
       }
     }
-  }, 2000);
+  }, 6000);
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+
+  const currentPage = document.body.dataset.page || '';
+  if (currentPage === 'listas') {
+    renderPuerta().catch(error => console.error('Error sincronizando puerta:', error));
+  }
+});
 
 /* =========================
    GUARDARROPAS
@@ -2434,6 +2569,28 @@ async function renderGuardarropas() {
 //                      QR DE ENTRADA
 // ---------------------------------------------------------------
 
+// Punto de entrada seguro desde el HTML: en vez de incrustar nombre/nota/token
+// de la persona (que pueden traer comillas, ej. "O'Connor") dentro del atributo
+// onclick -lo que antes podía romper el HTML generado o, en el peor caso, ser
+// usado para inyectar código-, buscamos los datos ya cargados en memoria por id.
+async function enviarQRPersonaById(listId, personId) {
+  const list = doorLists.find(l => Number(l.id) === Number(listId));
+  const person = list && (list.people || []).find(p => Number(p.id) === Number(personId));
+
+  if (!list || !person) {
+    alert('No se encontró a la persona (recargá la puerta e intentá de nuevo).');
+    return;
+  }
+
+  return enviarQRPersona(
+    person.id,
+    person.name,
+    person.note || '',
+    list.name,
+    person.qr_token || ''
+  );
+}
+
 async function enviarQRPersona(personId, personName, personNote, listName, currentToken = '') {
   let token = currentToken;
 
@@ -2604,8 +2761,25 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 let qrScanner = null;
+let qrScannerLibraryPromise = null;
 
-function openScanner() {
+function loadQrScannerLibrary() {
+  if (window.Html5Qrcode) return Promise.resolve();
+  if (qrScannerLibraryPromise) return qrScannerLibraryPromise;
+
+  qrScannerLibraryPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/html5-qrcode';
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('No se pudo cargar el lector QR.'));
+    document.head.appendChild(script);
+  });
+
+  return qrScannerLibraryPromise;
+}
+
+async function openScanner() {
 
   document.getElementById("scanner-modal").style.display = "flex";
 
@@ -2613,9 +2787,11 @@ function openScanner() {
     return;
   }
 
-  qrScanner = new Html5Qrcode("reader");
+  try {
+    await loadQrScannerLibrary();
+    qrScanner = new Html5Qrcode("reader");
 
-  qrScanner.start(
+    await qrScanner.start(
 
     {
       facingMode: "environment"
@@ -2630,7 +2806,18 @@ function openScanner() {
 
     () => { }
 
-  );
+    );
+  } catch (error) {
+    if (qrScanner) {
+      qrScanner.clear().catch(() => {});
+      qrScanner = null;
+    }
+
+    document.getElementById("qr-result").innerHTML = `
+      <div class="status-pill status-error">No se pudo abrir la cámara</div>
+      <div class="qr-detail" style="margin-top:14px">${esc(error.message)}</div>
+    `;
+  }
 
 }
 

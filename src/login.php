@@ -1,6 +1,7 @@
 <?php
 include __DIR__ . '/const.php';
 require_once __DIR__ . '/config/conexion.php';
+require_once __DIR__ . '/config/assets.php';
 
 session_start();
 
@@ -162,8 +163,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="styles/login.css">
     <link rel="stylesheet" href="styles.css">
 
-<link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
-<script src="js/theme.js?v=<?= time() ?>" defer></script>
+<link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
+<script src="js/theme.js?v=<?= asset_version('js/theme.js') ?>" defer></script>
 </head>
 <body class="login-page">
 <form class="login-box" method="POST">

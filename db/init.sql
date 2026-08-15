@@ -30,7 +30,7 @@ SET FOREIGN_KEY_CHECKS = 0;
    Guarda los usuarios que pueden iniciar sesión.
    role:
    - admin   = acceso completo
-   - puerta  = guardia: puerta, scanner y carta
+   - puerta  = guardia: control de listas y escáner integrado
    - usuario = RRPP/Pública: sus listas y carta
    - kiosko  = Kioskito, Guardarropas y carta
    ========================================================= */
@@ -260,6 +260,55 @@ CREATE TABLE IF NOT EXISTS door_people (
         REFERENCES door_lists(id)
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+/* Índices compuestos para las consultas de refresco de Puerta. */
+SET @door_lists_user_created_index_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'door_lists'
+      AND index_name = 'idx_door_lists_user_created'
+);
+SET @door_lists_user_created_index_sql := IF(
+    @door_lists_user_created_index_exists = 0,
+    'ALTER TABLE door_lists ADD INDEX idx_door_lists_user_created (user_id, created_at, id)',
+    'DO 0'
+);
+PREPARE door_lists_user_created_index_stmt FROM @door_lists_user_created_index_sql;
+EXECUTE door_lists_user_created_index_stmt;
+DEALLOCATE PREPARE door_lists_user_created_index_stmt;
+
+SET @door_lists_created_index_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'door_lists'
+      AND index_name = 'idx_door_lists_created'
+);
+SET @door_lists_created_index_sql := IF(
+    @door_lists_created_index_exists = 0,
+    'ALTER TABLE door_lists ADD INDEX idx_door_lists_created (created_at, id)',
+    'DO 0'
+);
+PREPARE door_lists_created_index_stmt FROM @door_lists_created_index_sql;
+EXECUTE door_lists_created_index_stmt;
+DEALLOCATE PREPARE door_lists_created_index_stmt;
+
+SET @door_people_list_id_id_index_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'door_people'
+      AND index_name = 'idx_door_people_list_id_id'
+);
+SET @door_people_list_id_id_index_sql := IF(
+    @door_people_list_id_id_index_exists = 0,
+    'ALTER TABLE door_people ADD INDEX idx_door_people_list_id_id (list_id, id)',
+    'DO 0'
+);
+PREPARE door_people_list_id_id_index_stmt FROM @door_people_list_id_id_index_sql;
+EXECUTE door_people_list_id_id_index_stmt;
+DEALLOCATE PREPARE door_people_list_id_id_index_stmt;
 
 
 /* =========================================================

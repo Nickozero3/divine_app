@@ -4,6 +4,7 @@ declare(strict_types=1);
 session_start();
 
 require_once __DIR__ . '/config/conexion.php';
+require_once __DIR__ . '/config/assets.php';
 
 if (file_exists(__DIR__ . '/const.php')) {
     require_once __DIR__ . '/const.php';
@@ -330,10 +331,11 @@ body {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(12, 7, 18, .94);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 14px;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+  padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -341,19 +343,36 @@ body {
 }
 
 .topbar-title {
-  color: var(--gold);
-  font-weight: 900;
+  font-family: "Cinzel", serif;
+  color: var(--text);
+  font-weight: 700;
   font-size: 18px;
+  letter-spacing: .04em;
+  background: linear-gradient(110deg, var(--gold-2), var(--purple-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .topbar-back {
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,.06);
-  color: var(--text);
-  border-radius: 12px;
-  padding: 10px 12px;
-  font-weight: 800;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  background: rgba(255, 255, 255, .035);
+  color: var(--text2);
+  border-radius: 999px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.topbar-back:active {
+  transform: scale(.96);
 }
 
 .wrap {
@@ -697,8 +716,8 @@ body {
 }
 </style>
 
-<link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
-<script src="js/theme.js?v=<?= time() ?>" defer></script>
+<link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
+<script src="js/theme.js?v=<?= asset_version('js/theme.js') ?>" defer></script>
 </head>
 
 <body>

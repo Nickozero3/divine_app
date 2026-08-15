@@ -772,7 +772,6 @@ src/
 ├── admin.php
 ├── listas.php
 ├── kioskito.php
-├── scanner.php
 ├── menu.php
 ├── menu_qr.php
 ├── stock_contenedor.php

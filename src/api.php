@@ -35,11 +35,6 @@ function is_kioskito(array $user): bool
     return ($user['role'] ?? '') === 'kioskito';
 }
 
-function is_scanner(array $user): bool
-{
-    return ($user['role'] ?? '') === 'scanner';
-}
-
 function is_guardarropas(array $user): bool
 {
     return ($user['role'] ?? '') === 'guardarropas';
@@ -478,7 +473,7 @@ try {
 
                     $stmt = $pdo->query("
             SELECT
-                dl.*,
+                dl.id, dl.user_id, dl.name, dl.is_birthday, dl.price_per_person, dl.created_at,
                 u.display_name AS owner_name
             FROM door_lists dl
             INNER JOIN users u
@@ -493,7 +488,7 @@ try {
 
                     $stmt = $pdo->prepare("
             SELECT
-                dl.*,
+                dl.id, dl.user_id, dl.name, dl.is_birthday, dl.price_per_person, dl.created_at,
                 u.display_name AS owner_name
             FROM door_lists dl
             INNER JOIN users u
@@ -524,7 +519,7 @@ try {
                     $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
                     $stmtPeople = $pdo->prepare("
-            SELECT *
+            SELECT id, list_id, name, note, status, qr_token, qr_enabled, qr_used_at
             FROM door_people
             WHERE list_id IN ($placeholders)
             ORDER BY id ASC

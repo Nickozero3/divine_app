@@ -25,7 +25,6 @@ function homeModuleIcon(string $icon): string
 {
   return match ($icon) {
     'admin' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m5 10V5m6 14v-7m5 7V3"/><path d="M2 21h20"/></svg>',
-    'scanner' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3m13 5h3a2 2 0 0 0 2-2v-3"/><path d="M7 12h10M9 9v6m6-6v6"/></svg>',
     'kioskito' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.1 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L20 7H6"/><circle cx="10" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></svg>',
     'door' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21h14M7 21V4.5A1.5 1.5 0 0 1 8.5 3H17v18"/><path d="M11 12h.01"/></svg>',
     'menu' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
@@ -37,7 +36,7 @@ function homeModuleIcon(string $icon): string
 /*
  * Roles de la aplicación:
  * - admin: acceso total.
- * - puerta: listas en puerta, scanner y carta.
+ * - puerta: listas en puerta y carta.
  * - usuario: RRPP/Pública; sus listas y carta.
  * - kiosko: Kioskito, Guardarropas y carta.
  */
@@ -53,8 +52,6 @@ $isRrpp = $currentRole === 'usuario';
 $isKiosko = $currentRole === 'kiosko';
 
 $canSeeAdmin = canAccess($currentRole, 'admin');
-
-$canSeeScanner = canAccess($currentRole, 'scanner');
 
 $canSeeKioskito = canAccess($currentRole, 'kiosko');
 
@@ -84,15 +81,6 @@ $modules = array_values(array_filter([
     'eyebrow' => 'Gestión',
     'title' => 'Administración',
     'description' => 'Dashboard, códigos QR, usuarios y estadísticas generales.',
-  ],
-  [
-    'visible' => $canSeeScanner,
-    'href' => 'scanner.php',
-    'icon' => 'scanner',
-    'accent' => 'cyan',
-    'eyebrow' => 'Acceso',
-    'title' => 'Scanner',
-    'description' => 'Escaneá entradas y confirmá accesos de forma rápida.',
   ],
   [
     'visible' => $canSeeKioskito,

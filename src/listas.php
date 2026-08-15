@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/config/assets.php';
 
 ?>
 <!DOCTYPE html>
@@ -22,17 +23,17 @@ require_once __DIR__ . '/auth.php';
 
   <title><?= e(APP_NAME) ?> · Puerta</title>
 
-  <link rel="stylesheet" href="styles.css?v=1">
+  <link rel="stylesheet" href="styles.css?v=<?= asset_version('styles.css') ?>">
   <link
     rel="stylesheet"
-    href="styles/theme.css?v=<?= time() ?>">
+    href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
 
   <link
     rel="icon"
     href="favicon.ico">
 
   <script
-    src="js/theme.js?v=<?= time() ?>"
+    src="js/theme.js?v=<?= asset_version('js/theme.js') ?>"
     defer></script>
 
 </head>
@@ -115,7 +116,7 @@ require_once __DIR__ . '/auth.php';
 
               placeholder="🔎 Buscar lista o usuario..."
 
-              oninput="drawPuerta()">
+              oninput="debouncedDrawPuerta()">
 
           <?php endif; ?>
 
@@ -129,7 +130,7 @@ require_once __DIR__ . '/auth.php';
                             ? '🔎 Buscar persona...'
                             : '🔎 Buscar nombre...' ?>"
 
-            oninput="drawPuerta()">
+            oninput="debouncedDrawPuerta()">
 
         </div>
 
@@ -352,11 +353,8 @@ require_once __DIR__ . '/auth.php';
   <!-- Librería QR -->
   <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 
-  <!-- Lector QR -->
-  <script src="https://unpkg.com/html5-qrcode" defer></script>
-
   <!-- Script principal -->
-  <script src="script.js?v=1" defer></script>
+  <script src="script.js?v=<?= asset_version('script.js') ?>" defer></script>
 
 
   <footer class="theme-footer" aria-label="Preferencias visuales">

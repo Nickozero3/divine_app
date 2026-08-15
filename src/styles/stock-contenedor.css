@@ -49,10 +49,10 @@ body[data-page="stock-contenedor"] textarea {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  background: rgba(9, 7, 13, 0.86);
+  background: color-mix(in srgb, var(--bg, #0c0a12) 78%, transparent);
   border-bottom: 1px solid var(--stock-line);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
 }
 
 .stock-back {

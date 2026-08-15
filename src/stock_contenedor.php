@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/config/conexion.php';
+require_once __DIR__ . '/config/assets.php';
 
 $stockAction = trim((string) ($_GET['stock_action'] ?? ''));
 $isStockRequest = $stockAction !== '';
@@ -682,13 +683,13 @@ if (!function_exists('e')) {
   <title>Stock del contenedor · <?= e((string) APP_NAME) ?></title>
 
   <link rel="icon" type="image/x-icon" href="./favicon.ico">
-  <link rel="stylesheet" href="styles.css?v=<?= time() ?>">
-  <link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
-  <link rel="stylesheet" href="styles/stock-contenedor.css?v=<?= time() ?>">
-  <link rel="stylesheet" href="styles/stock-contenedor-crud.css?v=<?= time() ?>">
+  <link rel="stylesheet" href="styles.css?v=<?= asset_version('styles.css') ?>">
+  <link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
+  <link rel="stylesheet" href="styles/stock-contenedor.css?v=<?= asset_version('styles/stock-contenedor.css') ?>">
+  <link rel="stylesheet" href="styles/stock-contenedor-crud.css?v=<?= asset_version('styles/stock-contenedor-crud.css') ?>">
 
-  <script src="js/theme.js?v=<?= time() ?>" defer></script>
-  <script src="js/stock-contenedor.js?v=<?= time() ?>" defer></script>
+  <script src="js/theme.js?v=<?= asset_version('js/theme.js') ?>" defer></script>
+  <script src="js/stock-contenedor.js?v=<?= asset_version('js/stock-contenedor.js') ?>" defer></script>
 </head>
 <body data-page="stock-contenedor">
   <div class="stars" aria-hidden="true"></div>

@@ -23,8 +23,6 @@ $isKiosko = $currentRole === ROLE_KIOSKO;
 
 $canSeeAdmin = canAccess($currentRole, 'admin');
 
-$canSeeScanner = canAccess($currentRole, 'scanner');
-
 $canSeeKioskito = canAccess($currentRole, 'kiosko');
 
 $canManageDoor = canAccess($currentRole, 'door');

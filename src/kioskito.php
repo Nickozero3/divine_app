@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/config/assets.php';
 
 if (!$canSeeKioskito) {
     http_response_code(403);
@@ -15,11 +16,12 @@ if (!$canSeeKioskito) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#f8f4ea">
   <title><?= e(APP_NAME) ?> · Kioskito</title>
-  <link rel="stylesheet" href="styles.css?v=<?= time() ?>">
+  <link rel="stylesheet" href="styles.css?v=<?= asset_version('styles.css') ?>">
   <link rel="icon" type="image/x-icon" href="./favicon.ico">
 
-<link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
-<script src="js/theme.js?v=<?= time() ?>" defer></script>
+<link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
+<link rel="stylesheet" href="styles/kioskito.css?v=<?= asset_version('styles/kioskito.css') ?>">
+<script src="js/theme.js?v=<?= asset_version('js/theme.js') ?>" defer></script>
 </head>
 <body data-page="kioskito">
   <div class="stars"></div>
@@ -33,7 +35,7 @@ if (!$canSeeKioskito) {
       <button class="topbar-back" onclick="location.href='index.php'">← Menú</button>
     </div>
 
-    <div class="page-kioskito-wrap" style="padding-top:12px">
+    <div class="page-kioskito-wrap">
       <div id="kioskito-side-panel" class="kioskito-side-panel">
         <div class="kioskito-sale-card">
           <div class="kioskito-sale-header">
@@ -149,7 +151,7 @@ if (!$canSeeKioskito) {
 <script>
     window.DIVINE_USER = <?= divineUserPayload($currentUser, $currentRole, $isAdmin, $isPuerta, $canManageDoor) ?>;
   </script>
-  <script src="script.js?v=<?= time() ?>"></script>
+  <script src="script.js?v=<?= asset_version('script.js') ?>"></script>
 
   <footer class="theme-footer" aria-label="Preferencias visuales">
   <button type="button" class="theme-toggle" id="themeToggle" data-theme-toggle aria-label="Cambiar tema">

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/config/assets.php';
+
 if (file_exists(__DIR__ . '/const.php')) {
     require_once __DIR__ . '/const.php';
 }
@@ -196,8 +198,8 @@ h1 {
 }
 </style>
 
-<link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
-<script src="js/theme.js?v=<?= time() ?>" defer></script>
+<link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
+<script src="js/theme.js?v=<?= asset_version('js/theme.js') ?>" defer></script>
 </head>
 
 <body class="centered-theme-page">

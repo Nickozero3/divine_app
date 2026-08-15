@@ -5,6 +5,7 @@ declare(strict_types=1);
 session_start();
 
 require_once __DIR__ . '/config/conexion.php';
+require_once __DIR__ . '/config/assets.php';
 
 if (file_exists(__DIR__ . '/const.php')) {
   require_once __DIR__ . '/const.php';
@@ -58,7 +59,7 @@ $roles = [
 
   'puerta' => [
     'label' => 'Puerta',
-    'desc' => 'Ingreso y scanner'
+    'desc' => 'Ingreso y control de listas'
   ],
 
   'usuario' => [
@@ -358,27 +359,42 @@ foreach ($users as $user) {
       justify-content: space-between;
       align-items: center;
       gap: 12px;
-      background: rgba(8, 5, 12, .82);
-      backdrop-filter: blur(18px);
-      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+      backdrop-filter: blur(18px) saturate(135%);
+      -webkit-backdrop-filter: blur(18px) saturate(135%);
+      border-bottom: 1px solid rgba(255, 255, 255, .07);
     }
 
     .topbar-title {
-      color: var(--gold);
+      font-family: "Cinzel", serif;
       font-size: 18px;
-      font-weight: 950;
-      letter-spacing: .2px;
+      font-weight: 700;
+      letter-spacing: .04em;
       cursor: pointer;
+      background: linear-gradient(110deg, var(--gold-2), var(--purple-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
     .topbar-back {
-      border: 1px solid var(--border-strong);
-      background: rgba(255, 255, 255, .06);
-      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      border: 1px solid rgba(255, 255, 255, .08);
+      background: rgba(255, 255, 255, .035);
+      color: var(--text2);
       border-radius: 999px;
-      padding: 10px 14px;
-      font-weight: 900;
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: 700;
       cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+    }
+
+    .topbar-back:active {
+      transform: scale(.96);
     }
 
     .wrap {
@@ -930,8 +946,8 @@ foreach ($users as $user) {
     }
   </style>
 
-  <link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
-  <script src="js/theme.js?v=<?= time() ?>" defer></script>
+  <link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
+  <script src="js/theme.js?v=<?= asset_version('js/theme.js') ?>" defer></script>
 </head>
 
 <body>

@@ -7,7 +7,7 @@ declare(strict_types=1);
  * REGISTRO PÚBLICO (autoinscripción a una lista de puerta)
  * ---------------------------------------------------------
  * Archivo ÚNICO y AUTOCONTENIDO. No modifica ningún otro
- * archivo del sistema (api.php, scanner.php, qr.php, script.js).
+ * archivo del sistema (api.php, qr.php, script.js).
  *
  * Qué hace:
  *   1) Muestra un formulario (nombre + últimos 3 dígitos del DNI).
@@ -64,6 +64,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config/conexion.php'; // define $pdo (idéntico al resto del sistema)
 require_once __DIR__ . '/const.php';           // define APP_NAME, etc.
+require_once __DIR__ . '/config/assets.php';
 
 function h(mixed $value): string
 {
@@ -443,7 +444,7 @@ if ($listId > 0) {
     <!-- Misma librería QRious y mismo script.js que usa listas.php,
        para reutilizar exactamente la función generarImagenQR(...) -->
     <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
-    <script src="script.js?v=<?= time() ?>"></script>
+    <script src="script.js?v=<?= asset_version('script.js') ?>"></script>
     <script>
       const LIST_ID = <?= (int) $list['id'] ?>;
 

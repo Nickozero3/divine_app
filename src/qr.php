@@ -5,6 +5,7 @@ declare(strict_types=1);
 session_start();
 
 require_once __DIR__ . '/config/conexion.php';
+require_once __DIR__ . '/config/assets.php';
 
 function h(mixed $value): string
 {
@@ -176,8 +177,8 @@ $canActivate = in_array(
         }
     </style>
 
-    <link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
-    <script src="js/theme.js?v=<?= time() ?>" defer></script>
+    <link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
+    <script src="js/theme.js?v=<?= asset_version('js/theme.js') ?>" defer></script>
 </head>
 
 <body class="centered-theme-page">

@@ -24,7 +24,6 @@ function canAccess(string $role, string $module): bool
         ROLE_ADMIN => [
             'admin',
             'door',
-            'scanner',
             'kiosko',
             'stock',
             'guardarropas',
@@ -32,7 +31,6 @@ function canAccess(string $role, string $module): bool
 
         ROLE_PUERTA => [
             'door',
-            'scanner',
         ],
 
         ROLE_USUARIO => [

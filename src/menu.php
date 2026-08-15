@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config/conexion.php';
+require_once __DIR__ . '/config/assets.php';
 
 if (file_exists(__DIR__ . '/const.php')) {
     require_once __DIR__ . '/const.php';
@@ -211,10 +212,10 @@ $updatedAt = date('d/m/Y H:i');
 
 <title><?= e($appName) ?> · Menú</title>
 <link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="styles/menu.css?v=<?= time() ?>">
+<link rel="stylesheet" href="styles/menu.css?v=<?= asset_version('styles/menu.css') ?>">
 
-<link rel="stylesheet" href="styles/theme.css?v=<?= time() ?>">
-<script src="js/theme.js?v=<?= time() ?>" defer></script>
+<link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
+<script src="js/theme.js?v=<?= asset_version('js/theme.js') ?>" defer></script>
 </head>
 
 <body>
@@ -298,7 +299,7 @@ $updatedAt = date('d/m/Y H:i');
 
 </div>
 
-<script src="js/menu.js?v=<?= time() ?>"></script>
+<script src="js/menu.js?v=<?= asset_version('js/menu.js') ?>"></script>
 
 
 </body>
