@@ -134,37 +134,7 @@ require_once __DIR__ . '/config/assets.php';
 
         </div>
 
-        <div
-          id="door-status-filters"
-          class="door-status-filters"
-          role="tablist"
-          aria-label="Filtrar personas por estado">
-
-          <button type="button" class="door-status-filter active"
-            data-door-status-filter="all"
-            onclick="setDoorStatusFilter('all')">
-            <span>Todos</span><b id="door-filter-all">0</b>
-          </button>
-
-          <button type="button" class="door-status-filter"
-            data-door-status-filter="no_vino"
-            onclick="setDoorStatusFilter('no_vino')">
-            <span>Pendientes</span><b id="door-filter-no-vino">0</b>
-          </button>
-
-          <button type="button" class="door-status-filter"
-            data-door-status-filter="entro"
-            onclick="setDoorStatusFilter('entro')">
-            <span>Entraron</span><b id="door-filter-entro">0</b>
-          </button>
-
-          <button type="button" class="door-status-filter"
-            data-door-status-filter="se_fue"
-            onclick="setDoorStatusFilter('se_fue')">
-            <span>Se fueron</span><b id="door-filter-se-fue">0</b>
-          </button>
-
-        </div>
+<?php if ($canUseScanner): ?>
 
         <button
 
@@ -185,6 +155,8 @@ require_once __DIR__ . '/config/assets.php';
           </div>
 
         </button>
+
+        <?php endif; ?>
 
       </div>
 
@@ -315,6 +287,8 @@ require_once __DIR__ . '/config/assets.php';
      MODAL SCANNER
 =========================== -->
 
+  <?php if ($canUseScanner): ?>
+
   <div
     id="scanner-modal"
     class="modal-overlay"
@@ -371,6 +345,9 @@ require_once __DIR__ . '/config/assets.php';
     </div>
 
   </div>
+
+  <?php endif; ?>
+
   <script>
     window.DIVINE_USER =
       <?= divineUserPayload(

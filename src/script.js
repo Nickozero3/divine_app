@@ -11,9 +11,6 @@ function esc(str) {
 }
 
 let doorView = localStorage.getItem("doorView") || "mine";
-
-let doorStatusFilter = localStorage.getItem('doorStatusFilter') || 'all';
-
 function setDoorView(view) {
 
   doorView = view;
@@ -1483,49 +1480,6 @@ function nextDoorStatus(status) {
   if (status === 'entro') return 'se_fue';
   return 'no_vino';
 }
-
-function setDoorStatusFilter(filter) {
-  const allowed = ['all', 'no_vino', 'entro', 'se_fue'];
-  doorStatusFilter = allowed.includes(filter) ? filter : 'all';
-  localStorage.setItem('doorStatusFilter', doorStatusFilter);
-
-  document.querySelectorAll('[data-door-status-filter]').forEach(btn => {
-    const active = btn.dataset.doorStatusFilter === doorStatusFilter;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-selected', active ? 'true' : 'false');
-  });
-
-  drawPuerta();
-}
-
-function updateDoorStatusFilterCounts(lists) {
-  const people = (lists || []).flatMap(list => Array.isArray(list.people) ? list.people : []);
-  const counts = {
-    all: people.length,
-    no_vino: people.filter(p => p.status === 'no_vino').length,
-    entro: people.filter(p => p.status === 'entro').length,
-    se_fue: people.filter(p => p.status === 'se_fue').length
-  };
-
-  const map = {
-    'door-filter-all': counts.all,
-    'door-filter-no-vino': counts.no_vino,
-    'door-filter-entro': counts.entro,
-    'door-filter-se-fue': counts.se_fue
-  };
-
-  Object.entries(map).forEach(([id,value]) => {
-    const el=document.getElementById(id);
-    if(el) el.textContent=String(value);
-  });
-
-  document.querySelectorAll('[data-door-status-filter]').forEach(btn => {
-    const active = btn.dataset.doorStatusFilter === doorStatusFilter;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-selected', active ? 'true' : 'false');
-  });
-}
-
 async function renderPuerta(forceRender = false) {
   const wrap = document.getElementById('p-lists');
   if (!wrap) return;
@@ -1601,8 +1555,6 @@ function drawPuerta() {
   const listTerm = canManageDoor ? normalizeText(searchInput ? searchInput.value : '') : '';
   const personTerm = normalizeText(personSearchInput ? personSearchInput.value : '');
 
-  updateDoorStatusFilterCounts(doorLists);
-
   const visibleLists = doorLists.filter(list =>
     listMatchesSearch(list, listTerm) &&
     personMatchesSearch(list, personTerm)
@@ -1611,8 +1563,8 @@ function drawPuerta() {
   if (!visibleLists.length) {
     // Distinguimos "no hay listas todavía" de "no hay resultados para esta búsqueda"
     // para que el mensaje sea preciso.
-    const emptyMessage = (listTerm || personTerm || doorStatusFilter !== 'all')
-      ? 'No se encontraron personas con los filtros actuales.'
+    const emptyMessage = (listTerm || personTerm)
+      ? 'No se encontraron listas o personas con esa búsqueda.'
       : 'Todavía no hay listas creadas.';
 
     wrap.innerHTML = `
@@ -1668,12 +1620,7 @@ function drawPuerta() {
       const matchesSearch = !personTerm ||
         normalizeText(person.name).includes(personTerm) ||
         normalizeText(person.note || '').includes(personTerm);
-
-      const matchesStatus =
-        doorStatusFilter === 'all' ||
-        person.status === doorStatusFilter;
-
-      return matchesSearch && matchesStatus;
+      return matchesSearch;
     });
 
     return `
@@ -2857,6 +2804,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 let qrScanner = null;
+let qrScannerRunning = false;
+let qrScannerStarting = false;
 let qrScannerLibraryPromise = null;
 
 function loadQrScannerLibrary() {
@@ -2875,46 +2824,82 @@ function loadQrScannerLibrary() {
   return qrScannerLibraryPromise;
 }
 
+function canUseDoorScanner() {
+  const user = window.DIVINE_USER || {};
+  if (user.can_use_scanner === true) return true;
+
+  const role = String(user.role || '').toLowerCase().trim();
+  return role === 'admin' || role === 'puerta';
+}
+
 async function openScanner() {
-
-  document.getElementById("scanner-modal").style.display = "flex";
-
-  if (qrScanner) {
+  if (!canUseDoorScanner()) {
+    console.warn('[DIVINE APP] Scanner bloqueado: solo admin o puerta.');
     return;
   }
 
+  const modal = document.getElementById("scanner-modal");
+  const reader = document.getElementById("reader");
+  const result = document.getElementById("qr-result");
+
+  if (!modal || !reader || !result) {
+    console.error('[DIVINE APP] Faltan elementos del scanner.');
+    return;
+  }
+
+  modal.style.display = "flex";
+
+  // Si ya está inicializado o arrancando, no crear otra instancia.
+  if (qrScanner || qrScannerStarting) {
+    return;
+  }
+
+  qrScannerStarting = true;
+
   try {
     await loadQrScannerLibrary();
+
+    if (!window.Html5Qrcode) {
+      throw new Error('No se pudo inicializar el lector QR.');
+    }
+
     qrScanner = new Html5Qrcode("reader");
 
     await qrScanner.start(
-
-    {
-      facingMode: "environment"
-    },
-
-    {
-      fps: 10,
-      qrbox: 250
-    },
-
-    onQrSuccess,
-
-    () => { }
-
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 250 },
+      onQrSuccess,
+      () => {}
     );
+
+    qrScannerRunning = true;
+
   } catch (error) {
+    console.error('[DIVINE APP] Error al abrir scanner:', error);
+
+    qrScannerRunning = false;
+
+    // clear() es síncrono/void en algunas versiones de html5-qrcode.
+    // Nunca se encadena .catch() sobre su resultado.
     if (qrScanner) {
-      qrScanner.clear().catch(() => {});
-      qrScanner = null;
+      try {
+        qrScanner.clear();
+      } catch (_) {}
     }
 
-    document.getElementById("qr-result").innerHTML = `
-      <div class="status-pill status-error">No se pudo abrir la cámara</div>
-      <div class="qr-detail" style="margin-top:14px">${esc(error.message)}</div>
-    `;
-  }
+    qrScanner = null;
 
+    result.innerHTML = `
+      <div class="status-pill status-error">
+        No se pudo abrir la cámara
+      </div>
+      <div class="qr-detail" style="margin-top:14px">
+        ${esc(error?.message || 'Error desconocido al abrir la cámara.')}
+      </div>
+    `;
+  } finally {
+    qrScannerStarting = false;
+  }
 }
 
 async function onQrSuccess(text) {
@@ -3105,24 +3090,38 @@ async function confirmQrEntry() {
 
 }
 
-function closeScanner() {
-
-  document.getElementById("scanner-modal").style.display = "none";
-
-  if (qrScanner) {
-
-    qrScanner.stop()
-      .then(() => {
-
-        qrScanner.clear();
-
-        qrScanner = null;
-
-      });
-
+async function closeScanner() {
+  const modal = document.getElementById("scanner-modal");
+  if (modal) {
+    modal.style.display = "none";
   }
 
+  const scanner = qrScanner;
+  qrScanner = null;
+
+  // Si todavía estaba arrancando, openScanner() se encargará de terminar.
+  if (!scanner) {
+    qrScannerRunning = false;
+    return;
+  }
+
+  if (qrScannerRunning) {
+    try {
+      await scanner.stop();
+    } catch (error) {
+      // Evita el error "scanner is not running or paused" al cerrar durante una carrera.
+      console.debug('[DIVINE APP] Scanner ya estaba detenido:', error?.message || error);
+    }
+  }
+
+  qrScannerRunning = false;
+
+  // clear() puede ser síncrono y devolver undefined.
+  try {
+    scanner.clear();
+  } catch (_) {}
 }
+
 
 /* =========================
    INIT DE LA APP

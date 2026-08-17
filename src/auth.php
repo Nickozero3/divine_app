@@ -27,6 +27,9 @@ $canSeeKioskito = canAccess($currentRole, 'kiosko');
 
 $canManageDoor = canAccess($currentRole, 'door');
 
+// Scanner QR: exclusivo de administrador y rol puerta.
+$canUseScanner = $isAdmin || $isPuerta;
+
 $canSeeStock = canAccess($currentRole, 'stock');
 
 $canSeeGuardarropas = canAccess($currentRole, 'guardarropas');
@@ -48,5 +51,6 @@ function divineUserPayload(array $currentUser, string $currentRole, bool $isAdmi
         'is_admin' => $isAdmin,
         'is_puerta' => $isPuerta,
         'can_manage_door' => $canManageDoor,
+        'can_use_scanner' => $canUseScanner,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
