@@ -83,8 +83,8 @@ $roles = [
     'desc' => 'Gestiona únicamente sus listas'
   ],
 
-  'kiosko' => [
-    'label' => 'Kioskito',
+  'cajera' => [
+    'label' => 'Cajera',
     'desc' => 'Caja, ventas y guardarropas'
   ]
 
@@ -354,7 +354,7 @@ $roleCounts = [
   'admin' => 0,
   'puerta' => 0,
   'usuario' => 0,
-  'kiosko' => 0,
+  'cajera' => 0,
 ];
 
 foreach ($users as $user) {
@@ -1110,8 +1110,8 @@ foreach ($users as $user) {
       </div>
 
       <div class="stat">
-        <div class="stat-number"><?= (int)$roleCounts['kiosko'] ?></div>
-        <div class="stat-label">Kioskito</div>
+        <div class="stat-number"><?= (int)$roleCounts['cajera'] ?></div>
+        <div class="stat-label">Cajeras</div>
       </div>
     </div>
 
@@ -1184,7 +1184,7 @@ foreach ($users as $user) {
             <button type="button" class="filter-chip" data-role="admin">Admin</button>
             <button type="button" class="filter-chip" data-role="puerta">Puerta</button>
             <button type="button" class="filter-chip" data-role="usuario">Usuario</button>
-            <button type="button" class="filter-chip" data-role="kiosko">Kioskito</button>
+            <button type="button" class="filter-chip" data-role="cajera">Cajera</button>
           </div>
         </div>
 

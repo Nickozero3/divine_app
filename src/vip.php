@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/config/assets.php';
 
-if (!$canSeeKioskito) {
+if (!$canSeeVip) {
     http_response_code(403);
     header('Location: index.php');
     exit;
@@ -15,7 +15,7 @@ if (!$canSeeKioskito) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0c0a12">
-  <title><?= e(APP_NAME) ?> · Kioskito</title>
+  <title><?= e(APP_NAME) ?> · Kioskito VIP</title>
   <link rel="stylesheet" href="styles.css?v=<?= asset_version('styles.css') ?>">
   <link rel="icon" type="image/x-icon" href="./favicon.ico">
 
@@ -23,19 +23,19 @@ if (!$canSeeKioskito) {
 <link rel="stylesheet" href="styles/kioskito.css?v=<?= asset_version('styles/kioskito.css') ?>">
 <script src="js/theme.js?v=<?= asset_version('js/theme.js') ?>" defer></script>
 </head>
-<body data-page="kioskito" data-zona="kiosko">
+<body data-page="kioskito-vip" data-zona="vip">
   <div class="stars"></div>
 
-  <main id="page-kioskito" class="page active">
+  <main id="page-kioskito" class="page active" data-zona="vip">
     <div class="topbar">
       <div class="topbar-title" onclick="location.href='index.php'">
         <span class="divine-kiosk-brand"><?= e(APP_NAME) ?></span>
-        <span class="divine-kiosk-name">Kioskito</span>
+        <span class="divine-kiosk-name">Kioskito VIP</span>
         <span class="live-dot">● LIVE</span>
       </div>
       <div class="kiosk-top-actions">
         <span class="kiosk-role-badge"><?= $isAdmin ? '🛡️ Admin' : '🧾 Cajera' ?></span>
-        <span class="kiosk-cash-badge">● Caja Kiosko</span>
+        <span class="kiosk-cash-badge">● Caja VIP</span>
         <?php if ($isAdmin): ?>
           <button class="topbar-back kiosk-admin-action" type="button" onclick="openAddProduct()">＋ Producto</button>
           <button class="topbar-back kiosk-admin-action" type="button" onclick="toggleEditProducts()">✎ Editar</button>
@@ -45,19 +45,12 @@ if (!$canSeeKioskito) {
     </div>
 
     <div class="page-kioskito-wrap">
-      <section class="kiosk-left-panel" aria-label="Kioskito y guardarropas">
-        <div class="kiosk-side-tabs kiosk-left-tabs" role="tablist" aria-label="Kioskito y guardarropas">
-          <button id="k-tab-products" class="kiosk-side-tab active" type="button" role="tab" aria-selected="true" onclick="switchKioskTab('productos')">🛒 Kioskito</button>
-          <button id="k-tab-guardarropas" class="kiosk-side-tab" type="button" role="tab" aria-selected="false" onclick="switchKioskTab('guardarropas')">🧥 Guardarropa</button>
-        </div>
-
-        <div id="k-left-pane-products" class="kiosk-left-pane">
-        <section class="kiosk-catalog-shell" aria-label="Catálogo Kioskito">
+      <section class="kiosk-catalog-shell" aria-label="Catálogo Kioskito VIP">
         <div class="kiosk-catalog-head">
           <div>
-            <div class="kiosk-eyebrow">PUNTO DE VENTA</div>
-            <h1>Kioskito</h1>
-            <p class="kiosk-catalog-subtitle">Venta rápida y táctil.</p>
+            <div class="kiosk-eyebrow">PUNTO DE VENTA · VIP</div>
+            <h1>Kioskito VIP</h1>
+            <p class="kiosk-catalog-subtitle">Venta rápida y táctil, exclusiva de VIP.</p>
           </div>
           <div class="kiosk-quick-info">⚡ Tocá un producto para agregarlo</div>
         </div>
@@ -70,16 +63,10 @@ if (!$canSeeKioskito) {
         </div>
 
         <div id="k-categories"></div>
-        </section>
-        </div>
-
-        <div id="k-left-pane-guardarropas" class="kiosk-left-pane" hidden>
-          <div id="guardarropas-panel" class="guardarropas-panel" aria-label="Guardarropas"></div>
-        </div>
       </section>
 
-      <aside id="kioskito-side-panel" class="kioskito-side-panel" aria-label="Venta actual y caja">
-        <div class="kiosk-side-tabs" role="tablist" aria-label="Panel de caja">
+      <aside id="kioskito-side-panel" class="kioskito-side-panel" aria-label="Venta actual y caja VIP">
+        <div class="kiosk-side-tabs" role="tablist" aria-label="Panel de caja VIP">
           <button id="k-side-tab-sale" class="kiosk-side-tab active" type="button" role="tab" aria-selected="true" onclick="switchKioskSideTab('sale')">🛒 Venta actual</button>
           <button id="k-side-tab-history" class="kiosk-side-tab" type="button" role="tab" aria-selected="false" onclick="switchKioskSideTab('history')">▤ Historial y caja</button>
         </div>
@@ -89,7 +76,7 @@ if (!$canSeeKioskito) {
           <div class="kioskito-sale-header">
             <div>
               <div class="kiosk-sale-label">VENTA ACTUAL</div>
-              <div class="kiosk-sale-context">Caja Kiosko · abierta</div>
+              <div class="kiosk-sale-context">Caja VIP · abierta</div>
             </div>
             <span id="k-total">$0</span>
           </div>
@@ -119,7 +106,7 @@ if (!$canSeeKioskito) {
           <div id="sales-history"></div>
           <div class="kioskito-bottom">
             <div id="kiosko-summary"></div>
-            <button class="btn-action btn-close-cash" type="button" onclick="closeKioskoCash()">🧾 Cerrar caja</button>
+            <button class="btn-action btn-close-cash" type="button" onclick="closeKioskoCash()">🧾 Cerrar Caja VIP</button>
           </div>
         </div>
       </aside>
@@ -157,9 +144,9 @@ if (!$canSeeKioskito) {
       <div class="modal-field">
         <label>Dónde se vende</label>
         <select id="ap-zona">
+          <option value="vip">Solo VIP</option>
           <option value="ambos">Kiosko y VIP</option>
           <option value="kiosko">Solo Kiosko</option>
-          <option value="vip">Solo VIP</option>
         </select>
       </div>
 
@@ -172,48 +159,6 @@ if (!$canSeeKioskito) {
     </div>
   </div>
 
-  <div class="modal-overlay" id="modal-pin">
-    <div class="modal-box">
-      <div class="modal-title">🔒 Confirmar reinicio</div>
-      <div class="pin-display" id="pin-display">·  ·  ·  ·</div>
-      <div class="pin-grid" id="pin-grid"></div>
-      <div class="pin-err" id="pin-err"></div>
-
-      <div class="modal-btns" style="margin-top:14px">
-        <button class="btn-modal btn-cancel" onclick="closeModal('modal-pin'); pinClear();">Cancelar</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="modal-guardarropas">
-    <div class="modal-box">
-      <div class="modal-title">🧥 Nuevo guardarropas</div>
-
-      <div class="modal-field">
-        <label>Nombre</label>
-        <input type="text" id="gr-name" placeholder="Ej: Nicko" onkeydown="if(event.key==='Enter'){document.getElementById('gr-dni').focus();}">
-      </div>
-
-      <div class="modal-field">
-        <label>DNI (opcional)</label>
-        <input type="text" id="gr-dni" placeholder="Ej: 40111222" onkeydown="if(event.key==='Enter'){document.getElementById('gr-phone').focus();}">
-      </div>
-
-      <div class="modal-field">
-        <label>Teléfono (opcional)</label>
-        <input type="text" id="gr-phone" placeholder="Ej: 3548..." onkeydown="if(event.key==='Enter'){crearGuardarropas();}">
-      </div>
-
-      <div style="padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg3);color:var(--gold-2);font-weight:700;margin-bottom:12px;">
-        1 número = 1 prenda = $2.000
-      </div>
-
-      <div class="modal-btns">
-        <button class="btn-modal btn-cancel" onclick="closeModal('modal-guardarropas')">Cancelar</button>
-        <button class="btn-modal btn-confirm" onclick="crearGuardarropas()">Crear número</button>
-      </div>
-    </div>
-  </div>
 <script>
     window.DIVINE_USER = <?= divineUserPayload($currentUser, $currentRole, $isAdmin, $isPuerta, $canManageDoor) ?>;
   </script>

@@ -16,6 +16,10 @@
       </div>
 
       <div class="adm-cash-history__actions">
+        <div class="adm-cash-history__zonatabs" id="cash-history-zonatabs" role="tablist">
+          <button type="button" class="adm-cash-zonatab active" data-zona="kiosko" role="tab" aria-selected="true">Kiosko</button>
+          <button type="button" class="adm-cash-zonatab" data-zona="vip" role="tab" aria-selected="false">VIP</button>
+        </div>
         <span class="adm-cash-history__count" id="closed-cashes-count" aria-live="polite">Cargando…</span>
         <button class="adm-button adm-cash-history__refresh" type="button" id="closed-cashes-refresh">
           Actualizar
@@ -60,6 +64,32 @@
     justify-content: flex-end;
     gap: 10px;
     flex-wrap: wrap;
+  }
+
+  .adm-cash-history__zonatabs {
+    display: inline-flex;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .03);
+  }
+
+  .adm-cash-zonatab {
+    min-height: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text2, rgba(255, 255, 255, .7));
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .adm-cash-zonatab.active {
+    color: #071006;
+    background: linear-gradient(135deg, #b9ff38, #8fe81b);
   }
 
   .adm-cash-history__count {
@@ -368,6 +398,8 @@
   const listElement = document.getElementById('admin-closed-cashes');
   const refreshButton = document.getElementById('closed-cashes-refresh');
   const countElement = document.getElementById('closed-cashes-count');
+  const zonaTabsElement = document.getElementById('cash-history-zonatabs');
+  let currentZona = 'kiosko';
 
   if (!listElement) return;
 
@@ -416,7 +448,7 @@
       options.body = JSON.stringify(payload);
     }
 
-    const response = await fetch(`${endpoint}?action=${encodeURIComponent(action)}`, options);
+    const response = await fetch(`${endpoint}?action=${encodeURIComponent(action)}&zona=${encodeURIComponent(currentZona)}`, options);
     const text = await response.text();
 
     let data;
@@ -577,5 +609,23 @@
 
   refreshButton?.addEventListener('click', loadClosings);
   window.addEventListener('load', loadClosings, { once: true });
+
+  zonaTabsElement?.addEventListener('click', event => {
+    const button = event.target.closest('[data-zona]');
+    if (!button) return;
+
+    const zona = button.dataset.zona === 'vip' ? 'vip' : 'kiosko';
+    if (zona === currentZona) return;
+
+    currentZona = zona;
+
+    zonaTabsElement.querySelectorAll('.adm-cash-zonatab').forEach(tab => {
+      const isActive = tab === button;
+      tab.classList.toggle('active', isActive);
+      tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    loadClosings();
+  });
 })();
 </script>

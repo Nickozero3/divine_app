@@ -387,6 +387,103 @@ const PRODUCTS_CACHE_TTL_MS = 30_000;
 let cart = {};
 let editingProductId = null;
 let editProductsMode = false;
+let kioskitoTab = 'productos';
+let kioskSearch = '';
+let kioskSideTab = 'sale';
+
+// Caja Kiosko y Caja VIP son independientes. Por defecto 'kiosko'
+// para no cambiar nada en pantallas que no declaren data-zona.
+const KIOSK_ZONA = document.body?.dataset?.zona === 'vip' ? 'vip' : 'kiosko';
+const KIOSK_IS_VIP = KIOSK_ZONA === 'vip';
+
+// Tamaños de pack conocidos, SOLO para mostrar "X packs + Y u." en el
+// panel de edición de precios. No modifica stock ni ninguna lógica real:
+// products.qty en esta base cuenta unidades VENDIDAS, no stock disponible.
+const KNOWN_PACK_SIZES = [
+  { match: /speed\s*250/i, size: 24 },
+  { match: /gaseosa.*lata|lata.*gaseosa/i, size: 6 },
+  { match: /cerveza.*lata|lata.*cerveza/i, size: 6 },
+];
+
+function packBreakdown(qty, productName = '') {
+  const total = Math.max(0, Number(qty || 0));
+  const known = KNOWN_PACK_SIZES.find(p => p.match.test(String(productName || '')));
+
+  if (!known || known.size <= 0) return null;
+
+  const packs = Math.floor(total / known.size);
+  const sueltas = total % known.size;
+
+  return { packs, sueltas, size: known.size };
+}
+
+function switchKioskTab(tab) {
+  kioskitoTab = tab === 'guardarropas' ? 'guardarropas' : 'productos';
+
+  document.querySelectorAll('#page-kioskito .kiosk-left-tabs .kiosk-side-tab').forEach(btn => {
+    const active = btn.id === (kioskitoTab === 'guardarropas' ? 'k-tab-guardarropas' : 'k-tab-products');
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  const catalog = document.getElementById('k-categories');
+  const productsPane = document.getElementById('k-left-pane-products');
+  const guardarropasPane = document.getElementById('k-left-pane-guardarropas');
+  const searchWrap = document.getElementById('kiosk-product-search-wrap');
+
+  if (productsPane) productsPane.hidden = kioskitoTab !== 'productos';
+  if (guardarropasPane) guardarropasPane.hidden = kioskitoTab !== 'guardarropas';
+  if (catalog) catalog.style.display = '';
+  if (searchWrap) searchWrap.style.display = kioskitoTab === 'productos' ? '' : 'none';
+
+  if (kioskitoTab === 'productos') filterKioskProducts(kioskSearch);
+}
+
+function switchKioskSideTab(tab) {
+  kioskSideTab = tab === 'history' ? 'history' : 'sale';
+
+  const salePane = document.getElementById('k-side-pane-sale');
+  const historyPane = document.getElementById('k-side-pane-history');
+  const saleTab = document.getElementById('k-side-tab-sale');
+  const historyTab = document.getElementById('k-side-tab-history');
+
+  if (salePane) salePane.hidden = kioskSideTab !== 'sale';
+  if (historyPane) historyPane.hidden = kioskSideTab !== 'history';
+
+  if (saleTab) {
+    const active = kioskSideTab === 'sale';
+    saleTab.classList.toggle('active', active);
+    saleTab.setAttribute('aria-selected', active ? 'true' : 'false');
+  }
+
+  if (historyTab) {
+    const active = kioskSideTab === 'history';
+    historyTab.classList.toggle('active', active);
+    historyTab.setAttribute('aria-selected', active ? 'true' : 'false');
+  }
+}
+
+function filterKioskProducts(value) {
+  kioskSearch = String(value || '');
+  const query = normalizeText(kioskSearch);
+  const sections = document.querySelectorAll('#k-categories .section');
+
+  sections.forEach(section => {
+    const cards = section.querySelectorAll('.pos-product-card');
+    let visible = 0;
+    cards.forEach(card => {
+      const text = normalizeText(card.textContent || '');
+      const show = !query || text.includes(query);
+      card.hidden = !show;
+      if (show) visible++;
+    });
+    section.hidden = !!query && visible === 0;
+  });
+
+  const input = document.getElementById('kiosk-product-search');
+  if (input && input.value !== kioskSearch) input.value = kioskSearch;
+}
+
 let collapsedProductCats = {};
 
 let selectedPaymentMethod = 'efectivo';
@@ -490,7 +587,7 @@ async function renderKioskito(refreshProducts = true) {
       (Date.now() - productsLoadedAt) > PRODUCTS_CACHE_TTL_MS;
 
     if (needsProductsRefresh) {
-      const data = await api('products_list');
+      const data = await api('products_list', null, { zona: KIOSK_ZONA });
       products = data.products || [];
       productsLoadedAt = Date.now();
     }
@@ -539,6 +636,8 @@ async function renderKioskito(refreshProducts = true) {
             ${grouped[cat].map(product => `
               <div
                 class="pos-product-card"
+                data-product-id="${Number(product.id)}"
+                data-search="${esc(`${product.name} ${product.cat || ''} ${product.sub || ''}`)}"
                 onclick="addToCart(${Number(product.id)}, event)"
               >
 
@@ -574,6 +673,7 @@ async function renderKioskito(refreshProducts = true) {
     }).join('');
 
     renderCart();
+    switchKioskTab(kioskitoTab);
 
   } catch (error) {
     showError(error);
@@ -587,8 +687,7 @@ async function renderKioskito(refreshProducts = true) {
 function addToCart(id, ev = null) {
   cart[id] = (cart[id] || 0) + 1;
 
-  const card = ev?.currentTarget || window.event?.currentTarget || null;
-
+  const card = ev?.currentTarget || null;
   if (card) {
     card.classList.remove('wave-active');
     void card.offsetWidth;
@@ -618,8 +717,10 @@ function renderCart() {
   if (!ids.length) {
     if (saleDetail) {
       saleDetail.innerHTML = `
-        <div style="padding:14px 16px;font-size:14px;color:var(--text2);">
-          Sin productos agregados.
+        <div class="kioskito-empty-cart">
+          <div class="empty-cart-icon">🛒</div>
+          <strong>Tu venta está vacía</strong>
+          <span>Elegí un producto del catálogo.</span>
         </div>
       `;
     }
@@ -772,6 +873,7 @@ async function confirmCurrentSale() {
     const data = await api('sale_register', {
       items: lines,
       total,
+      zona: KIOSK_ZONA,
 
       // Mando ambos nombres para compatibilidad con tu backend.
       paymentMethod: selectedPaymentMethod,
@@ -807,6 +909,7 @@ async function confirmCurrentSale() {
    ------------------------------------------------------------ */
 
 function printTicket(lines, total, paymentMethod = '') {
+  const ticketTitle = KIOSK_IS_VIP ? 'KIOSKITO VIP' : 'KIOSKITO';
   const now = new Date();
 
   const fecha = now.toLocaleDateString('es-AR', {
@@ -854,7 +957,7 @@ function printTicket(lines, total, paymentMethod = '') {
 <head>
   <meta charset="UTF-8">
 
-  <title>Ticket Del Kiosko</title>
+  <title>Ticket ${ticketTitle}</title>
 
   <style>
     @page {
@@ -968,7 +1071,7 @@ function printTicket(lines, total, paymentMethod = '') {
   <div class="ticket">
 
     <div class="center">
-      <div class="title">KIOSCO</div>
+      <div class="title">${ticketTitle}</div>
       <div class="sub">${fecha} ${hora}</div>
       <div class="sub">Ticket #${ticketNumber}</div>
     </div>
@@ -1033,7 +1136,7 @@ async function renderSalesHistory() {
   if (!wrap) return;
 
   try {
-    const data = await api('sales_history');
+    const data = await api('sales_history', null, { zona: KIOSK_ZONA });
     const sales = data.sales || [];
 
     if (!sales.length) {
@@ -1110,7 +1213,7 @@ async function renderKioskoSummary() {
   if (!wrap) return;
 
   try {
-    const data = await api('kiosko_summary');
+    const data = await api('kiosko_summary', null, { zona: KIOSK_ZONA });
     const summary = data.summary || {};
 
     const byPayment = summary.by_payment || {};
@@ -1192,11 +1295,12 @@ async function renderKioskoSummary() {
 }
 
 async function closeKioskoCash() {
-  const ok = confirm('¿Cerrar caja del Kioskito? Se guardará el resumen de ventas actuales.');
+  const cajaLabel = KIOSK_IS_VIP ? 'VIP' : 'Kiosko';
+  const ok = confirm(`¿Cerrar Caja ${cajaLabel}? Se guardará el resumen de ventas actuales.`);
   if (!ok) return;
 
   try {
-    const data = await api('kiosko_close');
+    const data = await api('kiosko_close', { zona: KIOSK_ZONA });
 
     alert(data.message || 'Caja cerrada correctamente.');
 
@@ -1218,12 +1322,17 @@ function openAddProduct() {
   const name = document.getElementById('ap-name');
   const price = document.getElementById('ap-price');
   const cat = document.getElementById('ap-cat');
+  const zona = document.getElementById('ap-zona');
   const btn = document.getElementById('ap-submit-btn');
+  const qtyInfo = document.getElementById('ap-qty-info');
 
   if (name) name.value = '';
   if (price) price.value = '';
   if (cat) cat.value = 'Vasos';
+  // Por defecto, un producto nuevo se asigna a la caja desde la que se lo crea.
+  if (zona) zona.value = KIOSK_ZONA;
   if (btn) btn.textContent = 'Agregar';
+  if (qtyInfo) qtyInfo.style.display = 'none';
 
   openModal('modal-add-product');
 }
@@ -1237,12 +1346,28 @@ function openEditProduct(id) {
   const name = document.getElementById('ap-name');
   const price = document.getElementById('ap-price');
   const cat = document.getElementById('ap-cat');
+  const zona = document.getElementById('ap-zona');
   const btn = document.getElementById('ap-submit-btn');
+  const qtyInfo = document.getElementById('ap-qty-info');
 
   if (name) name.value = product.name;
   if (price) price.value = product.price;
   if (cat) cat.value = product.cat || 'Otros';
+  if (zona) zona.value = product.zona || 'ambos';
   if (btn) btn.textContent = 'Guardar';
+
+  if (qtyInfo) {
+    const breakdown = packBreakdown(product.qty, product.name);
+    if (breakdown) {
+      qtyInfo.style.display = '';
+      qtyInfo.textContent =
+        `Vendidas hasta ahora: ${breakdown.packs} pack${breakdown.packs === 1 ? '' : 's'} ` +
+        `(${breakdown.size} u. c/u) + ${breakdown.sueltas} u. sueltas = ${Number(product.qty || 0)} u. en total.`;
+    } else {
+      qtyInfo.style.display = '';
+      qtyInfo.textContent = `Unidades vendidas hasta ahora: ${Number(product.qty || 0)}.`;
+    }
+  }
 
   openModal('modal-add-product');
 }
@@ -1251,6 +1376,7 @@ async function saveProduct() {
   const name = document.getElementById('ap-name')?.value.trim() || '';
   const price = Number(document.getElementById('ap-price')?.value || 0);
   const cat = document.getElementById('ap-cat')?.value || 'Otros';
+  const zona = document.getElementById('ap-zona')?.value || 'ambos';
 
   if (!name) {
     alert('Ingresá el nombre del producto');
@@ -1263,13 +1389,15 @@ async function saveProduct() {
         id: editingProductId,
         name,
         price,
-        cat
+        cat,
+        zona
       });
     } else {
       await api('product_add', {
         name,
         price,
-        cat
+        cat,
+        zona
       });
     }
 
@@ -2328,7 +2456,7 @@ function startLiveApp() {
 
     const currentPage = document.body.dataset.page || '';
     const puertaActiva = currentPage === 'listas' || document.getElementById("page-puerta")?.classList.contains("active");
-    const kioskitoActivo = currentPage === 'kioskito' || document.getElementById("page-kioskito")?.classList.contains("active");
+    const kioskitoActivo = currentPage === 'kioskito' || currentPage === 'kioskito-vip' || document.getElementById("page-kioskito")?.classList.contains("active");
 
     const estaEscribiendo = document.activeElement?.matches("input, textarea, select");
     const modalAbierto = !!document.querySelector(".modal-overlay.open");
@@ -2367,7 +2495,7 @@ function startLiveApp() {
       try {
         await Promise.all([
           renderKioskito(false),
-          renderGuardarropas(),
+          ...(KIOSK_IS_VIP ? [] : [renderGuardarropas()]),
           renderKioskoSummary(),
         ]);
       } catch (e) {
@@ -2398,10 +2526,10 @@ function instalarGuardarropas() {
 
   if (document.getElementById("guardarropas-box")) return;
 
-  const sidePanel = document.getElementById("kioskito-side-panel");
+  const guardarropasPanel = document.getElementById("guardarropas-panel");
   const wrap = document.querySelector(".page-kioskito-wrap");
 
-  if (!sidePanel && !wrap) return;
+  if (!guardarropasPanel && !wrap) return;
 
   const box = document.createElement("div");
   box.id = "guardarropas-box";
@@ -2439,14 +2567,8 @@ function instalarGuardarropas() {
     </div>
   `;
 
-  if (sidePanel) {
-    const salesHistory = document.getElementById("sales-history");
-
-    if (salesHistory && salesHistory.parentNode === sidePanel) {
-      sidePanel.insertBefore(box, salesHistory);
-    } else {
-      sidePanel.appendChild(box);
-    }
+  if (guardarropasPanel) {
+    guardarropasPanel.appendChild(box);
   } else {
     wrap.insertAdjacentElement("afterbegin", box);
   }
@@ -3146,9 +3268,41 @@ window.addEventListener("load", () => {
       return;
     }
 
+    // Kioskito VIP: mismo motor de catálogo/venta/caja que Kiosko,
+    // pero SIN Guardarropa (eso vive únicamente en Kiosko normal).
+    if (currentPage === 'kioskito-vip') {
+      safeRunAsync('No se pudo cargar Kioskito VIP', renderKioskito, 'k-categories');
+      safeRunAsync('No se pudo cargar historial de ventas VIP', renderSalesHistory, 'sales-history');
+      safeRunAsync('No se pudo cargar resumen de Caja VIP', renderKioskoSummary, 'kiosko-summary');
+
+      startLiveApp();
+      return;
+    }
+
     if (currentPage === 'listas') {
       safeRunAsync('No se pudo cargar Puerta', () => renderPuerta(true), 'p-lists');
       startLiveApp();
     }
   });
+});
+
+/* KIOSKITO: exportar handlers para botones HTML */
+Object.assign(window, {
+  switchKioskTab,
+  switchKioskSideTab,
+  filterKioskProducts,
+  selectPaymentMethod,
+  confirmCurrentSale,
+  openAddProduct,
+  openEditProduct,
+  toggleEditProducts,
+  toggleProductCat,
+  saveProduct,
+  addToCart,
+  removeFromCart,
+  closeModal,
+  abrirGuardarropas,
+  crearGuardarropas,
+  entregarGuardarropas,
+  eliminarGuardarropas
 });

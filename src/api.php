@@ -196,12 +196,53 @@ function payment_label(string $method): string
     };
 }
 
-
-function build_kiosko_summary(PDO $pdo, int $fromSaleId = 0): array
+/* =========================================================
+   ZONA: KIOSKO vs VIP
+   ---------------------------------------------------------
+   Caja Kiosko y Caja VIP son independientes. La zona se
+   recibe por query string o por body ("zona") y por defecto
+   es 'kiosko' para no romper llamadas existentes que todavía
+   no mandan este parámetro (compatibilidad total con el
+   Kioskito actual).
+   Los nombres de tabla están fijos (whitelist), nunca se
+   arma el nombre de tabla con datos del usuario.
+========================================================= */
+function normalize_zona(string $zona): string
 {
+    $zona = strtolower(trim($zona));
+    return $zona === 'vip' ? 'vip' : 'kiosko';
+}
+
+function current_zona(array $input = []): string
+{
+    $zona = (string) ($_GET['zona'] ?? $input['zona'] ?? 'kiosko');
+    return normalize_zona($zona);
+}
+
+function sales_table_for_zona(string $zona): string
+{
+    return normalize_zona($zona) === 'vip' ? 'vip_sales' : 'kiosko_sales';
+}
+
+function closings_table_for_zona(string $zona): string
+{
+    return normalize_zona($zona) === 'vip' ? 'vip_closings' : 'kiosko_closings';
+}
+
+function zona_label(string $zona): string
+{
+    return normalize_zona($zona) === 'vip' ? 'Caja VIP' : 'Caja Kiosko';
+}
+
+
+function build_kiosko_summary(PDO $pdo, int $fromSaleId = 0, string $salesTable = 'kiosko_sales'): array
+{
+    // $salesTable viene siempre de sales_table_for_zona(), nunca de input directo del usuario.
+    $salesTable = in_array($salesTable, ['kiosko_sales', 'vip_sales'], true) ? $salesTable : 'kiosko_sales';
+
     $stmt = $pdo->prepare("
         SELECT id, items, total, payment_method, created_at
-        FROM kiosko_sales
+        FROM {$salesTable}
         WHERE id > :from_sale_id
         ORDER BY id ASC
     ");
@@ -303,6 +344,7 @@ function product_row(array $row): array
         'cat' => $row['cat'],
         'sub' => $row['sub'] ?? '',
         'qty' => (int) $row['qty'],
+        'zona' => $row['zona'] ?? 'ambos',
         'custom' => (bool) $row['custom'],
     ];
 }
@@ -388,11 +430,11 @@ try_remember_login($pdo);
 $user = require_login($pdo);
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 $input = read_input();
-function require_admin_or_kiosko(array $user): void
+function require_admin_or_cajera(array $user): void
 {
     $role = strtolower(trim((string) ($user['role'] ?? '')));
 
-    if (!in_array($role, ['admin', 'kiosko', 'kioskito'], true)) {
+    if (!in_array($role, ['admin', 'cajera'], true)) {
         fail('No tenés permiso para realizar esta acción.', 403);
     }
 }
@@ -407,10 +449,16 @@ try {
            PRODUCTOS / KIOSKITO
         ========================= */
         case 'products_list': {
-                require_admin_or_kiosko($user);
-                $stmt = $pdo->query('SELECT * FROM products WHERE active = 1 ORDER BY custom ASC, id ASC');
+                require_admin_or_cajera($user);
+                $zona = current_zona($input);
+                $stmt = $pdo->prepare("
+                    SELECT * FROM products
+                    WHERE active = 1 AND (zona = 'ambos' OR zona = :zona)
+                    ORDER BY custom ASC, id ASC
+                ");
+                $stmt->execute([':zona' => $zona]);
                 $products = array_map('product_row', $stmt->fetchAll());
-                ok(['products' => $products]);
+                ok(['products' => $products, 'zona' => $zona]);
             }
 
         case 'product_add': {
@@ -419,17 +467,21 @@ try {
                 $price = max(0, (int) ($input['price'] ?? 0));
                 $cat = trim((string) ($input['cat'] ?? 'Otros')) ?: 'Otros';
                 $sub = trim((string) ($input['sub'] ?? ''));
+                $zona = in_array(($input['zona'] ?? 'ambos'), ['kiosko', 'vip', 'ambos'], true)
+                    ? $input['zona']
+                    : 'ambos';
 
                 if ($name === '') {
                     fail('El nombre del producto es obligatorio.');
                 }
 
-                $stmt = $pdo->prepare('INSERT INTO products (code, name, price, cat, sub, qty, custom, active) VALUES (NULL, :name, :price, :cat, :sub, 0, 1, 1)');
+                $stmt = $pdo->prepare('INSERT INTO products (code, name, price, cat, sub, qty, zona, custom, active) VALUES (NULL, :name, :price, :cat, :sub, 0, :zona, 1, 1)');
                 $stmt->execute([
                     ':name' => $name,
                     ':price' => $price,
                     ':cat' => $cat,
                     ':sub' => $sub,
+                    ':zona' => $zona,
                 ]);
                 ok(['id' => (int) $pdo->lastInsertId()]);
             }
@@ -988,7 +1040,7 @@ try {
                     fail('Si usás un email como usuario, ingresalo completo. Ejemplo: nicolasochoa@gmail.com', 422);
                 }
 
-                if (!in_array($role, ['admin', 'usuario', 'puerta', 'kiosko'], true)) {
+                if (!in_array($role, ['admin', 'usuario', 'puerta', 'cajera'], true)) {
                     fail('Rol inválido.', 422);
                 }
 
@@ -1037,7 +1089,7 @@ try {
                     fail('ID inválido.', 422);
                 }
 
-                if (!in_array($role, ['admin', 'usuario', 'puerta', 'kiosko'], true)) {
+                if (!in_array($role, ['admin', 'usuario', 'puerta', 'cajera'], true)) {
                     fail('Rol inválido.', 422);
                 }
 
@@ -1107,7 +1159,7 @@ try {
             }
 
         case 'guardarropas_add': {
-                require_admin_or_kiosko($user);
+                require_admin_or_cajera($user);
 
                 $nombre   = trim((string) ($input['nombre']   ?? ''));
                 $dni      = trim((string) ($input['dni']      ?? ''));
@@ -1146,7 +1198,7 @@ try {
             }
 
         case 'guardarropas_entregar': {
-                require_admin_or_kiosko($user);
+                require_admin_or_cajera($user);
 
                 $id = (int) ($input['id'] ?? 0);
                 if ($id <= 0) {
@@ -1196,7 +1248,7 @@ try {
             }
 
         case 'guardarropas_delete': {
-                require_admin_or_kiosko($user);
+                require_admin_or_cajera($user);
 
                 $id = (int) ($input['id'] ?? 0);
 
@@ -1264,27 +1316,52 @@ try {
                 $price = max(0, (int) ($input['price'] ?? 0));
                 $cat   = trim((string) ($input['cat'] ?? 'Otros')) ?: 'Otros';
                 $sub   = trim((string) ($input['sub'] ?? ''));
+                $zona  = $input['zona'] ?? null;
 
                 if ($id <= 0 || $name === '') {
                     fail('Datos inválidos.');
                 }
 
-                $stmt = $pdo->prepare("
-                UPDATE products
-                SET name = :name,
-                    price = :price,
-                    cat = :cat,
-                    sub = :sub
-                WHERE id = :id
-            ");
+                if ($zona !== null && !in_array($zona, ['kiosko', 'vip', 'ambos'], true)) {
+                    fail('Zona inválida.');
+                }
 
-                $stmt->execute([
-                    ':name'  => $name,
-                    ':price' => $price,
-                    ':cat'   => $cat,
-                    ':sub'   => $sub,
-                    ':id'    => $id,
-                ]);
+                if ($zona !== null) {
+                    $stmt = $pdo->prepare("
+                    UPDATE products
+                    SET name = :name,
+                        price = :price,
+                        cat = :cat,
+                        sub = :sub,
+                        zona = :zona
+                    WHERE id = :id
+                ");
+                    $stmt->execute([
+                        ':name'  => $name,
+                        ':price' => $price,
+                        ':cat'   => $cat,
+                        ':sub'   => $sub,
+                        ':zona'  => $zona,
+                        ':id'    => $id,
+                    ]);
+                } else {
+                    // Compatibilidad: si no se manda zona, no se toca (stock/qty tampoco se modifica).
+                    $stmt = $pdo->prepare("
+                    UPDATE products
+                    SET name = :name,
+                        price = :price,
+                        cat = :cat,
+                        sub = :sub
+                    WHERE id = :id
+                ");
+                    $stmt->execute([
+                        ':name'  => $name,
+                        ':price' => $price,
+                        ':cat'   => $cat,
+                        ':sub'   => $sub,
+                        ':id'    => $id,
+                    ]);
+                }
 
                 ok();
             }
@@ -1292,7 +1369,10 @@ try {
            VENTAS / HISTORIAL
         ========================= */
         case 'sale_register': {
-                require_admin_or_kiosko($user);
+                require_admin_or_cajera($user);
+
+                $zona = current_zona($input);
+                $salesTable = sales_table_for_zona($zona);
 
                 $items = $input['items'] ?? [];
                 $total = max(0, (int) ($input['total'] ?? 0));
@@ -1313,7 +1393,7 @@ try {
 
                 $stmtExisting = $pdo->prepare("
                 SELECT id
-                FROM kiosko_sales
+                FROM {$salesTable}
                 WHERE client_sale_id = :client_sale_id
                 LIMIT 1
             ");
@@ -1335,7 +1415,7 @@ try {
                 $pdo->beginTransaction();
 
                 $stmt = $pdo->prepare("
-                INSERT INTO kiosko_sales (
+                INSERT INTO {$salesTable} (
                     user_id,
                     items,
                     total,
@@ -1387,20 +1467,24 @@ try {
                 ]);
             }
         case 'sales_history': {
-                require_admin_or_kiosko($user);
+                require_admin_or_cajera($user);
 
-                // Mostrar solamente las ventas de la caja actualmente abierta.
+                $zona = current_zona($input);
+                $salesTable = sales_table_for_zona($zona);
+                $closingsTable = closings_table_for_zona($zona);
+
+                // Mostrar solamente las ventas de la caja actualmente abierta (de esta zona).
                 // Los cierres ocultos del historial también cuentan como cierres válidos.
                 $stmtLast = $pdo->query("
                 SELECT COALESCE(MAX(to_sale_id), 0)
-                FROM kiosko_closings
+                FROM {$closingsTable}
             ");
 
                 $lastClosedSaleId = (int) $stmtLast->fetchColumn();
 
                 $stmt = $pdo->prepare("
                 SELECT id, items, total, payment_method, created_at
-                FROM kiosko_sales
+                FROM {$salesTable}
                 WHERE id > :last_closed_sale_id
                 ORDER BY id DESC
                 LIMIT 100
@@ -1431,48 +1515,58 @@ try {
                     'sales' => $sales,
                     'lastClosedSaleId' => $lastClosedSaleId,
                     'scope' => 'current_cash',
+                    'zona' => $zona,
                 ]);
             }
         case 'kiosko_summary': {
-                require_admin_or_kiosko($user);
+                require_admin_or_cajera($user);
+
+                $zona = current_zona($input);
+                $salesTable = sales_table_for_zona($zona);
+                $closingsTable = closings_table_for_zona($zona);
 
                 $stmtLast = $pdo->query("
                 SELECT COALESCE(MAX(to_sale_id), 0)
-                FROM kiosko_closings
+                FROM {$closingsTable}
             ");
 
                 $lastClosedSaleId = (int) $stmtLast->fetchColumn();
 
-                $summary = build_kiosko_summary($pdo, $lastClosedSaleId);
+                $summary = build_kiosko_summary($pdo, $lastClosedSaleId, $salesTable);
 
                 ok([
                     'lastClosedSaleId' => $lastClosedSaleId,
                     'summary' => $summary,
+                    'zona' => $zona,
                 ]);
             }
 
         case 'kiosko_close': {
-                require_admin_or_kiosko($user);
+                require_admin_or_cajera($user);
+
+                $zona = current_zona($input);
+                $salesTable = sales_table_for_zona($zona);
+                $closingsTable = closings_table_for_zona($zona);
 
                 $pdo->beginTransaction();
 
                 $stmtLast = $pdo->query("
                 SELECT COALESCE(MAX(to_sale_id), 0)
-                FROM kiosko_closings
+                FROM {$closingsTable}
                 FOR UPDATE
             ");
 
                 $lastClosedSaleId = (int) $stmtLast->fetchColumn();
-                $summary = build_kiosko_summary($pdo, $lastClosedSaleId);
+                $summary = build_kiosko_summary($pdo, $lastClosedSaleId, $salesTable);
 
                 if ((int) $summary['sales_count'] <= 0) {
                     $pdo->rollBack();
-                    fail('No hay ventas nuevas para cerrar.');
+                    fail('No hay ventas nuevas para cerrar en ' . zona_label($zona) . '.');
                 }
 
                 // La tabla real usa las columnas `total` e `items`.
                 $stmt = $pdo->prepare("
-                INSERT INTO kiosko_closings (
+                INSERT INTO {$closingsTable} (
                     user_id,
                     from_sale_id,
                     to_sale_id,
@@ -1519,26 +1613,30 @@ try {
                 ok([
                     'id' => $closingId,
                     'summary' => $summary,
-                    'message' => 'Caja cerrada correctamente.'
+                    'zona' => $zona,
+                    'message' => zona_label($zona) . ' cerrada correctamente.'
                 ]);
             }
 
         case 'kiosko_closings_list': {
                 require_admin($user);
 
+                $zona = current_zona($input);
+                $closingsTable = closings_table_for_zona($zona);
+
                 $columnCheck = $pdo->query("
                 SELECT COUNT(*)
                 FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = 'kiosko_closings'
+                  AND TABLE_NAME = '{$closingsTable}'
                   AND COLUMN_NAME = 'deleted_at'
             ");
 
                 if ((int) $columnCheck->fetchColumn() === 0) {
                     $pdo->exec("
-                    ALTER TABLE kiosko_closings
+                    ALTER TABLE {$closingsTable}
                     ADD COLUMN deleted_at DATETIME NULL,
-                    ADD INDEX idx_kiosko_closings_deleted_at (deleted_at)
+                    ADD INDEX idx_{$closingsTable}_deleted_at (deleted_at)
                 ");
                 }
 
@@ -1558,7 +1656,7 @@ try {
                     kc.created_at,
                     kc.closed_at,
                     COALESCE(u.display_name, u.username, 'Usuario eliminado') AS closed_by
-                FROM kiosko_closings kc
+                FROM {$closingsTable} kc
                 LEFT JOIN users u ON u.id = kc.user_id
                 WHERE kc.deleted_at IS NULL
                 ORDER BY COALESCE(kc.closed_at, kc.created_at) DESC, kc.id DESC
@@ -1618,11 +1716,15 @@ try {
                 ok([
                     'closings' => $closings,
                     'summary' => $historySummary,
+                    'zona' => $zona,
                 ]);
             }
 
         case 'kiosko_closing_delete': {
                 require_admin($user);
+
+                $zona = current_zona($input);
+                $closingsTable = closings_table_for_zona($zona);
 
                 $closingId = (int) ($input['id'] ?? 0);
 
@@ -1634,20 +1736,20 @@ try {
                 SELECT COUNT(*)
                 FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = 'kiosko_closings'
+                  AND TABLE_NAME = '{$closingsTable}'
                   AND COLUMN_NAME = 'deleted_at'
             ");
 
                 if ((int) $columnCheck->fetchColumn() === 0) {
                     $pdo->exec("
-                    ALTER TABLE kiosko_closings
+                    ALTER TABLE {$closingsTable}
                     ADD COLUMN deleted_at DATETIME NULL,
-                    ADD INDEX idx_kiosko_closings_deleted_at (deleted_at)
+                    ADD INDEX idx_{$closingsTable}_deleted_at (deleted_at)
                 ");
                 }
 
                 $stmt = $pdo->prepare("
-                UPDATE kiosko_closings
+                UPDATE {$closingsTable}
                 SET deleted_at = NOW()
                 WHERE id = :id
                   AND deleted_at IS NULL

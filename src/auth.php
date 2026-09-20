@@ -19,11 +19,13 @@ $currentRole = strtolower(trim((string) ($currentUser['role'] ?? '')));
 
 $isAdmin = $currentRole === ROLE_ADMIN;
 $isPuerta = $currentRole === ROLE_PUERTA;
-$isKiosko = $currentRole === ROLE_KIOSKO;
+$isCajera = $currentRole === ROLE_CAJERA;
 
 $canSeeAdmin = canAccess($currentRole, 'admin');
 
 $canSeeKioskito = canAccess($currentRole, 'kiosko');
+
+$canSeeVip = canAccess($currentRole, 'vip');
 
 $canManageDoor = canAccess($currentRole, 'door');
 

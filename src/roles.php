@@ -5,7 +5,7 @@ declare(strict_types=1);
 const ROLE_ADMIN = 'admin';
 const ROLE_USUARIO = 'usuario';
 const ROLE_PUERTA = 'puerta';
-const ROLE_KIOSKO = 'kiosko';
+const ROLE_CAJERA = 'cajera';
 
 function roleExists(string $role): bool
 {
@@ -13,7 +13,7 @@ function roleExists(string $role): bool
         ROLE_ADMIN,
         ROLE_USUARIO,
         ROLE_PUERTA,
-        ROLE_KIOSKO,
+        ROLE_CAJERA,
     ], true);
 }
 
@@ -25,6 +25,7 @@ function canAccess(string $role, string $module): bool
             'admin',
             'door',
             'kiosko',
+            'vip',
             'stock',
             'guardarropas',
         ],
@@ -37,8 +38,9 @@ function canAccess(string $role, string $module): bool
             'door',
         ],
 
-        ROLE_KIOSKO => [
+        ROLE_CAJERA => [
             'kiosko',
+            'vip',
             'guardarropas',
         ],
 

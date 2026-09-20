@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS users (
     display_name VARCHAR(80) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
 
-    role ENUM('admin', 'usuario', 'puerta', 'kiosko') NOT NULL DEFAULT 'usuario',
+    role ENUM('admin', 'usuario', 'puerta', 'cajera') NOT NULL DEFAULT 'usuario',
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS products (
    ========================================================= */
 
 ALTER TABLE users
-    MODIFY COLUMN role ENUM('admin', 'usuario', 'puerta', 'kiosko')
+    MODIFY COLUMN role ENUM('admin', 'usuario', 'puerta', 'cajera')
     NOT NULL DEFAULT 'usuario';
 
 SET @products_category_order_exists := (

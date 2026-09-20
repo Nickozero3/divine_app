@@ -26,6 +26,7 @@ function homeModuleIcon(string $icon): string
   return match ($icon) {
     'admin' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m5 10V5m6 14v-7m5 7V3"/><path d="M2 21h20"/></svg>',
     'kioskito' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.1 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L20 7H6"/><circle cx="10" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></svg>',
+    'vip' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2.6 6.2L21 9l-5 4.3L17.4 20 12 16.6 6.6 20 8 13.3 3 9l6.4-.8Z"/></svg>',
     'door' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21h14M7 21V4.5A1.5 1.5 0 0 1 8.5 3H17v18"/><path d="M11 12h.01"/></svg>',
     'menu' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
     'stock' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="m3 7 9 4 9-4M3 7v10l9 4 9-4V7M12 11v10"/></svg>',
@@ -38,7 +39,7 @@ function homeModuleIcon(string $icon): string
  * - admin: acceso total.
  * - puerta: listas en puerta y carta.
  * - usuario: RRPP/Pública; sus listas y carta.
- * - kiosko: Kioskito, Guardarropas y carta.
+ * - cajera: Kioskito, Guardarropas y carta.
  */
 $currentRole = strtolower(trim((string) (
   $currentRole
@@ -49,11 +50,13 @@ $currentRole = strtolower(trim((string) (
 $isAdmin = $currentRole === 'admin';
 $isPuerta = $currentRole === 'puerta';
 $isRrpp = $currentRole === 'usuario';
-$isKiosko = $currentRole === 'kiosko';
+$isCajera = $currentRole === 'cajera';
 
 $canSeeAdmin = canAccess($currentRole, 'admin');
 
 $canSeeKioskito = canAccess($currentRole, 'kiosko');
+
+$canSeeVip = canAccess($currentRole, 'vip');
 
 $canSeeDoor = canAccess($currentRole, 'door');
 
@@ -66,7 +69,7 @@ $roleLabels = [
   'admin' => 'Administrador',
   'puerta' => 'Guardia / Puerta',
   'usuario' => 'RRPP / Pública',
-  'kiosko' => 'Kioskito / Guardarropas',
+  'cajera' => 'Cajera',
 ];
 
 $displayName = trim((string) ($currentUser['display_name'] ?? 'Usuario')) ?: 'Usuario';
@@ -90,6 +93,15 @@ $modules = array_values(array_filter([
     'eyebrow' => 'Ventas y prendas',
     'title' => 'Kioskito',
     'description' => 'Registrá ventas, controlá la caja y gestioná el guardarropas desde el mismo módulo.',
+  ],
+  [
+    'visible' => $canSeeVip,
+    'href' => 'vip.php',
+    'icon' => 'vip',
+    'accent' => 'violet',
+    'eyebrow' => 'Ventas VIP',
+    'title' => 'Kioskito VIP',
+    'description' => 'Punto de venta exclusivo de VIP, con su propia caja e independiente del Kiosko.',
   ],
   [
     'visible' => $canSeeDoor,
