@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+session_start();
 require_once __DIR__ . '/config/conexion.php';
 require_once __DIR__ . '/config/assets.php';
 
@@ -9,6 +10,8 @@ if (file_exists(__DIR__ . '/const.php')) {
 }
 
 $appName = defined('APP_NAME') ? APP_NAME : 'Menú';
+$currentRole = strtolower(trim((string) ($_SESSION['user']['role'] ?? '')));
+$isAdmin = $currentRole === 'admin';
 
 function e(string $value): string
 {
@@ -74,7 +77,7 @@ function categorySlug(string $category): string
     return trim($slug, '-') ?: 'categoria';
 }
 
-function renderProductsPanel(string $category, array $items, bool $active): void
+function renderProductsPanel(string $category, array $items, bool $active, bool $isAdmin): void
 {
     $slug = categorySlug($category);
     ?>
@@ -105,8 +108,35 @@ function renderProductsPanel(string $category, array $items, bool $active): void
                             <?php endif; ?>
                         </div>
 
-                        <div class="product-price">
-                            <?= money($item['price'] ?? 0) ?>
+                        <div class="product-price-wrap">
+                            <?php if ($isAdmin): ?>
+                                <label class="sr-only" for="menu-price-<?= (int) $item['id'] ?>">Precio de <?= e((string) ($item['name'] ?? '')) ?></label>
+                                <div class="menu-price-editor">
+                                    <span class="menu-price-symbol">$</span>
+                                    <input
+                                        id="menu-price-<?= (int) $item['id'] ?>"
+                                        class="menu-price-input"
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value="<?= (int) ($item['price'] ?? 0) ?>"
+                                        data-product-id="<?= (int) $item['id'] ?>"
+                                        data-original-price="<?= (int) ($item['price'] ?? 0) ?>"
+                                        aria-label="Precio de <?= e((string) ($item['name'] ?? '')) ?>"
+                                    >
+                                    <button
+                                        type="button"
+                                        class="menu-price-save"
+                                        data-product-id="<?= (int) $item['id'] ?>"
+                                    >
+                                        Guardar
+                                    </button>
+                                </div>
+                            <?php else: ?>
+                                <div class="product-price">
+                                    <?= money($item['price'] ?? 0) ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </article>
                 <?php endforeach; ?>
@@ -224,6 +254,9 @@ $updatedAt = date('d/m/Y H:i');
   <header class="menu-header">
     <h1 class="menu-title">Carta Virtual de <?= e($appName) ?></h1>
     <p class="menu-subtitle">Lista de precios (Pedir en la barra) </p>
+    <?php if ($isAdmin): ?>
+      <div class="menu-admin-banner">🛠️ Modo administrador · Podés modificar los precios directamente desde la carta.</div>
+    <?php endif; ?>
   </header>
 
   <?php if (empty($categories)): ?>
@@ -257,7 +290,7 @@ $updatedAt = date('d/m/Y H:i');
 
       <div class="tabs-content">
         <?php foreach ($categories as $index => $category): ?>
-          <?php renderProductsPanel($category, $grouped[$category], $index === 0); ?>
+          <?php renderProductsPanel($category, $grouped[$category], $index === 0, $isAdmin); ?>
         <?php endforeach; ?>
       </div>
 
