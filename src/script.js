@@ -140,6 +140,9 @@ function appErrorBox(title, error = null, targetId = null) {
 
 
 let APP_BROKEN = false;
+let DIVINE_RATE_LIMIT_UNTIL = 0;
+let DIVINE_RATE_LIMIT_TIMER = null;
+const DIVINE_GET_INFLIGHT = new Map();
 
 function getErrorMessage(error) {
   if (!error) return 'Error desconocido';
@@ -368,9 +371,27 @@ function divineUpdateNetworkStatus() {
   }
 }
 
+function divineShowRateLimitNotice(seconds = 6) {
+  const existing = document.getElementById('divine-rate-limit-notice');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'divine-rate-limit-notice';
+  el.style.cssText = 'position:fixed;right:14px;bottom:14px;z-index:99999;max-width:340px;padding:12px 14px;border-radius:14px;background:rgba(20,20,24,.96);border:1px solid rgba(255,193,7,.35);color:var(--text,#fff);box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px Arial,sans-serif;';
+  el.innerHTML = `🟡 Servidor temporalmente limitado. Divine mantiene la pantalla y reintentará automáticamente.`;
+  document.body.appendChild(el);
+  clearTimeout(DIVINE_RATE_LIMIT_TIMER);
+  DIVINE_RATE_LIMIT_TIMER = setTimeout(() => el.remove(), Math.max(4000, seconds * 1000));
+}
+
 async function api(action, data = null, params = {}) {
   const query = new URLSearchParams({ action, ...params });
   const options = { credentials: 'same-origin' };
+  const isGet = data === null;
+  const requestKey = isGet ? query.toString() : null;
+
+  if (isGet && DIVINE_GET_INFLIGHT.has(requestKey)) {
+    return DIVINE_GET_INFLIGHT.get(requestKey);
+  }
 
   if (data !== null) {
     options.method = 'POST';
@@ -378,33 +399,62 @@ async function api(action, data = null, params = {}) {
     options.body = JSON.stringify(data);
   }
 
-  let res;
-  try {
+  const run = (async () => {
     if (navigator.onLine === false) {
       const offlineError = new Error('Sin conexión a Internet.');
       offlineError.isNetworkError = true;
       throw offlineError;
     }
-    res = await fetch(`api.php?${query.toString()}`, options);
-  } catch (error) {
-    error.isNetworkError = true;
-    throw error;
-  }
 
-  const text = await res.text();
-  let json;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    throw new Error(text || `HTTP ${res.status}`);
-  }
+    if (Date.now() < DIVINE_RATE_LIMIT_UNTIL) {
+      const waitError = new Error('Servidor temporalmente limitado.');
+      waitError.status = 429;
+      waitError.isRateLimited = true;
+      throw waitError;
+    }
 
-  if (!res.ok || !json.ok) {
-    const apiError = new Error(json.error || 'Error');
-    apiError.status = res.status;
-    throw apiError;
+    let res;
+    try {
+      res = await fetch(`api.php?${query.toString()}`, options);
+    } catch (error) {
+      error.isNetworkError = true;
+      throw error;
+    }
+
+    if (res.status === 429) {
+      const retryAfter = Number(res.headers.get('Retry-After')) || 6;
+      DIVINE_RATE_LIMIT_UNTIL = Date.now() + Math.min(Math.max(retryAfter, 4), 30) * 1000;
+      divineShowRateLimitNotice(retryAfter);
+      const apiError = new Error('Servidor temporalmente limitado.');
+      apiError.status = 429;
+      apiError.isRateLimited = true;
+      throw apiError;
+    }
+
+    const text = await res.text();
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      const parseError = new Error(text || `HTTP ${res.status}`);
+      parseError.status = res.status;
+      throw parseError;
+    }
+
+    if (!res.ok || !json.ok) {
+      const apiError = new Error(json.error || 'Error');
+      apiError.status = res.status;
+      throw apiError;
+    }
+    return json;
+  })();
+
+  if (isGet) {
+    DIVINE_GET_INFLIGHT.set(requestKey, run);
+    try { return await run; }
+    finally { DIVINE_GET_INFLIGHT.delete(requestKey); }
   }
-  return json;
+  return run;
 }
 
 window.addEventListener('online', () => {
@@ -440,6 +490,10 @@ document.addEventListener('DOMContentLoaded', () => {
 setInterval(() => divineFlushSyncQueue().catch(error => console.error('[DIVINE SYNC]', error)), 5000);
 
 function showError(error, targetId = null) {
+  if (error?.isRateLimited || Number(error?.status) === 429) {
+    console.warn('[DIVINE RATE LIMIT]', error);
+    return;
+  }
   showAppBroken('Error de la app', error, targetId);
 }
 
