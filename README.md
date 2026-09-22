@@ -53,7 +53,7 @@ Está diseñada para trabajar en tiempo real desde computadoras, tablets y celul
 - 🛒 Barra, Kioskito y Guardarropas.
 - 📱 Clientes que consultan la carta pública.
 
-La aplicación utiliza sesiones PHP, permisos por rol y una base de datos MySQL para mantener listas, ventas, cierres de caja, productos, prendas, QR y movimientos internos.
+La aplicación utiliza sesiones PHP, permisos por rol y una base de datos MySQL para mantener listas, ventas, cierres de caja, productos, prendas, QR, movimientos internos y una cola idempotente de operaciones offline.
 
 ---
 
@@ -129,7 +129,7 @@ tarjeta
 regalo
 ```
 
-La aplicación evita ventas duplicadas mediante `client_sale_id`.
+La aplicación evita ventas duplicadas mediante `client_sale_id` y puede dejar ventas pendientes en el dispositivo cuando se pierde Internet para sincronizarlas al reconectar.
 
 ---
 
@@ -240,10 +240,10 @@ Debe permanecer accesible sin exigir inicio de sesión:
 
 ## 🔐 Roles y permisos
 
-La aplicación utiliza cuatro roles:
+La aplicación utiliza cinco roles operativos (conservando `cajera` por compatibilidad):
 
 ```sql
-ENUM('admin', 'usuario', 'puerta', 'kiosko')
+ENUM('admin', 'usuario', 'puerta', 'cajera', 'kioskito')
 ```
 
 ### Matriz de permisos
@@ -312,7 +312,7 @@ Accede a:
 
 No puede ver listas ajenas ni cambiar estados de ingreso.
 
-### 🛒 `kiosko`
+### 🛒 `kioskito`
 
 Nombre visible:
 
@@ -672,17 +672,20 @@ Tablas principales:
 | `container_stock_movements` | Movimientos de stock |
 | `app_logs` | Auditoría |
 | `user_remember_tokens` | Sesiones persistentes |
+| `sync_operations` | Idempotencia de operaciones offline |
+| `vip_sales` | Ventas independientes de VIP |
+| `vip_closings` | Cierres independientes de VIP |
 
 ---
 
 ## 🛠️ Migraciones
 
-### Agregar el rol `kiosko`
+### Consolidar los roles operativos
 
 ```sql
 ALTER TABLE users
 MODIFY COLUMN role
-ENUM('admin', 'usuario', 'puerta', 'kiosko')
+ENUM('admin', 'usuario', 'puerta', 'cajera', 'kioskito')
 NOT NULL DEFAULT 'usuario';
 ```
 
@@ -726,8 +729,7 @@ NOT NULL DEFAULT 'efectivo';
 ```
 
 > [!NOTE]
-> `init.sql` se ejecuta automáticamente solo cuando MySQL crea un volumen nuevo.  
-> Para actualizar una base existente hay que ejecutar las migraciones manualmente.
+> `init.sql` es idempotente para instalaciones existentes: crea tablas/columnas faltantes y conserva datos. En Docker, el script de entrada de MySQL solo se ejecuta automáticamente al crear el volumen por primera vez; para una base ya existente usá `setup.php` o ejecutá las sentencias de `init.sql` de forma controlada.
 
 ---
 
@@ -757,8 +759,11 @@ Roles permitidos:
 admin
 puerta
 usuario
-kiosko
+cajera
+kioskito
 ```
+
+Las instalaciones antiguas con `kiosko` se convierten automáticamente a `kioskito` durante la actualización de la base de datos.
 
 ---
 
@@ -805,6 +810,21 @@ README.md
 
 ---
 
+## 🗃️ Base de datos consolidada
+
+`db/init.sql` es la **fuente de verdad** para una instalación nueva y también contiene migraciones de compatibilidad. No es necesario ejecutar `db/02_kiosko_vip.sql` por separado sobre una instalación creada con `init.sql`.
+
+
+Kioskito y Puerta usan una cola local cuando la red no está disponible:
+
+```txt
+Operación → memoria local → Internet vuelve → reintento → servidor
+```
+
+Las ventas siguen protegidas por `client_sale_id`. Los cambios de estado de puerta usan `operation_id` + estado esperado para evitar aplicar dos veces la misma operación o sobrescribir cambios concurrentes sin detectarlo.
+
+El navegador muestra un indicador de conexión y los datos recientes de productos/listas se mantienen en caché para continuar operando sobre la pantalla ya cargada. El cierre de caja requiere conexión para evitar cerrar contra un estado incompleto.
+
 ## 🔒 Seguridad y reglas importantes
 
 - Los permisos deben validarse en PHP, no solo ocultando botones.
@@ -821,18 +841,20 @@ README.md
 - El `.env` nunca debe subirse con datos reales.
 - Los endpoints sensibles deben comprobar la sesión y el rol.
 
-Ejemplo de validación:
+Validación usada por los endpoints de ventas y guardarropas:
 
 ```php
-function require_bar_access(array $user): void
+function require_admin_or_cajera(array $user): void
 {
     $role = strtolower(trim((string) ($user['role'] ?? '')));
 
-    if (!in_array($role, ['admin', 'kiosko'], true)) {
-        fail('No tenés permiso para usar Kioskito.', 403);
+    if (!in_array($role, ['admin', 'cajera', 'kioskito', 'kiosko'], true)) {
+        fail('No tenés permiso para realizar esta acción.', 403);
     }
 }
 ```
+
+`kiosko` se conserva únicamente como compatibilidad de instalaciones antiguas; las nuevas altas usan `kioskito`.
 
 ---
 

@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS users (
     display_name VARCHAR(80) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
 
-    role ENUM('admin', 'usuario', 'puerta', 'cajera') NOT NULL DEFAULT 'usuario',
+    role ENUM('admin', 'usuario', 'puerta', 'cajera', 'kioskito', 'kiosko') NOT NULL DEFAULT 'usuario',
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS products (
    ========================================================= */
 
 ALTER TABLE users
-    MODIFY COLUMN role ENUM('admin', 'usuario', 'puerta', 'cajera')
+    MODIFY COLUMN role ENUM('admin', 'usuario', 'puerta', 'cajera', 'kioskito', 'kiosko')
     NOT NULL DEFAULT 'usuario';
 
 SET @products_category_order_exists := (
@@ -114,6 +114,9 @@ SET @products_category_order_sql := IF(
     'ALTER TABLE products ADD COLUMN category_order TINYINT UNSIGNED NOT NULL DEFAULT 99 AFTER qty',
     'DO 0'
 );
+-- Compatibilidad: instalaciones antiguas usaban 'kiosko'.
+UPDATE users SET role = 'kioskito' WHERE role = 'kiosko';
+
 PREPARE products_category_order_stmt FROM @products_category_order_sql;
 EXECUTE products_category_order_stmt;
 DEALLOCATE PREPARE products_category_order_stmt;
@@ -207,6 +210,11 @@ SET @products_order_index_sql := IF(
 PREPARE products_order_index_stmt FROM @products_order_index_sql;
 EXECUTE products_order_index_stmt;
 DEALLOCATE PREPARE products_order_index_stmt;
+
+
+ALTER TABLE users
+    MODIFY COLUMN role ENUM('admin', 'usuario', 'puerta', 'cajera', 'kioskito')
+    NOT NULL DEFAULT 'usuario';
 
 
 /* =========== ==============================================
@@ -500,6 +508,112 @@ DEALLOCATE PREPARE kiosko_deleted_at_stmt;
 
 
 /* =========================================================
+   COMPATIBILIDAD: tablas VIP de ventas/cierres
+   ========================================================= */
+
+SET @vip_client_sale_id_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'vip_sales'
+      AND COLUMN_NAME = 'client_sale_id'
+);
+SET @vip_client_sale_id_sql := IF(
+    @vip_client_sale_id_exists = 0,
+    'ALTER TABLE vip_sales ADD COLUMN client_sale_id VARCHAR(80) NULL AFTER id',
+    'DO 0'
+);
+PREPARE vip_client_sale_id_stmt FROM @vip_client_sale_id_sql;
+EXECUTE vip_client_sale_id_stmt;
+DEALLOCATE PREPARE vip_client_sale_id_stmt;
+
+SET @vip_client_sale_index_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'vip_sales'
+      AND INDEX_NAME = 'uq_vip_sales_client_sale_id'
+);
+SET @vip_client_sale_index_sql := IF(
+    @vip_client_sale_index_exists = 0,
+    'ALTER TABLE vip_sales ADD UNIQUE INDEX uq_vip_sales_client_sale_id (client_sale_id)',
+    'DO 0'
+);
+PREPARE vip_client_sale_index_stmt FROM @vip_client_sale_index_sql;
+EXECUTE vip_client_sale_index_stmt;
+DEALLOCATE PREPARE vip_client_sale_index_stmt;
+
+SET @vip_deleted_at_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'vip_closings'
+      AND COLUMN_NAME = 'deleted_at'
+);
+SET @vip_deleted_at_sql := IF(
+    @vip_deleted_at_exists = 0,
+    'ALTER TABLE vip_closings ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL AFTER closed_at',
+    'DO 0'
+);
+PREPARE vip_deleted_at_stmt FROM @vip_deleted_at_sql;
+EXECUTE vip_deleted_at_stmt;
+DEALLOCATE PREPARE vip_deleted_at_stmt;
+
+
+/* =========================================================
+   COMPATIBILIDAD: guardarropas
+   ========================================================= */
+
+SET @guardarropas_codigo_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'guardarropas' AND COLUMN_NAME = 'codigo'
+);
+SET @guardarropas_codigo_sql := IF(
+    @guardarropas_codigo_exists = 0,
+    'ALTER TABLE guardarropas ADD COLUMN codigo VARCHAR(30) NULL AFTER numero',
+    'DO 0'
+);
+PREPARE guardarropas_codigo_stmt FROM @guardarropas_codigo_sql;
+EXECUTE guardarropas_codigo_stmt;
+DEALLOCATE PREPARE guardarropas_codigo_stmt;
+
+SET @guardarropas_hora_ingreso_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'guardarropas' AND COLUMN_NAME = 'hora_ingreso'
+);
+SET @guardarropas_hora_ingreso_sql := IF(
+    @guardarropas_hora_ingreso_exists = 0,
+    'ALTER TABLE guardarropas ADD COLUMN hora_ingreso DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    'DO 0'
+);
+PREPARE guardarropas_hora_ingreso_stmt FROM @guardarropas_hora_ingreso_sql;
+EXECUTE guardarropas_hora_ingreso_stmt;
+DEALLOCATE PREPARE guardarropas_hora_ingreso_stmt;
+
+SET @guardarropas_hora_retirado_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'guardarropas' AND COLUMN_NAME = 'hora_retirado'
+);
+SET @guardarropas_hora_retirado_sql := IF(
+    @guardarropas_hora_retirado_exists = 0,
+    'ALTER TABLE guardarropas ADD COLUMN hora_retirado DATETIME NULL',
+    'DO 0'
+);
+PREPARE guardarropas_hora_retirado_stmt FROM @guardarropas_hora_retirado_sql;
+EXECUTE guardarropas_hora_retirado_stmt;
+DEALLOCATE PREPARE guardarropas_hora_retirado_stmt;
+
+SET @guardarropas_created_by_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'guardarropas' AND COLUMN_NAME = 'created_by'
+);
+SET @guardarropas_created_by_sql := IF(
+    @guardarropas_created_by_exists = 0,
+    'ALTER TABLE guardarropas ADD COLUMN created_by INT NULL',
+    'DO 0'
+);
+PREPARE guardarropas_created_by_stmt FROM @guardarropas_created_by_sql;
+EXECUTE guardarropas_created_by_stmt;
+DEALLOCATE PREPARE guardarropas_created_by_stmt;
+
+/* =========================================================
    TABLA: guardarropas
    ---------------------------------------------------------
    Guarda los números de guardarropas.
@@ -583,6 +697,33 @@ CREATE TABLE IF NOT EXISTS app_logs (
 --     Cada token tiene un selector (público) y un token_hash (secreto).
 --     ========================================================= */
     
+
+
+/* =========================================================
+   OPERACIONES DE SINCRONIZACION OFFLINE
+   ---------------------------------------------------------
+   operation_id es idempotente: una misma operacion puede
+   reintentarse sin aplicarse dos veces.
+   ========================================================= */
+
+CREATE TABLE IF NOT EXISTS sync_operations (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    operation_id VARCHAR(120) NOT NULL UNIQUE,
+    user_id INT NOT NULL,
+    operation_type VARCHAR(60) NOT NULL,
+    payload LONGTEXT NOT NULL,
+    result LONGTEXT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    synced_at DATETIME NULL,
+
+    INDEX idx_sync_operations_user (user_id),
+    INDEX idx_sync_operations_type (operation_type),
+    INDEX idx_sync_operations_created_at (created_at),
+
+    CONSTRAINT fk_sync_operations_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS user_remember_tokens (
   id INT AUTO_INCREMENT PRIMARY KEY,

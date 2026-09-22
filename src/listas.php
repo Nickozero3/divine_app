@@ -36,6 +36,7 @@ require_once __DIR__ . '/config/assets.php';
     src="js/theme.js?v=<?= asset_version('js/theme.js') ?>"
     defer></script>
 
+  <script src="pwa.js" defer></script>
 </head>
 
 <body data-page="listas">

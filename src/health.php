@@ -385,10 +385,13 @@ $schema = [
         'name',
         'price',
         'cat',
+        'zona',
         'sub',
         'qty',
         'custom',
         'active',
+        'category_order',
+        'sort_order',
         'created_at',
     ],
 
@@ -417,6 +420,15 @@ $schema = [
         'note',
         'created_at',
         'closed_at',
+        'deleted_at',
+    ],
+
+    'vip_sales' => [
+        'id', 'client_sale_id', 'user_id', 'items', 'total', 'payment_method', 'created_at',
+    ],
+
+    'vip_closings' => [
+        'id', 'user_id', 'from_sale_id', 'to_sale_id', 'total', 'efectivo_total', 'transferencia_total', 'tarjeta_total', 'regalo_total', 'sales_count', 'items', 'note', 'created_at', 'closed_at', 'deleted_at',
     ],
 
     'door_lists' => [
@@ -457,6 +469,18 @@ $schema = [
         'hora_ingreso',
         'hora_retirado',
         'retirado_at',
+    ],
+
+    'sync_operations' => [
+        'id', 'operation_id', 'user_id', 'operation_type', 'payload', 'result', 'created_at', 'synced_at',
+    ],
+
+    'container_stock_items' => [
+        'id', 'code', 'name', 'category', 'sector', 'quantity', 'low_threshold', 'max_quantity', 'sort_order', 'active', 'updated_by', 'created_at', 'updated_at',
+    ],
+
+    'container_stock_movements' => [
+        'id', 'item_id', 'user_id', 'movement_type', 'previous_quantity', 'new_quantity', 'delta', 'created_at',
     ],
 
     'app_logs' => [

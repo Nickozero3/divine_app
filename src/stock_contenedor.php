@@ -38,7 +38,8 @@ if ($stockRole !== 'admin') {
         .box{max-width:460px;padding:28px;border-radius:22px;background:#171320;border:1px solid #43335f;text-align:center}
         a{display:inline-block;margin-top:16px;color:#f0d48d;text-decoration:none;font-weight:700}
       </style>
-    </head>
+      <script src="pwa.js" defer></script>
+</head>
     <body>
       <div class="box">
         <h1>Acceso restringido</h1>
@@ -683,6 +684,7 @@ if (!function_exists('e')) {
   <title>Stock del contenedor · <?= e((string) APP_NAME) ?></title>
 
   <link rel="icon" type="image/x-icon" href="./favicon.ico">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css?v=<?= asset_version('styles.css') ?>">
   <link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
   <link rel="stylesheet" href="styles/stock-contenedor.css?v=<?= asset_version('styles/stock-contenedor.css') ?>">

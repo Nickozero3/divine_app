@@ -246,6 +246,7 @@ $updatedAt = date('d/m/Y H:i');
 
 <link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
 <script src="js/theme.js?v=<?= asset_version('js/theme.js') ?>" defer></script>
+  <script src="pwa.js" defer></script>
 </head>
 
 <body>

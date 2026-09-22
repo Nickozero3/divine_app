@@ -531,6 +531,9 @@ try {
         'user_remember_tokens',
         'container_stock_items',
         'container_stock_movements',
+        'sync_operations',
+        'vip_sales',
+        'vip_closings',
     ];
 
     $tableStatement = $pdo->query(
@@ -545,6 +548,10 @@ try {
         'products' => ['category_order', 'sort_order', 'custom', 'active'],
         'kiosko_sales' => ['client_sale_id'],
         'kiosko_closings' => ['deleted_at'],
+        'vip_sales' => ['client_sale_id'],
+        'vip_closings' => ['deleted_at'],
+        'guardarropas' => ['codigo', 'prendas', 'user_id', 'created_by', 'hora_ingreso', 'hora_retirado', 'retirado_at'],
+        'sync_operations' => ['operation_id', 'operation_type', 'payload', 'result', 'created_at', 'synced_at'],
         'container_stock_items' => ['sector', 'low_threshold', 'max_quantity'],
     ];
 

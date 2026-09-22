@@ -32,7 +32,7 @@ function current_role(): string
 }
 function is_kioskito(array $user): bool
 {
-    return ($user['role'] ?? '') === 'kioskito';
+    return in_array(($user['role'] ?? ''), ['kioskito', 'cajera', 'kiosko'], true);
 }
 
 function is_guardarropas(array $user): bool
@@ -434,7 +434,7 @@ function require_admin_or_cajera(array $user): void
 {
     $role = strtolower(trim((string) ($user['role'] ?? '')));
 
-    if (!in_array($role, ['admin', 'cajera'], true)) {
+    if (!in_array($role, ['admin', 'cajera', 'kioskito', 'kiosko'], true)) {
         fail('No tenés permiso para realizar esta acción.', 403);
     }
 }
@@ -943,6 +943,99 @@ try {
                 ok(['status' => $next]);
             }
 
+        case 'person_set_status': {
+                require_door_manager($user);
+
+                $listId = (int) ($input['listId'] ?? 0);
+                $personId = (int) ($input['personId'] ?? 0);
+                $newStatus = strtolower(trim((string) ($input['status'] ?? '')));
+                $expectedStatus = strtolower(trim((string) ($input['expectedStatus'] ?? '')));
+                $operationId = trim((string) ($input['operationId'] ?? $input['clientOperationId'] ?? ''));
+
+                if ($listId <= 0 || $personId <= 0) {
+                    fail('Datos inválidos.', 422);
+                }
+
+                if (!in_array($newStatus, ['no_vino', 'entro', 'se_fue'], true)) {
+                    fail('Estado inválido.', 422);
+                }
+
+                current_user_can_access_list($pdo, $listId, $user);
+
+                $pdo->beginTransaction();
+                try {
+                    if ($operationId !== '') {
+                        $stmtOp = $pdo->prepare('SELECT id FROM sync_operations WHERE operation_id = :operation_id LIMIT 1');
+                        $stmtOp->execute([':operation_id' => $operationId]);
+                        $existingOp = $stmtOp->fetchColumn();
+                        if ($existingOp) {
+                            $pdo->commit();
+                            ok(['status' => $newStatus, 'already_applied' => true]);
+                        }
+                    }
+
+                    $stmt = $pdo->prepare('SELECT id, status FROM door_people WHERE id = :person_id AND list_id = :list_id LIMIT 1 FOR UPDATE');
+                    $stmt->execute([
+                        ':person_id' => $personId,
+                        ':list_id' => $listId,
+                    ]);
+                    $person = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                    if (!$person) {
+                        $pdo->rollBack();
+                        fail('Persona no encontrada.', 404);
+                    }
+
+                    $currentStatus = (string) $person['status'];
+                    if ($expectedStatus !== '' && $currentStatus !== $expectedStatus) {
+                        $pdo->rollBack();
+                        fail('El estado cambió en otro dispositivo. Recargá la puerta.', 409);
+                    }
+
+                    $stmtUpdate = $pdo->prepare('UPDATE door_people SET status = :status WHERE id = :person_id AND list_id = :list_id');
+                    $stmtUpdate->execute([
+                        ':status' => $newStatus,
+                        ':person_id' => $personId,
+                        ':list_id' => $listId,
+                    ]);
+
+                    if ($operationId !== '') {
+                        $stmtInsertOp = $pdo->prepare('INSERT INTO sync_operations (operation_id, user_id, operation_type, payload, result, created_at, synced_at) VALUES (:operation_id, :user_id, :operation_type, :payload, :result, NOW(), NOW())');
+                        $stmtInsertOp->execute([
+                            ':operation_id' => $operationId,
+                            ':user_id' => (int) $user['id'],
+                            ':operation_type' => 'person_set_status',
+                            ':payload' => json_encode($input, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                            ':result' => json_encode(['status' => $newStatus], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                        ]);
+                    }
+
+                    app_log(
+                        $pdo,
+                        (int) $user['id'],
+                        (string) ($user['username'] ?? ''),
+                        'person_set_status',
+                        'door_person',
+                        $personId,
+                        'Estado de ingreso actualizado',
+                        [
+                            'list_id' => $listId,
+                            'from' => $currentStatus,
+                            'to' => $newStatus,
+                            'operation_id' => $operationId,
+                        ]
+                    );
+
+                    $pdo->commit();
+                    ok(['status' => $newStatus, 'already_applied' => false]);
+                } catch (Throwable $error) {
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+                    throw $error;
+                }
+            }
+
         case 'person_delete': {
                 $listId = (int) ($input['listId'] ?? 0);
                 $personId = (int) ($input['personId'] ?? 0);
@@ -1040,7 +1133,7 @@ try {
                     fail('Si usás un email como usuario, ingresalo completo. Ejemplo: nicolasochoa@gmail.com', 422);
                 }
 
-                if (!in_array($role, ['admin', 'usuario', 'puerta', 'cajera'], true)) {
+                if (!in_array($role, ['admin', 'usuario', 'puerta', 'cajera', 'kioskito'], true)) {
                     fail('Rol inválido.', 422);
                 }
 
@@ -1089,7 +1182,7 @@ try {
                     fail('ID inválido.', 422);
                 }
 
-                if (!in_array($role, ['admin', 'usuario', 'puerta', 'cajera'], true)) {
+                if (!in_array($role, ['admin', 'usuario', 'puerta', 'cajera', 'kioskito'], true)) {
                     fail('Rol inválido.', 422);
                 }
 
@@ -1133,6 +1226,8 @@ try {
            GUARDARROPAS
         ========================= */
         case 'guardarropas_list': {
+                require_admin_or_cajera($user);
+
                 $stmt = $pdo->query("
                 SELECT *
                 FROM guardarropas
@@ -1374,34 +1469,97 @@ try {
                 $zona = current_zona($input);
                 $salesTable = sales_table_for_zona($zona);
 
-                $items = $input['items'] ?? [];
-                $total = max(0, (int) ($input['total'] ?? 0));
-                $paymentMethod = normalize_payment_method((string) ($input['paymentMethod'] ?? 'efectivo'));
-                $clientSaleId = trim((string) ($input['clientSaleId'] ?? ''));
+                $itemsInput = $input['items'] ?? [];
+                $paymentMethod = normalize_payment_method((string) ($input['paymentMethod'] ?? $input['payment_method'] ?? 'efectivo'));
+                $clientSaleId = trim((string) ($input['clientSaleId'] ?? $input['client_sale_id'] ?? ''));
 
-                if (!is_array($items) || count($items) === 0) {
+                if (!is_array($itemsInput) || count($itemsInput) === 0) {
                     fail('No hay productos en la venta.');
-                }
-
-                if ($total <= 0 && $paymentMethod !== 'regalo') {
-                    fail('Total inválido.');
                 }
 
                 if ($clientSaleId === '') {
                     $clientSaleId = bin2hex(random_bytes(16));
                 }
+                if (strlen($clientSaleId) > 80) {
+                    fail('Identificador de venta demasiado largo.', 422);
+                }
 
-                $stmtExisting = $pdo->prepare("
-                SELECT id
-                FROM {$salesTable}
-                WHERE client_sale_id = :client_sale_id
-                LIMIT 1
-            ");
+                $normalizedItems = [];
+                $total = 0;
+                $productIds = [];
 
-                $stmtExisting->execute([
-                    ':client_sale_id' => $clientSaleId
-                ]);
+                foreach ($itemsInput as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+                    $productId = (int) ($item['id'] ?? 0);
+                    $qty = (int) ($item['qty'] ?? 0);
+                    if ($productId <= 0 || $qty <= 0 || $qty > 10000) {
+                        fail('Producto o cantidad inválida.', 422);
+                    }
+                    $productIds[$productId] = true;
+                }
 
+                if (!$productIds) {
+                    fail('La venta no contiene productos válidos.', 422);
+                }
+
+                $ids = array_keys($productIds);
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $stmtProducts = $pdo->prepare("
+SELECT id, name, price, zona
+FROM products
+WHERE id IN ({$placeholders})
+  AND active = 1");
+                $stmtProducts->execute($ids);
+                $dbProducts = [];
+                foreach ($stmtProducts->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $dbProducts[(int) $row['id']] = $row;
+                }
+
+                if (count($dbProducts) !== count($ids)) {
+                    fail('Uno o más productos ya no están disponibles.', 409);
+                }
+
+                foreach ($itemsInput as $item) {
+                    if (!is_array($item)) continue;
+                    $productId = (int) ($item['id'] ?? 0);
+                    $qty = (int) ($item['qty'] ?? 0);
+                    if ($productId <= 0 || $qty <= 0) continue;
+
+                    $product = $dbProducts[$productId];
+                    $productZona = (string) ($product['zona'] ?? 'ambos');
+                    if ($productZona !== 'ambos' && $productZona !== $zona) {
+                        fail('El producto "' . (string) $product['name'] . '" no está disponible en ' . zona_label($zona) . '.', 409);
+                    }
+
+                    $basePrice = max(0, (int) $product['price']);
+                    $finalUnit = $paymentMethod === 'tarjeta'
+                        ? (int) round($basePrice * 1.10)
+                        : $basePrice;
+                    $subtotal = $finalUnit * $qty;
+                    $surchargeUnit = $finalUnit - $basePrice;
+
+                    $total += $subtotal;
+                    $normalizedItems[] = [
+                        'id' => $productId,
+                        'name' => (string) $product['name'],
+                        'qty' => $qty,
+                        'base_price' => $basePrice,
+                        'price' => $finalUnit,
+                        'surcharge_percent' => $paymentMethod === 'tarjeta' ? 10 : 0,
+                        'surcharge_unit' => $surchargeUnit,
+                        'surcharge_total' => $surchargeUnit * $qty,
+                        'subtotal' => $subtotal,
+                    ];
+                }
+
+                if (!$normalizedItems || $total <= 0) {
+                    fail('No se pudo calcular la venta.', 422);
+                }
+
+                $stmtExisting = $pdo->prepare("SELECT id FROM {$salesTable} WHERE client_sale_id = :client_sale_id LIMIT 1");
+                $stmtExisting->execute([':client_sale_id' => $clientSaleId]);
                 $existingId = $stmtExisting->fetchColumn();
 
                 if ($existingId) {
@@ -1413,57 +1571,61 @@ try {
                 }
 
                 $pdo->beginTransaction();
+                try {
+                    $stmt = $pdo->prepare("
+INSERT INTO {$salesTable} (user_id, items, total, payment_method, client_sale_id)
+VALUES (:user_id, :items, :total, :payment_method, :client_sale_id)");
 
-                $stmt = $pdo->prepare("
-                INSERT INTO {$salesTable} (
-                    user_id,
-                    items,
-                    total,
-                    payment_method,
-                    client_sale_id
-                ) VALUES (
-                    :user_id,
-                    :items,
-                    :total,
-                    :payment_method,
-                    :client_sale_id
-                )
-            ");
+                    try {
+                        $stmt->execute([
+                            ':user_id' => (int) $user['id'],
+                            ':items' => json_encode($normalizedItems, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                            ':total' => $total,
+                            ':payment_method' => $paymentMethod,
+                            ':client_sale_id' => $clientSaleId,
+                        ]);
+                    } catch (PDOException $e) {
+                        if ((string) $e->getCode() === '23000') {
+                            $existingRetry = $pdo->prepare("SELECT id FROM {$salesTable} WHERE client_sale_id = :client_sale_id LIMIT 1");
+                            $existingRetry->execute([':client_sale_id' => $clientSaleId]);
+                            $retryId = $existingRetry->fetchColumn();
+                            if ($retryId) {
+                                $pdo->rollBack();
+                                ok([
+                                    'id' => (int) $retryId,
+                                    'duplicate' => true,
+                                    'message' => 'Venta ya registrada previamente.'
+                                ]);
+                            }
+                        }
+                        throw $e;
+                    }
 
-                $stmt->execute([
-                    ':user_id' => (int) $user['id'],
-                    ':items' => json_encode($items, JSON_UNESCAPED_UNICODE),
-                    ':total' => $total,
-                    ':payment_method' => $paymentMethod,
-                    ':client_sale_id' => $clientSaleId,
-                ]);
+                    $saleId = (int) $pdo->lastInsertId();
 
-                $saleId = (int) $pdo->lastInsertId();
-
-                $updQty = $pdo->prepare("
-                UPDATE products
-                SET qty = qty + :qty
-                WHERE id = :id AND active = 1
-            ");
-
-                foreach ($items as $item) {
-                    $productId = (int) ($item['id'] ?? 0);
-                    $qty = (int) ($item['qty'] ?? 0);
-
-                    if ($productId > 0 && $qty > 0) {
+                    $updQty = $pdo->prepare("UPDATE products SET qty = qty + :qty WHERE id = :id AND active = 1");
+                    foreach ($normalizedItems as $item) {
                         $updQty->execute([
-                            ':qty' => $qty,
-                            ':id' => $productId,
+                            ':qty' => (int) $item['qty'],
+                            ':id' => (int) $item['id'],
                         ]);
                     }
-                }
 
-                $pdo->commit();
+                    $pdo->commit();
+                } catch (Throwable $error) {
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+                    throw $error;
+                }
 
                 ok([
                     'id' => $saleId,
+                    'total' => $total,
+                    'items' => $normalizedItems,
                     'paymentMethod' => $paymentMethod,
                     'paymentLabel' => payment_label($paymentMethod),
+                    'zona' => $zona,
                 ]);
             }
         case 'sales_history': {

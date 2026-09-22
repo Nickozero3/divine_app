@@ -20,6 +20,7 @@ $currentRole = strtolower(trim((string) ($currentUser['role'] ?? '')));
 $isAdmin = $currentRole === ROLE_ADMIN;
 $isPuerta = $currentRole === ROLE_PUERTA;
 $isCajera = $currentRole === ROLE_CAJERA;
+$isKioskito = in_array($currentRole, [ROLE_KIOSKITO, ROLE_KIOSKO_LEGACY], true);
 
 $canSeeAdmin = canAccess($currentRole, 'admin');
 

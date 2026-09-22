@@ -39,7 +39,7 @@ function homeModuleIcon(string $icon): string
  * - admin: acceso total.
  * - puerta: listas en puerta y carta.
  * - usuario: RRPP/Pública; sus listas y carta.
- * - cajera: Kioskito, Guardarropas y carta.
+ * - cajera / kioskito: Kioskito, Guardarropas y carta.
  */
 $currentRole = strtolower(trim((string) (
   $currentRole
@@ -51,6 +51,7 @@ $isAdmin = $currentRole === 'admin';
 $isPuerta = $currentRole === 'puerta';
 $isRrpp = $currentRole === 'usuario';
 $isCajera = $currentRole === 'cajera';
+$isKioskito = in_array($currentRole, ['kioskito', 'kiosko'], true);
 
 $canSeeAdmin = canAccess($currentRole, 'admin');
 
@@ -70,6 +71,8 @@ $roleLabels = [
   'puerta' => 'Guardia / Puerta',
   'usuario' => 'RRPP / Pública',
   'cajera' => 'Cajera',
+  'kioskito' => 'Kioskito',
+  'kiosko' => 'Kioskito',
 ];
 
 $displayName = trim((string) ($currentUser['display_name'] ?? 'Usuario')) ?: 'Usuario';
@@ -149,11 +152,13 @@ $appVersion = defined('APP_VERSION') ? (string) APP_VERSION : '';
   <title>Panel · <?= e(APP_NAME) ?></title>
 
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css?v=<?= e(homeAssetVersion('styles.css')) ?>">
   <link rel="stylesheet" href="styles/theme.css?v=<?= e(homeAssetVersion('styles/theme.css')) ?>">
   <link rel="stylesheet" href="styles/index.css?v=<?= e(homeAssetVersion('styles/index.css')) ?>">
 
   <script src="js/theme.js?v=<?= e(homeAssetVersion('js/theme.js')) ?>" defer></script>
+  <script src="pwa.js" defer></script>
 </head>
 
 <body class="home-page" data-page="menu">

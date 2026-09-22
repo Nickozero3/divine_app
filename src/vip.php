@@ -18,10 +18,12 @@ if (!$canSeeVip) {
   <title><?= e(APP_NAME) ?> · Kioskito VIP</title>
   <link rel="stylesheet" href="styles.css?v=<?= asset_version('styles.css') ?>">
   <link rel="icon" type="image/x-icon" href="./favicon.ico">
+  <link rel="manifest" href="manifest.json">
 
 <link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
 <link rel="stylesheet" href="styles/kioskito.css?v=<?= asset_version('styles/kioskito.css') ?>">
 <script src="js/theme.js?v=<?= asset_version('js/theme.js') ?>" defer></script>
+  <script src="pwa.js" defer></script>
 </head>
 <body data-page="kioskito-vip" data-zona="vip">
   <div class="stars"></div>
@@ -34,7 +36,7 @@ if (!$canSeeVip) {
         <span class="live-dot">● LIVE</span>
       </div>
       <div class="kiosk-top-actions">
-        <span class="kiosk-role-badge"><?= $isAdmin ? '🛡️ Admin' : '🧾 Cajera' ?></span>
+        <span class="kiosk-role-badge"><?= $isAdmin ? '🛡️ Admin' : ($isKioskito ? '🛒 Kioskito' : '🧾 Cajera') ?></span>
         <span class="kiosk-cash-badge">● Caja VIP</span>
         <?php if ($isAdmin): ?>
           <button class="topbar-back kiosk-admin-action" type="button" onclick="openAddProduct()">＋ Producto</button>

@@ -251,46 +251,193 @@ window.addEventListener('unhandledrejection', (event) => {
   showAppBroken('Error async no controlado', event.reason || 'Promesa rechazada');
 });
 
-async function api(action, data = null, params = {}) {
+const DIVINE_SYNC_QUEUE_KEY = 'divine_sync_queue_v1';
+const DIVINE_PRODUCTS_CACHE_PREFIX = 'divine_products_cache_v1:';
+const DIVINE_DOOR_CACHE_PREFIX = 'divine_door_cache_v1:';
+const DIVINE_MAX_OFFLINE_QUEUE = 500;
 
-  const query = new URLSearchParams({
+function divineIsNetworkError(error) {
+  return Boolean(error && error.isNetworkError === true) || navigator.onLine === false;
+}
+
+function divineReadStorage(key, fallback = null) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function divineWriteStorage(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function divineGetSyncQueue() {
+  const queue = divineReadStorage(DIVINE_SYNC_QUEUE_KEY, []);
+  return Array.isArray(queue) ? queue : [];
+}
+
+function divineSaveSyncQueue(queue) {
+  return divineWriteStorage(DIVINE_SYNC_QUEUE_KEY, queue.slice(-DIVINE_MAX_OFFLINE_QUEUE));
+}
+
+function divineNewOperationId(prefix = 'op') {
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function divineQueueOperation(operationType, action, payload) {
+  const queue = divineGetSyncQueue();
+  const operation = {
+    operationId: divineNewOperationId(operationType),
+    operationType,
     action,
-    ...params
-  });
-
-  const options = {
-    credentials: 'same-origin'
+    payload,
+    queuedAt: new Date().toISOString()
   };
+  queue.push(operation);
+  divineSaveSyncQueue(queue);
+  divineUpdateNetworkStatus();
+  return operation;
+}
+
+async function divineFlushSyncQueue() {
+  if (navigator.onLine === false) return;
+
+  const queue = divineGetSyncQueue();
+  if (!queue.length) {
+    divineUpdateNetworkStatus();
+    return;
+  }
+
+  const remaining = [];
+  for (const operation of queue) {
+    try {
+      const payload = { ...(operation.payload || {}) };
+      if (operation.operationType === 'door_status') {
+        payload.operationId = operation.operationId;
+      }
+      await api(operation.action, payload);
+    } catch (error) {
+      if (divineIsNetworkError(error) || error?.status === 401 || error?.status === 403) {
+        remaining.push(operation);
+        break;
+      }
+      console.error('[DIVINE SYNC] Operación rechazada:', operation, error);
+    }
+  }
+
+  divineSaveSyncQueue(remaining);
+  divineUpdateNetworkStatus();
+
+  if (!remaining.length) {
+    document.dispatchEvent(new CustomEvent('divine-sync-complete'));
+  }
+}
+
+function divineEnsureNetworkBadge() {
+  if (document.getElementById('divine-network-status')) return;
+  const badge = document.createElement('div');
+  badge.id = 'divine-network-status';
+  badge.className = 'divine-network-status';
+  badge.setAttribute('role', 'status');
+  badge.setAttribute('aria-live', 'polite');
+  document.body.appendChild(badge);
+}
+
+function divineUpdateNetworkStatus() {
+  divineEnsureNetworkBadge();
+  const badge = document.getElementById('divine-network-status');
+  if (!badge) return;
+  const pending = divineGetSyncQueue().length;
+  const offline = navigator.onLine === false;
+  badge.classList.toggle('is-offline', offline);
+  badge.classList.toggle('is-pending', !offline && pending > 0);
+  badge.classList.toggle('is-hidden', !offline && pending === 0);
+  if (offline) {
+    badge.textContent = pending ? `● Sin conexión · ${pending} pendiente${pending === 1 ? '' : 's'}` : '● Sin conexión';
+  } else if (pending > 0) {
+    badge.textContent = `↻ Sincronizando ${pending} pendiente${pending === 1 ? '' : 's'}…`;
+  } else {
+    badge.textContent = '';
+  }
+}
+
+async function api(action, data = null, params = {}) {
+  const query = new URLSearchParams({ action, ...params });
+  const options = { credentials: 'same-origin' };
 
   if (data !== null) {
     options.method = 'POST';
-    options.headers = {
-      'Content-Type': 'application/json'
-    };
+    options.headers = { 'Content-Type': 'application/json' };
     options.body = JSON.stringify(data);
   }
 
-  const res = await fetch(
-    `api.php?${query.toString()}`,
-    options
-  );
+  let res;
+  try {
+    if (navigator.onLine === false) {
+      const offlineError = new Error('Sin conexión a Internet.');
+      offlineError.isNetworkError = true;
+      throw offlineError;
+    }
+    res = await fetch(`api.php?${query.toString()}`, options);
+  } catch (error) {
+    error.isNetworkError = true;
+    throw error;
+  }
 
   const text = await res.text();
-
   let json;
-
   try {
     json = JSON.parse(text);
   } catch {
-    throw new Error(text);
+    throw new Error(text || `HTTP ${res.status}`);
   }
 
   if (!res.ok || !json.ok) {
-    throw new Error(json.error || 'Error');
+    const apiError = new Error(json.error || 'Error');
+    apiError.status = res.status;
+    throw apiError;
   }
-
   return json;
 }
+
+window.addEventListener('online', () => {
+  divineUpdateNetworkStatus();
+  divineFlushSyncQueue().catch(error => console.error('[DIVINE SYNC]', error));
+});
+window.addEventListener('offline', divineUpdateNetworkStatus);
+document.addEventListener('divine-sync-complete', () => {
+  // Refresca la vista activa después de sincronizar para reemplazar
+  // cualquier estado optimista/offline por el estado confirmado del servidor.
+  const currentPage = document.body?.dataset?.page || '';
+  if (currentPage === 'kioskito' || currentPage === 'kioskito-vip') {
+    Promise.allSettled([
+      typeof renderKioskito === 'function' ? renderKioskito() : Promise.resolve(),
+      typeof renderGuardarropas === 'function' && !KIOSK_IS_VIP ? renderGuardarropas() : Promise.resolve(),
+      typeof renderSalesHistory === 'function' ? renderSalesHistory() : Promise.resolve(),
+      typeof renderKioskoSummary === 'function' ? renderKioskoSummary() : Promise.resolve(),
+    ]);
+  } else if (currentPage === 'listas') {
+    if (typeof renderPuerta === 'function') {
+      renderPuerta(true).catch(error => console.error('[DIVINE SYNC] No se pudo refrescar Puerta:', error));
+    }
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  divineUpdateNetworkStatus();
+  divineFlushSyncQueue().catch(error => console.error('[DIVINE SYNC]', error));
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(error => console.warn('[DIVINE PWA]', error));
+  }
+});
+setInterval(() => divineFlushSyncQueue().catch(error => console.error('[DIVINE SYNC]', error)), 5000);
 
 function showError(error, targetId = null) {
   showAppBroken('Error de la app', error, targetId);
@@ -587,9 +734,19 @@ async function renderKioskito(refreshProducts = true) {
       (Date.now() - productsLoadedAt) > PRODUCTS_CACHE_TTL_MS;
 
     if (needsProductsRefresh) {
-      const data = await api('products_list', null, { zona: KIOSK_ZONA });
-      products = data.products || [];
-      productsLoadedAt = Date.now();
+      try {
+        const data = await api('products_list', null, { zona: KIOSK_ZONA });
+        products = data.products || [];
+        productsLoadedAt = Date.now();
+        divineWriteStorage(DIVINE_PRODUCTS_CACHE_PREFIX + KIOSK_ZONA, products);
+      } catch (error) {
+        if (!divineIsNetworkError(error)) throw error;
+        const cached = divineReadStorage(DIVINE_PRODUCTS_CACHE_PREFIX + KIOSK_ZONA, []);
+        if (!Array.isArray(cached) || !cached.length) throw error;
+        products = cached;
+        productsLoadedAt = Date.now();
+        divineUpdateNetworkStatus();
+      }
     }
 
     const grouped = {};
@@ -898,7 +1055,23 @@ async function confirmCurrentSale() {
     await renderKioskoSummary();
 
   } catch (error) {
-    showError(error);
+    if (divineIsNetworkError(error)) {
+      divineQueueOperation('sale', 'sale_register', {
+        ...({ items: lines, total, zona: KIOSK_ZONA, paymentMethod: selectedPaymentMethod, payment_method: selectedPaymentMethod }),
+        clientSaleId,
+        client_sale_id: clientSaleId
+      });
+
+      if (confirm('No hay conexión. La venta quedó guardada en este dispositivo. ¿Imprimir ticket ahora?')) {
+        printTicket(lines, total, paymentText);
+      }
+      cart = {};
+      renderCart();
+      puertaFeedback?.('warning');
+      divineUpdateNetworkStatus();
+    } else {
+      showError(error);
+    }
   } finally {
     setSaleProcessing(false);
   }
@@ -1623,13 +1796,21 @@ async function renderPuerta(forceRender = false) {
       `;
     }
 
-    const data = await api(
-      'door_lists',
-      null,
-      {
-        mine: doorView === 'mine' ? 1 : 0
-      }
-    );
+    let data;
+    const cacheKey = DIVINE_DOOR_CACHE_PREFIX + (doorView === 'mine' ? 'mine' : 'all');
+    try {
+      data = await api(
+        'door_lists',
+        null,
+        { mine: doorView === 'mine' ? 1 : 0 }
+      );
+      divineWriteStorage(cacheKey, data);
+    } catch (error) {
+      if (!divineIsNetworkError(error)) throw error;
+      data = divineReadStorage(cacheKey, null);
+      if (!data) throw error;
+      divineUpdateNetworkStatus();
+    }
     const newLists = Array.isArray(data.lists) ? data.lists : [];
     const newHiddenEmpty = Array.isArray(data.hiddenEmptyLists) ? data.hiddenEmptyLists : [];
     const newSnapshot = makeDoorSnapshot(newLists) + '|' + JSON.stringify(newHiddenEmpty);
@@ -2407,7 +2588,29 @@ async function togglePersonStatus(listId, personId) {
     }, 760);
 
   } catch (error) {
-    // Revertimos el cambio optimista porque el servidor lo rechazó.
+    if (divineIsNetworkError(error)) {
+      divineQueueOperation('door_status', 'person_set_status', {
+        listId,
+        personId,
+        status: person.status,
+        expectedStatus: previousStatus
+      });
+      divineWriteStorage(
+        DIVINE_DOOR_CACHE_PREFIX + (doorView === 'mine' ? 'mine' : 'all'),
+        { ok: true, lists: doorLists, hiddenEmptyLists: hiddenEmptyDoorLists }
+      );
+      divineUpdateNetworkStatus();
+      puertaFeedback(person.status === 'se_fue' ? 'warning' : 'ok');
+      statusAnimationTimer = setTimeout(() => {
+        if (lastChangedPersonId === personId) {
+          lastChangedPersonId = null;
+          statusAnimationTimer = null;
+          drawPuerta();
+        }
+      }, 760);
+      return;
+    }
+
     person.status = previousStatus;
     lastChangedPersonId = null;
     statusAnimationTimer = null;

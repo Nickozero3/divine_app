@@ -86,6 +86,11 @@ $roles = [
   'cajera' => [
     'label' => 'Cajera',
     'desc' => 'Caja, ventas y guardarropas'
+  ],
+
+  'kioskito' => [
+    'label' => 'Kioskito',
+    'desc' => 'Ventas, caja y guardarropas'
   ]
 
 ];
@@ -355,6 +360,7 @@ $roleCounts = [
   'puerta' => 0,
   'usuario' => 0,
   'cajera' => 0,
+  'kioskito' => 0,
 ];
 
 foreach ($users as $user) {
@@ -1063,6 +1069,7 @@ foreach ($users as $user) {
 
   <link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
   <script src="js/theme.js?v=<?= asset_version('js/theme.js') ?>" defer></script>
+  <script src="pwa.js" defer></script>
 </head>
 
 <body>
@@ -1113,13 +1120,18 @@ foreach ($users as $user) {
         <div class="stat-number"><?= (int)$roleCounts['cajera'] ?></div>
         <div class="stat-label">Cajeras</div>
       </div>
+
+      <div class="stat">
+        <div class="stat-number"><?= (int)$roleCounts['kioskito'] ?></div>
+        <div class="stat-label">Kioskito</div>
+      </div>
     </div>
 
     <div class="card">
       <div class="card-head">
         <div>
           <div class="card-title">Crear usuario</div>
-          <div class="card-note">Ideal para cargar públicas, puerta o nuevos admins.</div>
+          <div class="card-note">Ideal para cargar públicas, puerta, Kioskito o nuevos admins.</div>
         </div>
       </div>
 
@@ -1185,6 +1197,7 @@ foreach ($users as $user) {
             <button type="button" class="filter-chip" data-role="puerta">Puerta</button>
             <button type="button" class="filter-chip" data-role="usuario">Usuario</button>
             <button type="button" class="filter-chip" data-role="cajera">Cajera</button>
+            <button type="button" class="filter-chip" data-role="kioskito">Kioskito</button>
           </div>
         </div>
 
