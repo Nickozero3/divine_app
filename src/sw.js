@@ -13,7 +13,6 @@ const STATIC_PATHS = new Set([
   '/js/stock-contenedor.js',
   '/script.js',
   '/pwa.js',
-  '/manifest.json'
 ]);
 
 self.addEventListener('install', event => {

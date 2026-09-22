@@ -684,7 +684,6 @@ if (!function_exists('e')) {
   <title>Stock del contenedor · <?= e((string) APP_NAME) ?></title>
 
   <link rel="icon" type="image/x-icon" href="./favicon.ico">
-  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css?v=<?= asset_version('styles.css') ?>">
   <link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
   <link rel="stylesheet" href="styles/stock-contenedor.css?v=<?= asset_version('styles/stock-contenedor.css') ?>">

@@ -152,7 +152,6 @@ $appVersion = defined('APP_VERSION') ? (string) APP_VERSION : '';
   <title>Panel · <?= e(APP_NAME) ?></title>
 
   <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css?v=<?= e(homeAssetVersion('styles.css')) ?>">
   <link rel="stylesheet" href="styles/theme.css?v=<?= e(homeAssetVersion('styles/theme.css')) ?>">
   <link rel="stylesheet" href="styles/index.css?v=<?= e(homeAssetVersion('styles/index.css')) ?>">

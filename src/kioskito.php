@@ -18,7 +18,6 @@ if (!$canSeeKioskito) {
   <title><?= e(APP_NAME) ?> · Kioskito</title>
   <link rel="stylesheet" href="styles.css?v=<?= asset_version('styles.css') ?>">
   <link rel="icon" type="image/x-icon" href="./favicon.ico">
-  <link rel="manifest" href="manifest.json">
 
 <link rel="stylesheet" href="styles/theme.css?v=<?= asset_version('styles/theme.css') ?>">
 <link rel="stylesheet" href="styles/kioskito.css?v=<?= asset_version('styles/kioskito.css') ?>">
