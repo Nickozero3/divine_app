@@ -140,9 +140,6 @@ function appErrorBox(title, error = null, targetId = null) {
 
 
 let APP_BROKEN = false;
-let DIVINE_RATE_LIMIT_UNTIL = 0;
-let DIVINE_RATE_LIMIT_TIMER = null;
-const DIVINE_GET_INFLIGHT = new Map();
 
 function getErrorMessage(error) {
   if (!error) return 'Error desconocido';
@@ -241,6 +238,12 @@ async function safeRunAsync(label, fn, targetId = null) {
   try {
     return await fn();
   } catch (error) {
+    // Un 429 de Railway es temporal: no debemos romper la UI ni reemplazar
+    // la sección por un error. La función que hizo la petición conserva
+    // los últimos datos válidos y el polling reintentará más tarde.
+    if (error && (error.status === 429 || error.isRateLimited === true)) {
+      return null;
+    }
     showAppBroken(label, error, targetId);
     return null;
   }
@@ -258,6 +261,12 @@ const DIVINE_SYNC_QUEUE_KEY = 'divine_sync_queue_v1';
 const DIVINE_PRODUCTS_CACHE_PREFIX = 'divine_products_cache_v1:';
 const DIVINE_DOOR_CACHE_PREFIX = 'divine_door_cache_v1:';
 const DIVINE_MAX_OFFLINE_QUEUE = 500;
+const DIVINE_RATE_LIMIT_COOLDOWN_MS = 15_000;
+const DIVINE_SYNC_INTERVAL_MS = 30_000;
+const DIVINE_LIVE_INTERVAL_MS = 10_000;
+const DIVINE_SUMMARY_REFRESH_MS = 30_000;
+const DIVINE_GUARDARROPAS_REFRESH_MS = 30_000;
+let divineRateLimitUntil = 0;
 
 function divineIsNetworkError(error) {
   return Boolean(error && error.isNetworkError === true) || navigator.onLine === false;
@@ -371,27 +380,9 @@ function divineUpdateNetworkStatus() {
   }
 }
 
-function divineShowRateLimitNotice(seconds = 6) {
-  const existing = document.getElementById('divine-rate-limit-notice');
-  if (existing) existing.remove();
-  const el = document.createElement('div');
-  el.id = 'divine-rate-limit-notice';
-  el.style.cssText = 'position:fixed;right:14px;bottom:14px;z-index:99999;max-width:340px;padding:12px 14px;border-radius:14px;background:rgba(20,20,24,.96);border:1px solid rgba(255,193,7,.35);color:var(--text,#fff);box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 13px Arial,sans-serif;';
-  el.innerHTML = `🟡 Servidor temporalmente limitado. Divine mantiene la pantalla y reintentará automáticamente.`;
-  document.body.appendChild(el);
-  clearTimeout(DIVINE_RATE_LIMIT_TIMER);
-  DIVINE_RATE_LIMIT_TIMER = setTimeout(() => el.remove(), Math.max(4000, seconds * 1000));
-}
-
 async function api(action, data = null, params = {}) {
   const query = new URLSearchParams({ action, ...params });
   const options = { credentials: 'same-origin' };
-  const isGet = data === null;
-  const requestKey = isGet ? query.toString() : null;
-
-  if (isGet && DIVINE_GET_INFLIGHT.has(requestKey)) {
-    return DIVINE_GET_INFLIGHT.get(requestKey);
-  }
 
   if (data !== null) {
     options.method = 'POST';
@@ -399,62 +390,49 @@ async function api(action, data = null, params = {}) {
     options.body = JSON.stringify(data);
   }
 
-  const run = (async () => {
+  let res;
+  try {
     if (navigator.onLine === false) {
       const offlineError = new Error('Sin conexión a Internet.');
       offlineError.isNetworkError = true;
       throw offlineError;
     }
 
-    if (Date.now() < DIVINE_RATE_LIMIT_UNTIL) {
-      const waitError = new Error('Servidor temporalmente limitado.');
-      waitError.status = 429;
-      waitError.isRateLimited = true;
-      throw waitError;
+    // Si Railway acaba de limitar el servicio, no volvemos a golpearlo.
+    // Esto evita el efecto 'martillo' que convierte un 429 puntual en muchos 429.
+    if (Date.now() < divineRateLimitUntil) {
+      const rateError = new Error('Servidor temporalmente limitado');
+      rateError.status = 429;
+      rateError.isRateLimited = true;
+      throw rateError;
     }
 
-    let res;
-    try {
-      res = await fetch(`api.php?${query.toString()}`, options);
-    } catch (error) {
-      error.isNetworkError = true;
-      throw error;
-    }
-
-    if (res.status === 429) {
-      const retryAfter = Number(res.headers.get('Retry-After')) || 6;
-      DIVINE_RATE_LIMIT_UNTIL = Date.now() + Math.min(Math.max(retryAfter, 4), 30) * 1000;
-      divineShowRateLimitNotice(retryAfter);
-      const apiError = new Error('Servidor temporalmente limitado.');
-      apiError.status = 429;
-      apiError.isRateLimited = true;
-      throw apiError;
-    }
-
-    const text = await res.text();
-    let json;
-    try {
-      json = JSON.parse(text);
-    } catch {
-      const parseError = new Error(text || `HTTP ${res.status}`);
-      parseError.status = res.status;
-      throw parseError;
-    }
-
-    if (!res.ok || !json.ok) {
-      const apiError = new Error(json.error || 'Error');
-      apiError.status = res.status;
-      throw apiError;
-    }
-    return json;
-  })();
-
-  if (isGet) {
-    DIVINE_GET_INFLIGHT.set(requestKey, run);
-    try { return await run; }
-    finally { DIVINE_GET_INFLIGHT.delete(requestKey); }
+    res = await fetch(`api.php?${query.toString()}`, options);
+  } catch (error) {
+    error.isNetworkError = true;
+    throw error;
   }
-  return run;
+
+  const text = await res.text();
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+
+  if (!res.ok || !json.ok) {
+    const apiError = new Error(json.error || 'Error');
+    apiError.status = res.status;
+    if (res.status === 429) {
+      const retryAfter = Number(res.headers.get('Retry-After') || 0);
+      const cooldown = Math.max(15_000, Math.min(60_000, retryAfter * 1000 || DIVINE_RATE_LIMIT_COOLDOWN_MS));
+      divineRateLimitUntil = Date.now() + cooldown;
+      apiError.isRateLimited = true;
+    }
+    throw apiError;
+  }
+  return json;
 }
 
 window.addEventListener('online', () => {
@@ -487,13 +465,13 @@ document.addEventListener('DOMContentLoaded', () => {
     navigator.serviceWorker.register('sw.js').catch(error => console.warn('[DIVINE PWA]', error));
   }
 });
-setInterval(() => divineFlushSyncQueue().catch(error => console.error('[DIVINE SYNC]', error)), 5000);
+setInterval(() => {
+  if (!document.hidden && navigator.onLine !== false) {
+    divineFlushSyncQueue().catch(error => console.error('[DIVINE SYNC]', error));
+  }
+}, DIVINE_SYNC_INTERVAL_MS);
 
 function showError(error, targetId = null) {
-  if (error?.isRateLimited || Number(error?.status) === 429) {
-    console.warn('[DIVINE RATE LIMIT]', error);
-    return;
-  }
   showAppBroken('Error de la app', error, targetId);
 }
 
@@ -2702,6 +2680,9 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 let liveTimer = null;
 let liveIsLoadingPuerta = false;
 let liveIsLoadingKioskito = false;
+let liveLastSummaryAt = 0;
+let liveLastGuardarropasAt = 0;
+let liveLastPuertaAt = 0;
 
 function startLiveApp() {
   if (liveTimer) {
@@ -2728,9 +2709,11 @@ function startLiveApp() {
       !modalAbierto &&
       !panelQuickAbierto &&
       !pegandoLista &&
-      Date.now() > statusAnimationUntil
+      Date.now() > statusAnimationUntil &&
+      Date.now() - liveLastPuertaAt >= 5_000
     ) {
       liveIsLoadingPuerta = true;
+      liveLastPuertaAt = Date.now();
 
       try {
         await renderPuerta();
@@ -2750,18 +2733,27 @@ function startLiveApp() {
       liveIsLoadingKioskito = true;
 
       try {
-        await Promise.all([
-          renderKioskito(false),
-          ...(KIOSK_IS_VIP ? [] : [renderGuardarropas()]),
-          renderKioskoSummary(),
-        ]);
+        // Productos ya tienen caché. No vuelvas a pedirlos en cada tick.
+        await renderKioskito(false);
+
+        const now = Date.now();
+        const jobs = [];
+        if (now - liveLastSummaryAt >= DIVINE_SUMMARY_REFRESH_MS) {
+          liveLastSummaryAt = now;
+          jobs.push(renderKioskoSummary());
+        }
+        if (!KIOSK_IS_VIP && now - liveLastGuardarropasAt >= DIVINE_GUARDARROPAS_REFRESH_MS) {
+          liveLastGuardarropasAt = now;
+          jobs.push(renderGuardarropas());
+        }
+        if (jobs.length) await Promise.allSettled(jobs);
       } catch (e) {
         console.error("Error actualizando kioskito:", e);
       } finally {
         liveIsLoadingKioskito = false;
       }
     }
-  }, 6000);
+  }, DIVINE_LIVE_INTERVAL_MS);
 }
 
 document.addEventListener('visibilitychange', () => {
